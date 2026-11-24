@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.2.0
+ * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.2.0-b
  * - 비주얼 노벨 대화창 (6종 표정 mood 오버레이 · 감정 모션 · AUTO 기본 OFF)
  * - 저항력 50% 이하 봉인 개방 & 랜덤 구역 고난도 무딜레이 게이지
  * - 배틀 커맨드 & 카드 그리드 키보드(방향키/WASD + X/Z) 완전 조작
@@ -400,6 +400,85 @@ export function createBattleEngine(hooks) {
     if (state.timing) {
       state.trackW = $('sealTrack')?.clientWidth || 320;
       syncCursorVisual();
+    }
+  }
+
+  /** 적 유형(보스/사건/카드)에 따른 표시 이름 반환 */
+  function getEnemyDisplayName(e) {
+    if (!e) return '';
+    if (e.isBoss) {
+      if (hooks.part === 2) return state.phase === 1 ? '스피넬 썬 & 루비 문' : '에리오르';
+      return '유에';
+    }
+    if (e.isIncident) return e.kr || e.title || '사건 보스';
+    return cardName(e);
+  }
+
+  /** 다음 턴 적 행동 패턴 및 예고 배너 결정 */
+  function pickIntent() {
+    const e = state.enemy;
+    if (!e) return;
+    state.turn++;
+    if (state.exhausted) {
+      state.intent = {
+        type: 'recover',
+        label: e.isBoss
+          ? (hooks.part === 2
+              ? '💫 결전 마무리 찬스! 지금 [★ 어둠·빛 여명!]으로 토모에다의 아침을 열자!'
+              : '💫 심판 돌파 찬스! 지금 [🌟 최후의 해방!]을 실행하자!')
+          : e.isIncident
+          ? '💫 사건 돌파 찬스! 지금 [★ 사건 돌파!]를 실행하지 않으면 마력을 회복한다!'
+          : `💫 탈진 상태! 지금 [${hooks.part === 2 ? '★ 사쿠라 변환!' : '🌟 봉인!'}] 하지 않으면 다음 턴 저항력을 회복한다!`
+      };
+      return;
+    }
+
+    if (e.isBoss) {
+      const st = state.turn % 4;
+      if (hooks.part === 1) {
+        if (state.phase === 1) {
+          state.intent = st === 1 ? { type: 'attack', dmg: 22, label: '⚔ 은빛 날개 칼날 (예상 피해 22)' }
+            : st === 2 ? { type: 'barrier', label: '☽ 다음 턴 [달빛 결계] 전개 예정 (전개 후 소드·이레이즈·원호로 파괴)' }
+            : st === 3 ? { type: 'charge', label: '🌕 마력 집중! 다음 턴 [창백한 월광의 심판] 예고!' }
+            : { type: 'big', dmg: 42, label: '🌕 [강력 예고!] 창백한 월광의 심판 (피해 42 · 방어/실드/점프 권장!)' };
+        } else {
+          state.intent = st === 1 ? { type: 'drain', dmg: 26, mp: 14, label: '☽ 달의 지배 (피해 26 + MP 14 흡수)' }
+            : st === 2 ? { type: 'reflect', label: '🪞 다음 턴 [만월의 거울막] 전개 예정 (전개 후 공격 시 반사됨!)' }
+            : st === 3 ? { type: 'charge', label: '🌕 만월의 심판 준비! 다음 턴 [최후의 은빛 심판] 발동!' }
+            : { type: 'big', dmg: 52, label: '🌕 [치명 예고!] 최후의 은빛 심판 (피해 52 · 방어/실드/점프 필수!)' };
+        }
+      } else {
+        if (state.phase === 1) {
+          state.intent = st === 1 ? { type: 'attack', dmg: 25, label: '🦋 스피넬 썬 & 루비 문 합동 마력탄 (예상 피해 25)' }
+            : st === 2 ? { type: 'barrier', label: '🛡 다음 턴 [흑태양의 결계] 전개 예정 (소드·이레이즈·원호로 파괴)' }
+            : st === 3 ? { type: 'charge', label: '⚡ 스피넬 썬이 푸른 마력을 응집한다! 다음 턴 강공격 예고!' }
+            : { type: 'big', dmg: 46, label: '🔥 [강력 예고!] 흑태양과 홍월의 교차 포화 (피해 46 · 방어/실드/점프 권장!)' };
+        } else {
+          state.intent = st === 1 ? { type: 'drain', dmg: 29, mp: 16, label: '🌑 에리오르의 영원한 수면 어둠 (피해 29 + MP 16 흡수)' }
+            : st === 2 ? { type: 'reflect', label: '🪞 다음 턴 [크로우의 반사 거울막] 전개 예정 (전개 후 공격 시 반사!)' }
+            : st === 3 ? { type: 'charge', label: '🌌 에리오르가 태양과 달의 지팡이를 들어올린다! 최후의 시련 예고!' }
+            : { type: 'big', dmg: 56, label: '🌌 [치명 예고!] 토모에다를 덮는 영원한 어둠 (피해 56 · 방어/실드/점프 필수!)' };
+        }
+      }
+      return;
+    }
+
+    if (state.intent && state.intent.type === 'charge') {
+      const d = Math.round((e.atk || 16) * 1.72);
+      state.intent = { type: 'big', dmg: d, label: `🔥 [필살 예고!] ${e.sigName || '강력한 마법'} (피해 ${d} · 방어/실드/점프 권장!)` };
+      return;
+    }
+
+    if (state.turn % 3 === 2) {
+      const g = e.gimmick || 'charge';
+      if (g === 'charge') state.intent = { type: 'charge', label: `⚡ 마력 응집 중! 다음 턴 [${e.sigName || '필살기'}] 예고!` };
+      else if (g === 'barrier') state.intent = { type: 'barrier', label: '🛡 다음 턴 [마력 결계] 전개 예정 (전개 후 소드·이레이즈·원호로 파괴)' };
+      else if (g === 'reflect') state.intent = { type: 'reflect', label: '🪞 다음 턴 [거울 반사막] 전개 예정 (전개 후 일반 공격 반사)' };
+      else if (g === 'evade') state.intent = { type: 'evade', label: '🪽 다음 턴 [고속 회피] 태세 예정 (전개 후 지팡이 회피)' };
+      else if (g === 'drain') state.intent = { type: 'drain', dmg: Math.round((e.atk || 16) * 0.95), mp: 12, label: `🌑 ${e.sigName || '마력 흡수'} (피해 ${Math.round((e.atk || 16) * 0.95)} + MP 12 흡수)` };
+      else state.intent = { type: 'heal', label: `🌿 ${e.sigName || '마력 재생'} (저항력 회복 + 약한 반격)` };
+    } else {
+      state.intent = { type: 'attack', dmg: e.atk || 16, label: `⚔ ${e.sigName || '마법 반격'} (예상 피해 ${e.atk || 16})` };
     }
   }
 
