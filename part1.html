@@ -76,7 +76,7 @@
         <span id="hudCardCount" class="px-1.5 rounded bg-black/40 text-yellow-300">1/19</span>
       </button>
       <button id="btnOpenWardrobe" class="px-2 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-pink-300/55 text-pink-100 text-xs font-bold transition" title="마법 의상실">🎀<span class="hidden sm:inline ml-1">의상</span></button>
-      <button id="btnOpenSave" class="px-2 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition">☁ 저장</button>
+      <button id="btnOpenSave" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[115px] truncate">👤 로그인</button>
       <button id="btnKeroHint" class="px-2 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/35 border border-pink-400/50 text-pink-100 text-xs font-bold transition">🐾</button>
       <button id="btnSoundToggle" class="px-2 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/50 text-indigo-100 text-xs font-bold transition">🎵</button>
     </div>
@@ -256,36 +256,83 @@
         <button id="btnStartGame" disabled class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 disabled:opacity-45 border-2 border-yellow-300 text-white font-story font-bold text-base shadow-2xl transition">새 모험 시작하기 (X)</button>
         <div class="grid grid-cols-2 gap-2 mt-2.5">
           <button id="btnLocalContinue" class="hidden py-2.5 rounded-2xl bg-indigo-600/45 hover:bg-indigo-500/60 border border-indigo-300/60 text-indigo-100 font-story font-bold text-xs">⚡ 최근 모험 이어하기</button>
-          <button id="btnTitleLoad" class="col-span-2 py-2.5 rounded-2xl bg-emerald-600/30 hover:bg-emerald-500/45 border border-emerald-300/60 text-emerald-100 font-story font-bold text-xs">☁ 클라우드 불러오기</button>
+          <button id="btnTitleLoad" class="col-span-2 py-2.5 rounded-2xl bg-emerald-600/30 hover:bg-emerald-500/45 border border-emerald-300/60 text-emerald-100 font-story font-bold text-xs">👤 계정 로그인 / 이어하기</button>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
+          <span>PART I · REMASTER</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0</span>
         </div>
       </div>
     </div>
-
-    <!-- 엔딩 화면 -->
-    <div id="endingBox" class="hidden absolute inset-0 z-[45] ending-backdrop flex items-center justify-center p-4">
-      <div class="max-w-xl w-full glass rounded-3xl p-6 sm:p-8 text-center">
-        <p class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">PART I CLEAR · THE NEW MASTER</p>
-        <h2 class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">새로운 크로우 카드의 주인</h2>
-        <p id="endingSummary" class="font-story text-sm text-pink-100/90 leading-relaxed mb-6"></p>
-        <div class="flex flex-wrap gap-2.5 justify-center">
-          <button id="btnContinueExplore" class="px-5 py-3 rounded-2xl bg-indigo-600/85 hover:bg-indigo-500 border border-indigo-300/60 text-white font-story font-bold text-sm">평화로운 마을 둘러보기</button>
-          <button id="btnRestartAll" class="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm">처음부터 다시 모험하기</button>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- 크로우 북 모달 -->
-  <div id="bookModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
-    <div class="w-full max-w-5xl max-h-[88dvh] bg-gradient-to-b from-[#2b103f] to-[#120624] border-2 border-yellow-400/75 rounded-3xl flex flex-col overflow-hidden shadow-2xl">
-      <div class="flex items-center justify-between px-5 py-3.5 border-b border-yellow-400/30 bg-black/30">
+  <!-- 마법 의상실 모달 (8벌 확장 + 원클릭 홍차 회복) -->
+  <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
+      <div class="flex items-center justify-between border-b border-pink-300/35 pb-3 gap-2">
         <div>
-          <h2 class="font-magic text-lg sm:text-xl font-bold text-yellow-300 tracking-wider">THE CLOW BOOK</h2>
-          <p class="text-xs text-pink-200 font-story">봉인한 카드의 [✨ 기억 돌아보기]로 그날의 이상 현상과 배틀을 다시 체험할 수 있습니다 · 닫기(Z)</p>
+          <h2 id="wardrobeTitle" class="font-story text-lg font-bold text-pink-200">🎀 토모요의 마법 의상실</h2>
+          <p id="wardrobeDesc" class="text-xs text-yellow-100/85 font-story">의상을 갈아입으면 맵 위 외형과 전략 패시브가 즉시 적용됩니다! · 닫기(Z)</p>
         </div>
-        <button id="btnCloseBook" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btnWardrobeHeal" class="px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-yellow-300/65 text-yellow-100 text-xs font-story font-bold transition">☕ 홍차 회복</button>
+          <button id="btnCloseWardrobe" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
+        </div>
       </div>
-      <div id="bookGrid" class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 overflow-y-auto"></div>
+      <div id="wardrobeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- 계정 로그인 & 대시보드 모달 -->
+  <div id="saveModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-md glass rounded-3xl p-5 sm:p-6 flex flex-col gap-3.5">
+      <div class="flex items-center justify-between border-b border-yellow-400/30 pb-3">
+        <div>
+          <h2 id="authModalTitle" class="font-magic text-base sm:text-lg font-bold text-emerald-300 tracking-wider">ACCOUNT LOGIN · PART I</h2>
+          <p id="authModalSub" class="text-[11px] text-pink-100/85 font-story">아이디와 비밀번호로 로그인하면 자동 저장 및 기기 간 연동이 켜집니다.</p>
+        </div>
+        <button id="btnCloseSave" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
+      </div>
+
+      <!-- 로그인 전 화면 -->
+      <div id="authLoginView" class="flex flex-col gap-3">
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label for="savePlayerId" class="block text-yellow-200 font-bold mb-1">아이디 (한글·영문 자유)</label>
+            <input id="savePlayerId" type="text" maxlength="24" placeholder="예: 체리좋아 / my_id" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-yellow-400/45 text-white text-sm focus:outline-none focus:border-pink-400 select-text" />
+          </div>
+          <div>
+            <label for="saveSecret" class="block text-pink-200 font-bold mb-1">비밀번호 (4~16자)</label>
+            <input id="saveSecret" type="password" maxlength="16" placeholder="자유 암호 / 기존 PIN" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-pink-400/45 text-white text-sm focus:outline-none focus:border-yellow-300 select-text" />
+          </div>
+        </div>
+        <button id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 border border-emerald-300/75 text-white font-story font-bold text-sm shadow-lg">🔓 로그인 / 새 계정 만들기</button>
+        <button id="btnGuestClose" class="w-full py-2 rounded-xl bg-slate-800/75 hover:bg-slate-700/80 border border-slate-500/50 text-slate-200 font-story text-xs">게스트로 계속하기 (브라우저 임시 저장)</button>
+      </div>
+
+      <!-- 로그인 후 대시보드 화면 -->
+      <div id="authDashView" class="hidden flex flex-col gap-3">
+        <div class="rounded-2xl bg-emerald-950/55 border border-emerald-400/50 p-3.5 flex items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="dashUserId" class="font-bold text-sm text-emerald-100"></span>
+            </div>
+            <div class="text-[11px] text-emerald-200/85 font-story mt-0.5">☁ 클라우드 자동 저장 활성화됨</div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-300/50 text-[10px] font-bold text-emerald-100">ONLINE</span>
+        </div>
+        <div id="savePreviewInfo" class="rounded-2xl bg-black/40 border border-purple-400/30 p-3 text-xs font-story text-pink-100 leading-relaxed"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnCloudSave" class="py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-300/70 text-white font-story font-bold text-sm">💾 수동 저장</button>
+          <button id="btnAuthLogout" class="py-2.5 rounded-xl bg-slate-700/85 hover:bg-slate-600 border border-slate-400/55 text-slate-100 font-story font-bold text-sm">🚪 로그아웃</button>
+        </div>
+        <button id="btnCloudDelete" class="py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/45 text-rose-200 font-story text-xs font-bold">🗑 이 계정의 저장 데이터 초기화</button>
+      </div>
+
+      <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
+      <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
+        <span>SAKURA CLOUD ARCHIVE</span>
+        <span id="modalVersionBadge">v.0.2.0</span>
+      </div>
     </div>
   </div>
 
@@ -375,11 +422,14 @@
       }
 
       const {
-        SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
+        VERSION, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
         createWorldEngine, createVNEngine, createBattleEngine
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
+      const APP_VER = VERSION?.part1 || 'v.0.2.0';
+      if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
+      if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
 
       // 1. 제1부 게임 상태 및 공용 엔진 초기화
@@ -432,32 +482,32 @@
       const isCardActiveOnMap = (id) => memoryMode.active ? (memoryMode.cardId === id) : (id !== 'windy' && !ownedCards.has(id));
       const getUnsealed = () => CARD_ORDER.filter(isCardActiveOnMap).map((id) => CARDS[id]);
       const getCardPos = (c) => c.id === 'jump' ? { x: anomaly.jumpX, y: anomaly.jumpY } : c.id === 'glow' ? { x: anomaly.glowX, y: anomaly.glowY } : { x: c.x, y: c.y };
-      const countUnsealedInMap = (mid) => CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id].map === mid).length;
-      const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0] || { id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', dressColor: '#f472b6', accentColor: '#fff1f2', hatType: 'beret', hatColor: '#f43f5e' };
 
-      function recalcPower(healDiff = false) {
-        const prevMaxHp = player.maxHp;
-        const prevMaxMp = player.maxMp;
-        const st = Rules.calcStats({
-          part: 1,
-          progressCount: Math.max(0, ownedCards.size - 1),
-          total: CARD_ORDER.length || 19,
-          costumeId: story.costumeId,
-          progCfg: DATA?.progression
-        });
-        player.lv = st.lv;
-        player.maxHp = st.maxHp;
-        player.maxMp = st.maxMp;
-        player.mult = st.mult;
-        if (healDiff) {
-          if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
-          if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
+      const MAP_GROUPS = {
+        house: ['house', 'house_f1', 'house_b1', 'house_f2'],
+        house_f1: ['house_f1', 'house_b1', 'house_f2'],
+        school: ['school', 'school_f1', 'school_f2', 'school_hall'],
+        school_f1: ['school_f1', 'school_f2', 'school_hall'],
+        shrine: ['shrine', 'shrine_gate', 'shrine_main', 'shrine_cave'],
+        shrine_gate: ['shrine_gate', 'shrine_main', 'shrine_cave']
+      };
+      function countUnsealedInMap(mid) {
+        if (currentMapId === 'town' && MAP_GROUPS[mid]) {
+          const grp = MAP_GROUPS[mid];
+          return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && grp.includes(CARDS[id].map)).length;
         }
-        player.hp = clamp(player.hp, 1, player.maxHp);
-        player.mp = clamp(player.mp, 0, player.maxMp);
+        return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id].map === mid).length;
       }
 
-      function getMoveSpeed() {
+      /** 유에가 시계탑에 강림해 있는 동안 유키토(청명) 숨김 (원작 동일체 고증!) */
+      function isNpcVisible(n) {
+        if (n.map !== currentMapId) return false;
+        const yueSummoned = ownedCards.size === CARD_ORDER.length && !yueDefeated && !memoryMode.active;
+        if (n.id === 'yukito' && yueSummoned) return false;
+        return true;
+      }
+
+      const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0] || Rules.DEFAULT_COSTUMES_P1[0];
         let s = 215 + (ownedCards.has('fly') ? 28 : 0) + (ownedCards.has('jump') ? 20 : 0);
         s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
         if (buffs.fly > 0 || buffs.flyLand) s *= 1.55;
@@ -621,7 +671,7 @@
         if (!DATA) return;
         const grid = $('wardrobeGrid'); grid.innerHTML = '';
         COSTUMES.forEach((cos) => {
-          const unlocked = Rules.isCostumeUnlocked(cos, { ownedCards });
+          const unlocked = Rules.isCostumeUnlocked(cos, { ownedCards, bossCleared: yueDefeated });
           const equipped = story.costumeId === cos.id;
           const card = document.createElement('div');
           card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${equipped ? 'bg-pink-900/45 border-yellow-300 shadow-lg' : unlocked ? 'bg-purple-950/75 border-pink-300/40' : 'bg-black/45 border-white/10 opacity-65'}`;
@@ -653,6 +703,17 @@
 
       // 5. HUD & 필드 퀵바 & 토스트
       let lastHudSig = '', toastId = null;
+      function syncAuthButton() {
+        const btn = $('btnOpenSave');
+        if (!btn) return;
+        if (cloudCreds.id) {
+          btn.textContent = `🟢 ${cloudCreds.id}`;
+          btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/45 border border-emerald-300 text-emerald-100 text-xs font-bold transition max-w-[125px] truncate';
+        } else {
+          btn.textContent = '👤 로그인';
+          btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[115px] truncate';
+        }
+      }
       function showToast(msg) {
         $('toastText').textContent = Locale.t(msg);
         $('toastBox').style.opacity = '1';
@@ -685,11 +746,15 @@
             for (const c of here) { const p = getCardPos(c), d = Math.hypot(p.x - player.x, p.y - player.y); if (d < bestD) { bestD = d; best = { ...c, x: p.x, y: p.y }; } }
             return best;
           }
-          const tc = rem[0], portal = toArr(getMap()?.portals).find((p) => p.targetMap === tc.map) || toArr(getMap()?.portals)[0];
-          return portal ? { isPortal: true, x: portal.x, y: portal.y, zone: tc.zone, targetCard: tc } : tc;
+          const tc = rem[0];
+          const portals = toArr(getMap()?.portals);
+          const direct = portals.find((p) => p.targetMap === tc.map)
+            || portals.find((p) => MAP_GROUPS[p.targetMap]?.includes(tc.map))
+            || portals[0];
+          return direct ? { isPortal: true, x: direct.x, y: direct.y, zone: tc.zone, targetCard: tc } : tc;
         }
         if (!yueDefeated && !memoryMode.active && BOSS_YUE) {
-          if (currentMapId !== 'town') { const p = toArr(getMap()?.portals)[0]; return p ? { isPortal: true, isBoss: true, x: p.x, y: p.y, zone: BOSS_YUE.zone, targetCard: BOSS_YUE } : BOSS_YUE; }
+          if (currentMapId !== 'town') { const p = toArr(getMap()?.portals).find((x) => x.targetMap === 'town') || toArr(getMap()?.portals)[0]; return p ? { isPortal: true, isBoss: true, x: p.x, y: p.y, zone: BOSS_YUE.zone, targetCard: BOSS_YUE } : BOSS_YUE; }
           return BOSS_YUE;
         }
         return null;
@@ -772,65 +837,65 @@
           player.mp -= s.mp; buffs.wind = 11; SoundFX.magic(); world.burst(player.x, player.y, '#38bdf8', 22);
           if (currentMapId === 'town' && isCardActiveOnMap('jump') && Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY) < 260) {
             anomaly.jumpBind = 5.5; showToast('바람(윈디) 해방! 도망치던 도약(점프) 현상을 5초간 포박했습니다!');
-          } else showToast('바람(윈디) 해방! 덩굴·물결 방해 무효화 & 다음 전투 선제 충격!');
-        } else if (s.id === 'shield') {
-          if (buffs.shield) return showToast('이미 황금 결계가 펼쳐져 있습니다!');
-          player.mp -= s.mp; buffs.shield = true; SoundFX.magic(); world.burst(player.x, player.y, '#fde047', 20);
-          showToast('방패(실드) 해방! 황금 결계를 두른 채 다음 전투를 시작합니다!');
-        }
-        updateHUD(true); updateFieldBar();
-      }
-
-      // 6. NPC 확장 대화
+      // 6. NPC 역할 명확화 & 원작 디테일(미러 후 토우야 특별 대사 · 표정 mood)
       function talkNPC(npc) {
         if (npc.id === 'tomoyo') {
           player.hp = player.maxHp; player.mp = player.maxMp; updateHUD(true); SoundFX.heal();
+          showToast('☕ 토모요의 홍차로 HP·MP가 완전 회복되었습니다!');
           const latest = story.sealedOrder.length ? CARDS[story.sealedOrder[story.sealedOrder.length - 1]] : null;
           const filmMsg = latest
             ? `방금 봉인하신 [${cardName(latest)}] 장면이 어찌나 사랑스러웠는지 카메라에 고스란히 담아 두었답니다!`
-            : '황혼빛 아래 마법 의상이 정말 눈부셔요! 따뜻한 홍차 드시고 기운 내세요. (HP · MP 완전 회복!)';
+            : '황혼빛 아래 마법 의상이 정말 눈부셔요! 따뜻한 홍차 드시고 기운 내세요!';
           vn.start([
-            { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: filmMsg },
+            { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: filmMsg },
             {
-              speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo',
+              speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy',
               text: `현재 착용 중인 [${getCostumeObj().name}] 외에 새 배틀 의상도 준비해 두었어요. 의상실을 열어 보실래요?`,
               choices: [
-                { label: '🎀 마법 의상실 열기 (의상 갈아입기)', effect: () => Timers.after(() => openWardrobeModal(), 80), reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: '마음에 드는 의상을 골라 보세요! 각 의상마다 특별한 마법 효과도 깃들어 있답니다!' }] },
-                { label: '고마워 토모요! 홍차만 마시고 바로 출발할게!', reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: '네! 멋진 활약, 오늘도 응원할게요!' }] }
+                { label: '🎀 응! 마법 의상실 열어줘!', effect: () => Timers.after(() => openWardrobeModal(), 80), reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 의상마다 특별한 마법 효과가 깃들어 있답니다!' }] },
+                { label: '고마워 토모요! 홍차만 마시고 바로 출발할게!', reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '네! 멋진 활약, 오늘도 응원할게요!' }] }
               ]
             }
           ]);
         } else if (npc.id === 'touya') {
-          const healAmt = Math.min(player.maxHp - player.hp, 25);
-          player.hp += healAmt; buffs.cocoaBuff = true; SoundFX.heal(); updateHUD(true);
-          const syaNote = story.syaoranTrust >= 2 ? ' ...요즘 그 이상한 꼬마 녀석이랑 꽤 친해진 모양이던데, 수상한 짓 하면 가만 안 둔다.' : '';
-          vn.start([
-            { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', text: `어이 괴물, 해 지는데 또 어디 돌아다니는 거냐? ...자, 따뜻한 코코아나 마시고 가. (HP +${healAmt} · 다음 전투 공격력 +15%!)` },
-            { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', text: '흥, 괴물 아니거든! ...그래도 코코아 고마워, 오빠!' },
-            { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', text: `무리해서 다치지 마라.${syaNote}` }
-          ]);
+          buffs.cocoaBuff = true; SoundFX.heal(); updateHUD(true);
+          showToast('☕ 토우야의 코코아! 다음 전투 공격력 +15% · 치명타 +10%!');
+          if (ownedCards.has('mirror')) {
+            vn.start([
+              { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', mood: 'normal', text: '어이 괴물. ...아까 집 앞에서 너랑 똑같이 생긴 녀석이 나한테 엄청 얌전하게 인사하던데. 평소에 시끄러운 네가 그렇게 조용할 리가 없잖아.' },
+              { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'shock', text: '으악?! 오, 오빠... 가짜였다는 거 알고 있었어?!' },
+              { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', mood: 'happy', text: '당연하지. ...뭐, 나쁜 녀석은 아닌 것 같더라. 나중에 만나면 잘 챙겨 줘라. 자, 코코아나 마시고 힘내. (다음 전투 공격+15%·치명+10%!)' }
+            ]);
+          } else {
+            const syaNote = story.syaoranTrust >= 2 ? ' ...요즘 그 이상한 꼬마 녀석이랑 꽤 친해진 모양이던데, 수상한 짓 하면 가만 안 둔다.' : '';
+            vn.start([
+              { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', mood: 'normal', text: '어이 괴물, 해 지는데 또 어디 돌아다니는 거냐? ...자, 따뜻한 코코아나 마시고 가. (다음 전투 공격력 +15% · 치명타 +10%!)' },
+              { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'shy', text: '흥, 괴물 아니거든! ...그래도 코코아 고마워, 오빠!' },
+              { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', mood: 'normal', text: `무리해서 다치지 마라.${syaNote}` }
+            ]);
+          }
         } else if (npc.id === 'yukito') {
-          const healAmt = Math.min(player.maxHp - player.hp, 18);
-          player.hp += healAmt; buffs.snackBuff = true; SoundFX.heal(); updateHUD(true);
+          buffs.snackBuff = true; SoundFX.heal(); updateHUD(true);
+          showToast('🍙 유키토의 간식! 다음 전투 피해 22% 경감 · 매 턴 MP +3!');
           const hint = ownedCards.size >= 14
             ? '이상하게 요즘 보름달이 가까워질수록 가끔 기억이 잠깐씩 끊기는 기분이 들어... 그래도 사쿠라가 웃는 걸 보면 안심이 돼.'
-            : '직접 만든 주먹밥과 만두야! 든든하게 먹고 힘내, 사쿠라! (HP 회복 · 다음 전투 피해 22% 경감!)';
+            : '직접 만든 주먹밥과 만두야! 든든하게 먹고 힘내, 사쿠라! (다음 전투 피해 22% 경감 · 매 턴 MP +3!)';
           vn.start([
-            { speaker: '유키토', role: 'GENTLE FRIEND', avatar: 'yukito', text: `안녕 사쿠라! 황혼빛 산책로가 참 예쁘지? ${hint}` },
-            { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', text: '유키토 오빠가 만들어 준 간식 정말 맛있어요! 덕분에 힘이 불끈 솟아나요!' }
+            { speaker: '유키토', role: 'GENTLE FRIEND', avatar: 'yukito', mood: ownedCards.size >= 14 ? 'worried' : 'happy', text: `안녕 사쿠라! 황혼빛 산책로가 참 예쁘지? ${hint}` },
+            { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'happy', text: '유키토 오빠가 만들어 준 간식 정말 맛있어요! 덕분에 힘이 불끈 솟아나요!' }
           ]);
         } else if (npc.id === 'syaoran') {
           const tr = story.syaoranTrust;
           if (!story.metSyaoran) {
             story.metSyaoran = true;
             vn.start([
-              { speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', text: '키노모토 사쿠라... 크로우 카드는 나도 노리고 있다. 어설프게 덤비다 다치지 마!' },
+              { speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', mood: 'serious', text: '키노모토 사쿠라... 크로우 카드는 나도 노리고 있다. 어설프게 덤비다 다치지 마!' },
               {
-                speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran',
-                text: '신사 안쪽의 [불(파이어리)]이나 [번개(선더)]는 특히 위험해. 약점 상성 없이 덤비지 마라.',
+                speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', mood: 'serious',
+                text: '신사 안쪽의 [파이어리]나 [선더]는 특히 위험해. 약점 상성 없이 덤비지 마라.',
                 choices: [
-                  { label: '알려줘서 고마워, 샤오랑! 함께 마을을 지키자!', trustDelta: 1, reply: [{ speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', text: '무, 무슨 소리야! ...하지만 위급할 땐 서로 도울 수밖에 없겠지.' }] },
-                  { label: '나도 절대 지지 않을 거야!', trustDelta: 0, reply: [{ speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', text: '그래, 그 기세로 끝까지 해 보라고.' }] }
+                  { label: '알려줘서 고마워, 샤오랑! 함께 마을을 지키자!', trustDelta: 1, reply: [{ speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', mood: 'shy', text: '무, 무슨 소리야! ...하지만 위급할 땐 서로 도울 수밖에 없겠지.' }] },
+                  { label: '나도 절대 지지 않을 거야!', trustDelta: 0, reply: [{ speaker: '샤오랑', role: 'RIVAL', avatar: 'syaoran', mood: 'serious', text: '그래, 그 기세로 끝까지 해 보라고.' }] }
                 ]
               }
             ]);
@@ -841,8 +906,8 @@
               ? `현재 친밀도 ${tr}! 배틀 중 [⚡샤오랑 원호]와 위기 시 자동 엄호까지 내가 책임지고 등 뒤를 지킬게!`
               : tr >= 2
               ? `현재 친밀도 ${tr}! 이제 배틀 중 [⚡샤오랑 원호]를 누르면 내 부적 [뇌제초래]로 결계와 반사막을 깨뜨려 줄게!`
-              : `지금까지 ${ownedCards.size}장 모았군. [번개]·[물]·[불]·[어둠] 현장에서 다시 만나게 될 거야!`;
-            vn.start([{ speaker: '샤오랑', role: tr >= 2 ? 'ALLY' : 'RIVAL', avatar: 'syaoran', text: statusMsg }]);
+              : `지금까지 ${ownedCards.size}장 모았군. [선더]·[워터리]·[파이어리]·[다크] 현장에서 다시 만나게 될 거야!`;
+            vn.start([{ speaker: '샤오랑', role: tr >= 2 ? 'ALLY' : 'RIVAL', avatar: 'syaoran', mood: tr >= 2 ? 'happy' : 'normal', text: statusMsg }]);
           }
         }
       }
@@ -887,14 +952,14 @@
 
         const rem = getUnsealed();
         const lines = [
-          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', text: `다행이야... [${cardName(c)}] 카드를 봉인하니까 이상 현상도 말끔히 가라앉았어!` },
-          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', text: `체력과 마력이 함께 자라났어! (마력 Lv.${player.lv} · HP ${player.maxHp} · MP ${player.maxMp})` }
-        ];
-        if (c.id === 'thunder') lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: '사쿠라! 번개 카드를 봉인하셨군요! 의상실에 [🐱 고양이 귀 번개 슈트]가 해금되었어요!' });
-        if (ownedCards.has('fly') && ownedCards.has('jump') && (c.id === 'fly' || c.id === 'jump')) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: '하늘을 가르는 [🪽 하늘빛 날개 드레스]가 의상실에 준비되었어요!' });
-        if (ownedCards.size === 12) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', text: '열두 장 돌파 기념으로 [👑 황혼 로열 드레스]를 지어 두었답니다!' });
+        if (c.id === 'watery') lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '사쿠라! 워터리를 봉인하셨군요! 의상실에 [🐸 개구리 우비 슈트]가 해금되었어요!' });
+        if (c.id === 'thunder') lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '사쿠라! 선더를 봉인하셨군요! 의상실에 [🐱 고양이 귀 번개 슈트]가 해금되었어요!' });
+        if (ownedCards.has('fly') && ownedCards.has('jump') && (c.id === 'fly' || c.id === 'jump')) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '하늘을 가르는 [🪽 하늘빛 날개 드레스]가 의상실에 준비되었어요!' });
+        if ((c.id === 'mirror' || c.id === 'flower') && !(ownedCards.has('mirror') && ownedCards.has('flower'))) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '사랑스러운 [🎀 앨리스 메이드 드레스]가 의상실에 해금되었어요!' });
+        if (ownedCards.has('illusion') && ownedCards.has('maze') && (c.id === 'illusion' || c.id === 'maze')) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '장난스러운 [🃏 피에로 매직 슈트]가 의상실에 준비되었어요!' });
+        if (ownedCards.size === 12) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '열두 장 돌파 기념으로 [👑 황혼 로열 드레스]를 지어 두었답니다!' });
         if (rem.length === 0) {
-          lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', text: `드디어 열아홉 장을 모두 모았어! 남쪽 [${BOSS_YUE.zone}]에서 강렬한 달빛이 내려오고 있어!` });
+          lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: `드디어 열아홉 장을 모두 모았어! 남쪽 [${BOSS_YUE.zone}]에서 강렬한 달빛이 내려오고 있어!` });
         }
         vn.start(lines);
       }
@@ -945,7 +1010,7 @@
       function checkNearby() {
         nearbyTarget = null; let best = 74; const cur = getMap();
         for (const p of toArr(cur.portals)) { const d = Math.hypot(player.x - p.x, player.y - p.y); if (d < 60 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; } }
-        for (const n of NPCS) { if (n.map !== currentMapId) continue; const d = Math.hypot(player.x - n.x, player.y - n.y); if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; } }
+        for (const n of NPCS) { if (!isNpcVisible(n)) continue; const d = Math.hypot(player.x - n.x, player.y - n.y); if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; } }
         for (const id of CARD_ORDER) {
           if (!isCardActiveOnMap(id)) continue;
           const c = CARDS[id]; if (c.map !== currentMapId) continue;
@@ -1018,12 +1083,13 @@
         if (prevSig !== `${buffs.fly > 0}${buffs.flyLand}${buffs.light > 0}${buffs.glow > 0}${Math.ceil(buffs.glowCd)}${buffs.wind > 0}`) updateFieldBar();
 
         const flying = buffs.fly > 0 || buffs.flyLand;
+        const cosBonuses = Rules.getCostumeBonuses(story.costumeId);
         let spdMod = 1, pushX = 0, pushY = 0;
 
         if (currentMapId === 'town') {
-          if (isCardActiveOnMap('wood') && !flying && buffs.wind <= 0 && Math.hypot(player.x - CARDS.wood.x, player.y - CARDS.wood.y) < 92) spdMod *= 0.48;
+          if (isCardActiveOnMap('wood') && !flying && buffs.wind <= 0 && Math.hypot(player.x - CARDS.wood.x, player.y - CARDS.wood.y) < 105) spdMod *= 0.45;
           if (isCardActiveOnMap('earthy') && !flying && Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y) < 115) spdMod *= 0.62;
-          if (isCardActiveOnMap('watery') && !flying && buffs.wind <= 0) {
+          if (isCardActiveOnMap('watery') && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
             const dw = Math.hypot(player.x - CARDS.watery.x, player.y - CARDS.watery.y);
             if (dw < 120 && dw > 35) { pushX += ((player.x - CARDS.watery.x) / dw) * 58; pushY += ((player.y - CARDS.watery.y) / dw) * 58; }
           }
@@ -1120,7 +1186,7 @@
               costume: getCostumeObj(),
               activeCards,
               activeIncidents: [],
-              npcs: NPCS.filter((n) => n.map === currentMapId),
+              npcs: NPCS.filter(isNpcVisible),
               boss: bossReady && BOSS_YUE && currentMapId === BOSS_YUE.map ? { type: 'yue', x: BOSS_YUE.x, y: BOSS_YUE.y, label: '☽ 달의 심판자 유에' } : null,
               clockCircle: BOSS_YUE ? { x: BOSS_YUE.x, y: BOSS_YUE.y, ready: bossReady } : null,
               nextObjective: getNextObjective(),
@@ -1167,21 +1233,51 @@
         $('memoryBanner').classList.add('hidden');
         ownedCards = new Set(['windy']); yueDefeated = false; shownActs = new Set();
         Object.assign(story, { metSyaoran: false, syaoranTrust: 0, seenEncounters: new Set(), sealedOrder: [], costumeId: 'sakura_dress' });
-        currentMapId = 'town'; recalcPower(false);
-        player.x = 385; player.y = 465; player.hp = player.maxHp; player.mp = player.maxMp;
-        kero.x = 355; kero.y = 445;
+        // 인터랙티브 프롤로그: 지하 서재에서 붉은 책 개봉 -> 윈디 호명 -> 18장 비산 -> 케로 첫 만남!
+        const startInB1 = !!MAPS.house_b1;
+        currentMapId = startInB1 ? 'house_b1' : (MAPS.house ? 'house' : 'town');
+        recalcPower(false);
+        player.x = startInB1 ? 300 : (currentMapId === 'house' ? 235 : 385);
+        player.y = startInB1 ? 260 : (currentMapId === 'house' ? 210 : 465);
+        player.hp = player.maxHp; player.mp = player.maxMp;
+        kero.x = player.x - 28; kero.y = player.y - 20;
         Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false });
         anomaly.illusionDecoys.forEach((d) => { d.popped = false; }); anomaly.mirrorTrail = [];
         $('titleBox').classList.add('hidden'); $('endingBox').classList.add('hidden');
         SoundFX.startBGM(); handleResize(); updateHUD(true);
-        showChapter('ACT I · THE AWAKENING', '황혼의 토모에다');
-        vn.start(DATA.dialogues.opening);
+        showChapter('PROLOGUE · THE CLOW BOOK', '지하 서재의 붉은 책과 윈디');
+
+        const prologueLines = [
+          { speaker: '사쿠라', role: 'ELEMENTARY 4TH', avatar: 'sakura', mood: 'normal', text: '어라...? 지하 서재 책상 위에서 이상한 소리가 들려. 이 붉은 책... [THE CLOW]라고 적혀 있네?' },
+          { speaker: '사쿠라', role: 'ELEMENTARY 4TH', avatar: 'sakura', mood: 'shock', text: '봉인을 열었더니 예쁜 카드들이 가득해! 맨 위 카드에는... "윈디..."라고 적혀 있는데— 꺄악?! 갑자기 거센 바람이!!' },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'shock', text: '으아악!! 자고 있었는데 마력이 전부 사라졌잖아!! 네가 [윈디]를 불러서 나머지 크로우 카드 열여덟 장이 창밖으로 다 날아가 버렸다고!' },
+          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'worried', text: '미, 미안해! 하지만 이대로 두면 토모에다 마을 사람들이 위험해지는 거야?' },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: '그나마 [윈디] 한 장은 네 손에 남았어! 자, 이 봉인의 열쇠를 받아 줘! 이제부터 넌 카드캡터가 되어 흩어진 18장을 전부 봉인해야 해!' },
+          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'happy', text: '응, 알았어! 절대 괜찮을 거야! [윈디]와 함께 흩어진 카드들을 꼭 전부 되찾아 올게!' }
+        ];
+        world.burst(player.x, player.y, '#38bdf8', 28);
+        vn.start(prologueLines, () => {
+          showToast('✨ 지하 서재에서 밖으로 나가 토모에다 곳곳의 이상 현상을 조사해 보세요!');
+        });
+      }
+
+      function renderAuthModal() {
+        const loggedIn = !!cloudCreds.id;
+        $('authLoginView').classList.toggle('hidden', loggedIn);
+        $('authDashView').classList.toggle('hidden', !loggedIn);
+        $('authModalTitle').textContent = loggedIn ? 'ACCOUNT DASHBOARD · PART I' : 'ACCOUNT LOGIN · PART I';
+        $('authModalSub').textContent = loggedIn
+          ? '로그인 상태입니다. 카드 봉인 및 의상 변경 시 자동으로 클라우드에 백업됩니다.'
+          : '아이디와 비밀번호로 로그인하면 기존 기록을 불러오거나 새 계정을 만듭니다.';
+        if (loggedIn) {
+          $('dashUserId').textContent = cloudCreds.id;
+          $('savePreviewInfo').innerHTML = Locale.t(`<div><b>진행도:</b> 봉인 ${ownedCards.size}/${CARD_ORDER.length}${yueDefeated ? ' · 유에 격파' : ''} · 마력 Lv.${player.lv} · ⚡샤오랑 친밀 ${story.syaoranTrust}</div><div><b>현재 위치:</b> ${getZoneName()} · <b>착용 의상:</b> ${getCostumeObj().name}</div>`);
+        }
+        syncAuthButton();
       }
 
       function openSaveModal() {
-        $('savePreviewInfo').innerHTML = Locale.t(`<div><b>진행도:</b> 봉인 ${ownedCards.size}/${CARD_ORDER.length}${yueDefeated ? ' · 유에 격파' : ''} · 마력 Lv.${player.lv} · ⚡샤오랑 친밀 ${story.syaoranTrust}</div><div><b>자동 저장:</b> ${cloudCreds.id ? `활성화됨 (${cloudCreds.id})` : '아이디·비밀번호 저장 시 자동 활성화'}</div>`);
-        if (cloudCreds.id) $('savePlayerId').value = cloudCreds.id;
-        if (cloudCreds.secret) $('saveSecret').value = cloudCreds.secret;
+        renderAuthModal();
         $('saveModal').classList.replace('hidden', 'flex'); SoundFX.click();
       }
       const closeSaveModal = () => { const m = $('saveModal'); if (m.classList.contains('hidden')) return false; m.classList.replace('flex', 'hidden'); return true; };
@@ -1218,17 +1314,7 @@
           return;
         }
         if (battle.isActive()) {
-          if (battle.isChantActive()) {
-            if (code === 'KeyX' || code === 'Enter' || code === 'Space') battle.completeChantStep(false);
-            else if (code === 'KeyZ' || code === 'Escape') battle.completeChantStep(true);
-            return;
-          }
-          if (battle.isTiming()) {
-            if (code === 'KeyX' || code === 'Enter' || code === 'Space') battle.execSeal();
-            else if (code === 'KeyZ' || code === 'Escape') battle.cancelSeal();
-            return;
-          }
-          if ((code === 'KeyZ' || code === 'Escape') && !$('battleCardPicker').classList.contains('hidden')) $('battleCardPicker').classList.add('hidden');
+          battle.handleKey(code);
           return;
         }
         if (mode === 'explore') {
@@ -1253,7 +1339,7 @@
         if (initial) {
           const cur = getMap();
           for (const p of toArr(cur.portals)) if (Math.hypot(wx - p.x, wy - p.y) < 40) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
-          for (const n of NPCS) if (n.map === currentMapId && Math.hypot(wx - n.x, wy - n.y) < 40) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
+          for (const n of NPCS) if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 40) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
           for (const id of CARD_ORDER) if (isCardActiveOnMap(id) && CARDS[id].map === currentMapId) { const pos = getCardPos(CARDS[id]); if (Math.hypot(wx - pos.x, wy - pos.y) < 50) { pendingTarget = { type: 'card', obj: { ...CARDS[id], x: pos.x, y: pos.y } }; player.targetPos = pos; return; } }
           if (!yueDefeated && !memoryMode.active && BOSS_YUE && currentMapId === BOSS_YUE.map && Math.hypot(wx - BOSS_YUE.x, wy - BOSS_YUE.y) < 56) { pendingTarget = { type: 'boss', obj: BOSS_YUE }; player.targetPos = { x: BOSS_YUE.x, y: BOSS_YUE.y }; return; }
           pendingTarget = null;
@@ -1297,51 +1383,67 @@
       $('btnOpenWardrobe').onclick = (e) => { e.currentTarget.blur(); openWardrobeModal(); };
       $('btnCloseWardrobe').onclick = closeWardrobeModal;
       $('wardrobeModal').onclick = (e) => { if (e.target.id === 'wardrobeModal') closeWardrobeModal(); };
-      $('btnExitMemory').onclick = exitMemoryMode;
-      $('btnFloatInteract').onclick = (e) => { e.currentTarget.blur(); triggerInteract(); };
-      $('btnSoundToggle').onclick = (e) => { e.currentTarget.blur(); e.currentTarget.textContent = SoundFX.toggle() ? '🎵' : '🔇'; };
-      $('btnContinueExplore').onclick = () => { $('endingBox').classList.add('hidden'); mode = 'explore'; updateFieldBar(); };
-      $('btnRestartAll').onclick = startNewAdventure;
-
-      $('btnKeroHint').onclick = (e) => {
-        e.currentTarget.blur(); if (mode !== 'explore') return;
-        const next = getNextObjective();
-        if (!next) showToast('케로: 황혼의 토모에다가 완전히 평화로워졌어!');
-        else if (next.isBoss) showToast(`케로: 모든 카드가 모였어! 남쪽 [${BOSS_YUE.zone}]으로 가자!`);
-        else { const tc = next.targetCard || next; showToast(`케로: [${tc.zone}] 쪽에서 "${tc.rumor}" 같은 기운이 느껴져!`); }
+      $('btnWardrobeHeal').onclick = () => {
+        player.hp = player.maxHp; player.mp = player.maxMp;
+        SoundFX.heal(); updateHUD(true);
+        showToast('☕ 토모요의 따뜻한 홍차로 HP·MP가 완전 회복되었습니다!');
       };
-
+      $('btnGuestClose').onclick = closeSaveModal;
+      $('btnExitMemory').onclick = exitMemoryMode;
+      $('btnAuthSubmit').onclick = async () => {
+        setSaveMsg('계정 확인 중...');
+        try {
+          const res = await Cloud.loginOrRegister(1, $('savePlayerId').value, $('saveSecret').value);
+          cloudCreds = { id: res.id, secret: res.secret };
+          syncAuthButton();
+          if (res.status === 'logged_in' && res.data) {
+            applySavePayload(res.data);
+            SoundFX.seal();
+            closeSaveModal();
+            showToast(`🟢 [${res.id}] 로그인 완료! 저장된 모험을 이어갑니다.`);
+          } else {
+            if (mode !== 'title') {
+              await Cloud.save(1, res.id, res.secret, buildSavePayload());
+            }
+            SoundFX.heal();
+            renderAuthModal();
+            setSaveMsg(`✨ 새 계정 [${res.id}] 로그인 완료! 이제 자동 저장이 켜집니다.`);
+          }
+        } catch (err) { setSaveMsg(`접속 실패: ${err.message}`, true); }
+      };
+      $('btnAuthLogout').onclick = () => {
+        const oldId = cloudCreds.id;
+        cloudCreds = { id: '', secret: '' };
+        $('savePlayerId').value = '';
+        $('saveSecret').value = '';
+        SoundFX.click();
+        renderAuthModal();
+        setSaveMsg(`[${oldId}] 계정에서 로그아웃되었습니다.`);
+      };
       $('btnCloudSave').onclick = async () => {
+        if (!cloudCreds.id) return;
         setSaveMsg('클라우드에 저장 중...');
         try {
-          const res = await Cloud.save(1, $('savePlayerId').value, $('saveSecret').value, buildSavePayload());
-          cloudCreds = { id: res.id, secret: res.secret };
-          SoundFX.heal(); setSaveMsg(`저장 완료! (${res.id}) · 이제 자동 저장이 켜집니다.`);
+          await Cloud.save(1, cloudCreds.id, cloudCreds.secret, buildSavePayload());
+          SoundFX.heal();
+          renderAuthModal();
+          setSaveMsg(`💾 [${cloudCreds.id}] 수동 저장이 완료되었습니다.`);
         } catch (err) { setSaveMsg(`저장 실패: ${err.message}`, true); }
       };
-      $('btnCloudLoad').onclick = async () => {
-        setSaveMsg('불러오는 중...');
-        try {
-          const id = $('savePlayerId').value, sec = $('saveSecret').value;
-          const saved = await Cloud.load(1, id, sec);
-          if (!saved) return setSaveMsg('해당 아이디의 저장 데이터가 없습니다.', true);
-          cloudCreds = { id: Cloud.sanitizeId(id), secret: Cloud.sanitizeSecret(sec) };
-          applySavePayload(saved); SoundFX.seal(); closeSaveModal();
-          showToast(`클라우드 데이터를 불러왔습니다! (${cloudCreds.id})`);
-        } catch (err) { setSaveMsg(`불러오기 실패: ${err.message}`, true); }
-      };
       $('btnCloudDelete').onclick = async () => {
-        setSaveMsg('삭제 중...');
+        if (!cloudCreds.id) return;
+        setSaveMsg('계정 데이터 초기화 중...');
         try {
-          const cid = await Cloud.del(1, $('savePlayerId').value, $('saveSecret').value);
+          const cid = await Cloud.del(1, cloudCreds.id, cloudCreds.secret);
           try { window.localStorage.removeItem('sakura_part1_autosave'); } catch {}
           cloudCreds = { id: '', secret: '' };
           $('savePlayerId').value = '';
           $('saveSecret').value = '';
           SoundFX.click();
+          syncAuthButton();
           resetToTitle();
           closeSaveModal();
-          showToast(`🗑 저장 데이터(${cid})를 삭제하고 초기 상태로 되돌렸습니다.`);
+          showToast(`🗑 [${cid}] 저장 데이터를 삭제하고 초기 상태로 되돌렸습니다.`);
         } catch (err) { setSaveMsg(`삭제 실패: ${err.message}`, true); }
       };
 
@@ -1359,7 +1461,7 @@
           NPCS = toArr(DATA.npcs);
           BOSS_YUE = DATA.bossYue;
           QUICK_SLOTS = toArr(DATA.fieldQuickSlots);
-          COSTUMES = toArr(DATA.costumes);
+          COSTUMES = (toArr(DATA.costumes).length >= 8) ? toArr(DATA.costumes) : Rules.DEFAULT_COSTUMES_P1;
 
           if (CARDS.jump) { anomaly.jumpX = CARDS.jump.x; anomaly.jumpY = CARDS.jump.y; }
           if (CARDS.glow) { anomaly.glowX = CARDS.glow.x; anomaly.glowY = CARDS.glow.y; }
@@ -1367,8 +1469,9 @@
           recalcPower(false);
           handleResize();
           syncLocaleUI();
+          syncAuthButton();
 
-          $('bootStatus').textContent = Locale.t(`✨ 제1부 리마스터 데이터 & 고퀄리티 아트 로드 완료! (크로우 카드 ${CARD_ORDER.length}장)`);
+          $('bootStatus').textContent = Locale.t(`✨ 제1부 리마스터 데이터 & 고퀄리티 아트 로드 완료! (${APP_VER})`);
           $('btnStartGame').disabled = false;
 
           const local = SafeStore.getJSON('sakura_part1_autosave');
