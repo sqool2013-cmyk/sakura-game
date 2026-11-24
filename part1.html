@@ -379,7 +379,7 @@
         createWorldEngine, createVNEngine, createBattleEngine
       } = engines;
 
-      const { $, toArr, clamp, cardName, cardRuby, withParticle } = Utils;
+      const { $, toArr, clamp, cardName, cardRuby } = Utils;
       SoundFX.setTheme(1);
 
       // 1. 제1부 게임 상태 및 공용 엔진 초기화
@@ -961,7 +961,7 @@
           btn.classList.remove('hidden');
           btn.textContent = Locale.t(
             nearbyTarget.type === 'portal' ? `${nearbyTarget.obj.label} (X)`
-              : nearbyTarget.type === 'npc' ? `${withParticle(Locale.t(nearbyTarget.obj.name), '과/와')} 대화 (X)`
+              : nearbyTarget.type === 'npc' ? `${Utils.withParticle(Locale.t(nearbyTarget.obj.name), '과/와')} 대화 (X)`
               : nearbyTarget.type === 'boss' ? (ownedCards.size === CARD_ORDER.length ? '유에의 심판에 맞서기 (X)' : '봉인된 시계탑 마법진 (X)')
               : '이상 현상 조사하기 (X)'
           );
@@ -1140,6 +1140,26 @@
       }
 
       // 8. 시작 · 모달 · 입력 바인딩
+      function resetToTitle() {
+        Timers.clearAll(); vn.finish(true); battle.forceClose();
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+        ownedCards = new Set(['windy']); yueDefeated = false; shownActs = new Set();
+        Object.assign(story, { metSyaoran: false, syaoranTrust: 0, seenEncounters: new Set(), sealedOrder: [], costumeId: 'sakura_dress' });
+        currentMapId = 'town'; recalcPower(false);
+        player.x = 385; player.y = 465; player.hp = player.maxHp; player.mp = player.maxMp;
+        player.targetPos = null; pendingTarget = null;
+        kero.x = 355; kero.y = 445;
+        Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false });
+        anomaly.illusionDecoys.forEach((d) => { d.popped = false; }); anomaly.mirrorTrail = [];
+        $('btnLocalContinue').classList.add('hidden');
+        $('btnTitleLoad').classList.add('col-span-2');
+        $('endingBox').classList.add('hidden');
+        $('titleBox').classList.remove('hidden');
+        mode = 'title';
+        handleResize(); updateHUD(true); updateFieldBar();
+      }
+
       function startNewAdventure() {
         if (!DATA) return;
         Timers.clearAll(); vn.finish(true); battle.forceClose();
@@ -1312,8 +1332,17 @@
       };
       $('btnCloudDelete').onclick = async () => {
         setSaveMsg('삭제 중...');
-        try { const cid = await Cloud.del(1, $('savePlayerId').value, $('saveSecret').value); SoundFX.click(); setSaveMsg(`삭제 완료 (${cid})`); }
-        catch (err) { setSaveMsg(`삭제 실패: ${err.message}`, true); }
+        try {
+          const cid = await Cloud.del(1, $('savePlayerId').value, $('saveSecret').value);
+          try { window.localStorage.removeItem('sakura_part1_autosave'); } catch {}
+          cloudCreds = { id: '', secret: '' };
+          $('savePlayerId').value = '';
+          $('saveSecret').value = '';
+          SoundFX.click();
+          resetToTitle();
+          closeSaveModal();
+          showToast(`🗑 저장 데이터(${cid})를 삭제하고 초기 상태로 되돌렸습니다.`);
+        } catch (err) { setSaveMsg(`삭제 실패: ${err.message}`, true); }
       };
 
       // 9. Firebase 병렬 부팅
