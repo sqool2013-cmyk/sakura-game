@@ -260,10 +260,39 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
           <span>PART I · REMASTER</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-d</span>
         </div>
       </div>
     </div>
+
+    <!-- 제1부 엔딩 화면 -->
+    <div id="endingBox" class="hidden absolute inset-0 z-[45] ending-backdrop flex items-center justify-center p-4">
+      <div class="max-w-xl w-full glass rounded-3xl p-6 sm:p-8 text-center">
+        <p class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">PART I CLEAR · THE NEW MASTER</p>
+        <h2 class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">새로운 크로우 카드의 주인</h2>
+        <p id="endingSummary" class="font-story text-sm text-pink-100/90 leading-relaxed mb-6"></p>
+        <div class="flex flex-wrap gap-2.5 justify-center">
+          <button id="btnContinueExplore" class="px-5 py-3 rounded-2xl bg-indigo-600/85 hover:bg-indigo-500 border border-indigo-300/60 text-white font-story font-bold text-sm">평화로운 마을 둘러보기</button>
+          <button id="btnRestartAll" class="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm">처음부터 다시 모험하기</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 크로우 북 모달 (기억 돌아보기 지원) -->
+  <div id="bookModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-5xl max-h-[88dvh] bg-gradient-to-b from-[#2b103f] to-[#120624] border-2 border-yellow-400/75 rounded-3xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-yellow-400/30 bg-black/30">
+        <div>
+          <h2 class="font-magic text-lg sm:text-xl font-bold text-yellow-300 tracking-wider">THE CLOW BOOK</h2>
+          <p class="text-xs text-pink-200 font-story">봉인한 카드의 [✨ 기억 돌아보기]를 누르면 당시의 이상 현상과 배틀을 다시 체험할 수 있습니다 · 닫기(Z)</p>
+        </div>
+        <button id="btnCloseBook" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
+      </div>
+      <div id="bookGrid" class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 overflow-y-auto"></div>
+    </div>
+  </div>
+
   <!-- 마법 의상실 모달 (8벌 확장 + 원클릭 홍차 회복) -->
   <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
     <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
@@ -331,52 +360,8 @@
       <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
       <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CLOUD ARCHIVE</span>
-        <span id="modalVersionBadge">v.0.2.0</span>
+        <span id="modalVersionBadge">v.0.2.0-d</span>
       </div>
-    </div>
-  </div>
-
-  <!-- 마법 의상실 모달 -->
-  <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
-    <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
-      <div class="flex items-center justify-between border-b border-pink-300/35 pb-3">
-        <div>
-          <h2 id="wardrobeTitle" class="font-story text-lg font-bold text-pink-200">🎀 토모요의 마법 의상실</h2>
-          <p id="wardrobeDesc" class="text-xs text-yellow-100/85 font-story">의상을 갈아입으면 맵 위 외형과 전략 패시브가 즉시 적용됩니다! · 닫기(Z)</p>
-        </div>
-        <button id="btnCloseWardrobe" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
-      </div>
-      <div id="wardrobeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1"></div>
-    </div>
-  </div>
-
-  <!-- 통일 클라우드 저장 모달 -->
-  <div id="saveModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
-    <div class="w-full max-w-md glass rounded-3xl p-5 sm:p-6 flex flex-col gap-3.5">
-      <div class="flex items-center justify-between border-b border-yellow-400/30 pb-3">
-        <div>
-          <h2 class="font-magic text-base sm:text-lg font-bold text-emerald-300 tracking-wider">CLOUD ARCHIVE · PART I</h2>
-          <p class="text-[11px] text-pink-100/85 font-story">한글·영문 자유 아이디와 비밀번호(4자 이상)로 자동 저장됩니다.</p>
-        </div>
-        <button id="btnCloseSave" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
-      </div>
-      <div id="savePreviewInfo" class="rounded-2xl bg-black/40 border border-purple-400/30 p-3 text-xs font-story text-pink-100 leading-relaxed"></div>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <label for="savePlayerId" class="block text-yellow-200 font-bold mb-1">플레이어 아이디 (자유)</label>
-          <input id="savePlayerId" type="text" maxlength="24" placeholder="예: 체리좋아 / my_id" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-yellow-400/45 text-white text-sm focus:outline-none focus:border-pink-400 select-text" />
-        </div>
-        <div>
-          <label for="saveSecret" class="block text-pink-200 font-bold mb-1">비밀번호 (4~16자)</label>
-          <input id="saveSecret" type="password" maxlength="16" placeholder="자유 암호 / 기존 PIN" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-pink-400/45 text-white text-sm focus:outline-none focus:border-yellow-300 select-text" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button id="btnCloudSave" class="py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-300/70 text-white font-story font-bold text-sm">💾 저장</button>
-        <button id="btnCloudLoad" class="py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 border border-indigo-300/70 text-white font-story font-bold text-sm">📥 불러오기</button>
-      </div>
-      <button id="btnCloudDelete" class="py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/45 text-rose-200 font-story text-xs font-bold">🗑 이 아이디의 저장 데이터 삭제</button>
-      <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력해 저장하거나 불러오세요.</div>
     </div>
   </div>
 
@@ -393,12 +378,13 @@
         'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
       );
       let lastErr = null;
+      const cacheBust = '?v=0.2.0-d';
       for (const base of candidates) {
         try {
           const [coreMod, worldMod, battleMod] = await Promise.all([
-            import(`${base}core.js`),
-            import(`${base}world.js`),
-            import(`${base}battle.js`)
+            import(`${base}core.js${cacheBust}`),
+            import(`${base}world.js${cacheBust}`),
+            import(`${base}battle.js${cacheBust}`)
           ]);
           return { ...coreMod, ...worldMod, ...battleMod };
         } catch (err) {
@@ -427,7 +413,7 @@
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
-      const APP_VER = VERSION?.part1 || 'v.0.2.0';
+      const APP_VER = 'v.0.2.0-d';
       if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
       if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
@@ -507,7 +493,41 @@
         return true;
       }
 
-      const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0] || Rules.DEFAULT_COSTUMES_P1[0];
+      const FALLBACK_COSTUMES = [
+        {
+          id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', unlockType: 'default', unlockHint: '기본 지급 의상',
+          dressColor: '#f472b6', accentColor: '#fff1f2', hatType: 'beret', hatColor: '#f43f5e',
+          passive: '최대 MP +5', tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+        }
+      ];
+      const getCostumeObj = () => {
+        const list = Array.isArray(COSTUMES) && COSTUMES.length ? COSTUMES : FALLBACK_COSTUMES;
+        return list.find((c) => c.id === story.costumeId) || list[0];
+      };
+
+      function recalcPower(healBonus = false) {
+        const prevMaxHp = player.maxHp;
+        const prevMaxMp = player.maxMp;
+        const stats = Rules.calcStats({
+          part: 1,
+          progressCount: Math.max(0, ownedCards.size - 1),
+          total: CARD_ORDER.length || 19,
+          costumeId: story.costumeId,
+          progCfg: DATA?.progression
+        });
+        player.lv = stats.lv;
+        player.maxHp = stats.maxHp;
+        player.maxMp = stats.maxMp;
+        player.mult = stats.mult;
+        if (healBonus) {
+          if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
+          if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
+        }
+        player.hp = clamp(player.hp, 1, player.maxHp);
+        player.mp = clamp(player.mp, 0, player.maxMp);
+      }
+
+      function getMoveSpeed() {
         let s = 215 + (ownedCards.has('fly') ? 28 : 0) + (ownedCards.has('jump') ? 20 : 0);
         s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
         if (buffs.fly > 0 || buffs.flyLand) s *= 1.55;
@@ -837,6 +857,17 @@
           player.mp -= s.mp; buffs.wind = 11; SoundFX.magic(); world.burst(player.x, player.y, '#38bdf8', 22);
           if (currentMapId === 'town' && isCardActiveOnMap('jump') && Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY) < 260) {
             anomaly.jumpBind = 5.5; showToast('바람(윈디) 해방! 도망치던 도약(점프) 현상을 5초간 포박했습니다!');
+          } else {
+            showToast('바람(윈디) 해방! 덩굴·물결 방해 무효화 & 다음 전투 선제 충격!');
+          }
+        } else if (s.id === 'shield') {
+          if (buffs.shield) return showToast('이미 황금 결계가 펼쳐져 있습니다!');
+          player.mp -= s.mp; buffs.shield = true; SoundFX.magic(); world.burst(player.x, player.y, '#fde047', 20);
+          showToast('방패(실드) 해방! 황금 결계를 두른 채 다음 전투를 시작합니다!');
+        }
+        updateHUD(true); updateFieldBar();
+      }
+
       // 6. NPC 역할 명확화 & 원작 디테일(미러 후 토우야 특별 대사 · 표정 mood)
       function talkNPC(npc) {
         if (npc.id === 'tomoyo') {
@@ -952,6 +983,9 @@
 
         const rem = getUnsealed();
         const lines = [
+          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'happy', text: `다행이야... [${cardName(c)}] 카드를 봉인하니까 이상 현상도 말끔히 가라앉았어!` },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'happy', text: `마력이 한층 깊어졌어! (마력 Lv.${player.lv} · 최대 HP ${player.maxHp} · 최대 MP ${player.maxMp})` }
+        ];
         if (c.id === 'watery') lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '사쿠라! 워터리를 봉인하셨군요! 의상실에 [🐸 개구리 우비 슈트]가 해금되었어요!' });
         if (c.id === 'thunder') lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '사쿠라! 선더를 봉인하셨군요! 의상실에 [🐱 고양이 귀 번개 슈트]가 해금되었어요!' });
         if (ownedCards.has('fly') && ownedCards.has('jump') && (c.id === 'fly' || c.id === 'jump')) lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '하늘을 가르는 [🪽 하늘빛 날개 드레스]가 의상실에 준비되었어요!' });
@@ -1165,38 +1199,60 @@
 
       let lastT = performance.now();
       function loop(now) {
-        const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
+        const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+        lastT = now;
         if (DATA) {
           if (battle.isActive()) {
             battle.updateAndRenderVFX(dt);
           } else {
             updateExplore(dt);
+            const cur = getMap();
             const activeCards = CARD_ORDER
-              .filter((id) => isCardActiveOnMap(id) && CARDS[id].map === currentMapId)
+              .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
               .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
-            const bossReady = ownedCards.size === CARD_ORDER.length && !yueDefeated && !memoryMode.active;
-            const earthyDist = currentMapId === 'town' && isCardActiveOnMap('earthy') ? Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y) : 999;
+            const visibleNpcs = NPCS.filter(isNpcVisible);
+            const yueReady = !yueDefeated && !memoryMode.active && BOSS_YUE && ownedCards.size === CARD_ORDER.length;
+            const bossObj = yueReady && currentMapId === BOSS_YUE.map
+              ? { type: 'yue', x: BOSS_YUE.x, y: BOSS_YUE.y, label: '☽ 달의 심판자 유에' }
+              : null;
+            const clockCircle = currentMapId === 'town' && BOSS_YUE
+              ? { x: BOSS_YUE.x, y: BOSS_YUE.y, ready: !!yueReady }
+              : null;
+
+            let earthyShake = 0;
+            if (currentMapId === 'town' && isCardActiveOnMap('earthy') && CARDS.earthy) {
+              const d = Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y);
+              if (d < 190) earthyShake = (1 - d / 190) * 3.2;
+            }
+            const shadowNearPlayer = !!(
+              isCardActiveOnMap('shadow') &&
+              CARDS.shadow?.map === currentMapId &&
+              Math.hypot(player.x - CARDS.shadow.x, player.y - CARDS.shadow.y) < 220
+            );
 
             world.render(now, {
               part: 1,
-              map: getMap(),
+              map: cur,
               mapId: currentMapId,
               zones: ZONES,
-              player, kero, buffs, anomaly,
+              player,
+              kero,
+              buffs,
               costume: getCostumeObj(),
+              anomaly,
               activeCards,
               activeIncidents: [],
-              npcs: NPCS.filter(isNpcVisible),
-              boss: bossReady && BOSS_YUE && currentMapId === BOSS_YUE.map ? { type: 'yue', x: BOSS_YUE.x, y: BOSS_YUE.y, label: '☽ 달의 심판자 유에' } : null,
-              clockCircle: BOSS_YUE ? { x: BOSS_YUE.x, y: BOSS_YUE.y, ready: bossReady } : null,
+              npcs: visibleNpcs,
+              boss: bossObj,
+              clockCircle,
               nextObjective: getNextObjective(),
               portalCounts: countUnsealedInMap,
               flags: {
+                earthyShake,
                 jumpActive: isCardActiveOnMap('jump'),
                 wateryActive: isCardActiveOnMap('watery'),
-                mazeActive: isCardActiveOnMap('maze'),
-                shadowNearPlayer: currentMapId === 'school' && isCardActiveOnMap('shadow') && Math.hypot(player.x - CARDS.shadow.x, player.y - CARDS.shadow.y) < 220,
-                earthyShake: earthyDist < 190 ? (1 - earthyDist / 190) * 3.2 : 0,
+                mazeActive: (currentMapId === 'school' || currentMapId === 'shrine_gate') && isCardActiveOnMap('maze'),
+                shadowNearPlayer,
                 showTarget: mode === 'explore'
               }
             });
@@ -1205,85 +1261,113 @@
         requestAnimationFrame(loop);
       }
 
-      // 8. 시작 · 모달 · 입력 바인딩
-      function resetToTitle() {
-        Timers.clearAll(); vn.finish(true); battle.forceClose();
-        memoryMode = { active: false, cardId: null, snapshot: null };
-        $('memoryBanner').classList.add('hidden');
-        ownedCards = new Set(['windy']); yueDefeated = false; shownActs = new Set();
-        Object.assign(story, { metSyaoran: false, syaoranTrust: 0, seenEncounters: new Set(), sealedOrder: [], costumeId: 'sakura_dress' });
-        currentMapId = 'town'; recalcPower(false);
-        player.x = 385; player.y = 465; player.hp = player.maxHp; player.mp = player.maxMp;
-        player.targetPos = null; pendingTarget = null;
-        kero.x = 355; kero.y = 445;
-        Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false });
-        anomaly.illusionDecoys.forEach((d) => { d.popped = false; }); anomaly.mirrorTrail = [];
-        $('btnLocalContinue').classList.add('hidden');
-        $('btnTitleLoad').classList.add('col-span-2');
-        $('endingBox').classList.add('hidden');
-        $('titleBox').classList.remove('hidden');
-        mode = 'title';
-        handleResize(); updateHUD(true); updateFieldBar();
-      }
-
+      // 8. 새 모험(지하 서재 프롤로그) · 타이틀 복귀 · 계정 대시보드 · 입력 바인딩
       function startNewAdventure() {
         if (!DATA) return;
-        Timers.clearAll(); vn.finish(true); battle.forceClose();
+        Timers.clearAll();
+        vn.finish(true);
+        battle.forceClose();
         memoryMode = { active: false, cardId: null, snapshot: null };
         $('memoryBanner').classList.add('hidden');
-        ownedCards = new Set(['windy']); yueDefeated = false; shownActs = new Set();
-        Object.assign(story, { metSyaoran: false, syaoranTrust: 0, seenEncounters: new Set(), sealedOrder: [], costumeId: 'sakura_dress' });
-        // 인터랙티브 프롤로그: 지하 서재에서 붉은 책 개봉 -> 윈디 호명 -> 18장 비산 -> 케로 첫 만남!
-        const startInB1 = !!MAPS.house_b1;
-        currentMapId = startInB1 ? 'house_b1' : (MAPS.house ? 'house' : 'town');
+
+        ownedCards = new Set(['windy']);
+        yueDefeated = false;
+        shownActs = new Set();
+        story.metSyaoran = false;
+        story.syaoranTrust = 0;
+        story.seenEncounters = new Set();
+        story.sealedOrder = [];
+        story.costumeId = 'sakura_dress';
+
+        const hasBasement = !!MAPS.house_b1;
+        currentMapId = hasBasement ? 'house_b1' : (MAPS.house ? 'house' : 'town');
         recalcPower(false);
-        player.x = startInB1 ? 300 : (currentMapId === 'house' ? 235 : 385);
-        player.y = startInB1 ? 260 : (currentMapId === 'house' ? 210 : 465);
-        player.hp = player.maxHp; player.mp = player.maxMp;
-        kero.x = player.x - 28; kero.y = player.y - 20;
+        player.x = hasBasement ? 300 : (currentMapId === 'house' ? 240 : 385);
+        player.y = hasBasement ? 320 : (currentMapId === 'house' ? 320 : 465);
+        player.hp = player.maxHp;
+        player.mp = player.maxMp;
+        player.targetPos = null;
+        pendingTarget = null;
+        kero.x = player.x - 28;
+        kero.y = player.y - 20;
         Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false });
-        anomaly.illusionDecoys.forEach((d) => { d.popped = false; }); anomaly.mirrorTrail = [];
-        $('titleBox').classList.add('hidden'); $('endingBox').classList.add('hidden');
-        SoundFX.startBGM(); handleResize(); updateHUD(true);
-        showChapter('PROLOGUE · THE CLOW BOOK', '지하 서재의 붉은 책과 윈디');
+        anomaly.illusionDecoys.forEach((d) => { d.popped = false; });
+        anomaly.mirrorTrail = [];
+
+        $('titleBox').classList.add('hidden');
+        $('endingBox').classList.add('hidden');
+        SoundFX.startBGM();
+        handleResize();
+        updateHUD(true);
+        showChapter('PROLOGUE · THE CLOW', '지하 서재의 붉은 책');
 
         const prologueLines = [
-          { speaker: '사쿠라', role: 'ELEMENTARY 4TH', avatar: 'sakura', mood: 'normal', text: '어라...? 지하 서재 책상 위에서 이상한 소리가 들려. 이 붉은 책... [THE CLOW]라고 적혀 있네?' },
-          { speaker: '사쿠라', role: 'ELEMENTARY 4TH', avatar: 'sakura', mood: 'shock', text: '봉인을 열었더니 예쁜 카드들이 가득해! 맨 위 카드에는... "윈디..."라고 적혀 있는데— 꺄악?! 갑자기 거센 바람이!!' },
-          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'shock', text: '으아악!! 자고 있었는데 마력이 전부 사라졌잖아!! 네가 [윈디]를 불러서 나머지 크로우 카드 열여덟 장이 창밖으로 다 날아가 버렸다고!' },
-          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'worried', text: '미, 미안해! 하지만 이대로 두면 토모에다 마을 사람들이 위험해지는 거야?' },
-          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: '그나마 [윈디] 한 장은 네 손에 남았어! 자, 이 봉인의 열쇠를 받아 줘! 이제부터 넌 카드캡터가 되어 흩어진 18장을 전부 봉인해야 해!' },
-          { speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'happy', text: '응, 알았어! 절대 괜찮을 거야! [윈디]와 함께 흩어진 카드들을 꼭 전부 되찾아 올게!' }
+          { speaker: '사쿠라', role: 'STUDENT', avatar: 'sakura', mood: 'normal', text: '아빠 서재에서 이상한 빛이 새어 나오고 있어... 어라? 책상 위에 신비롭게 빛나는 붉은 책이 놓여 있네!' },
+          { speaker: '사쿠라', role: 'STUDENT', avatar: 'sakura', mood: 'normal', text: '봉인을 열었더니 카드가 가득 들어 있어! 맨 위에 있는 카드 이름은... "윈디"?' },
+          {
+            speaker: '사쿠라', role: 'CARDCAPTOR', avatar: 'sakura', mood: 'shock',
+            text: '으악!! 갑자기 거센 바람이 불어서 나머지 열여덟 장의 카드가 창밖 황혼 하늘로 전부 날아가 버렸어!!'
+          },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'shock', text: '으아악! 잠깐 눈 붙인 사이에 마력이 다 사라졌잖아!! 네가 윈디를 불러서 크로우 카드 열여덟 장이 토모에다 전역으로 흩어져 버렸다고!' },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: '그나마 윈디 한 장은 네 손에 남았어! 자, 이 봉인의 열쇠를 받아 줘! 카드캡터가 되어 열여덟 장의 크로우 카드를 모두 봉인하는 거야!' }
         ];
-        world.burst(player.x, player.y, '#38bdf8', 28);
         vn.start(prologueLines, () => {
-          showToast('✨ 지하 서재에서 밖으로 나가 토모에다 곳곳의 이상 현상을 조사해 보세요!');
+          world.burst(player.x, player.y, '#38bdf8', 24);
+          showToast('📖 크로우 카드 1/19 (윈디) 보유! 마을로 나가 흩어진 18장을 봉인하세요!');
+          autoSave('모험 시작');
         });
       }
 
+      function resetToTitle() {
+        Timers.clearAll();
+        vn.finish(true);
+        battle.forceClose();
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+        $('endingBox').classList.add('hidden');
+        $('btnLocalContinue').classList.add('hidden');
+        $('btnTitleLoad').classList.add('col-span-2');
+        $('titleBox').classList.remove('hidden');
+        mode = 'title';
+        updateFieldBar();
+      }
+
+      function setSaveMsg(msg, err = false) {
+        const el = $('saveStatusMsg');
+        if (!el) return;
+        el.textContent = Locale.t(msg);
+        el.className = `min-h-[2.4rem] rounded-xl px-3 py-2 text-xs font-story flex items-center justify-center text-center border ${err ? 'bg-rose-950/75 border-rose-400/60 text-rose-100' : 'bg-emerald-950/65 border-emerald-400/55 text-emerald-100'}`;
+      }
+
       function renderAuthModal() {
+        syncAuthButton();
         const loggedIn = !!cloudCreds.id;
         $('authLoginView').classList.toggle('hidden', loggedIn);
         $('authDashView').classList.toggle('hidden', !loggedIn);
         $('authModalTitle').textContent = loggedIn ? 'ACCOUNT DASHBOARD · PART I' : 'ACCOUNT LOGIN · PART I';
         $('authModalSub').textContent = loggedIn
-          ? '로그인 상태입니다. 카드 봉인 및 의상 변경 시 자동으로 클라우드에 백업됩니다.'
-          : '아이디와 비밀번호로 로그인하면 기존 기록을 불러오거나 새 계정을 만듭니다.';
+          ? '클라우드 계정에 로그인되어 카드 봉인·의상 변경 시 자동 저장됩니다.'
+          : '아이디와 비밀번호로 로그인하면 자동 저장 및 기기 간 연동이 켜집니다.';
         if (loggedIn) {
           $('dashUserId').textContent = cloudCreds.id;
-          $('savePreviewInfo').innerHTML = Locale.t(`<div><b>진행도:</b> 봉인 ${ownedCards.size}/${CARD_ORDER.length}${yueDefeated ? ' · 유에 격파' : ''} · 마력 Lv.${player.lv} · ⚡샤오랑 친밀 ${story.syaoranTrust}</div><div><b>현재 위치:</b> ${getZoneName()} · <b>착용 의상:</b> ${getCostumeObj().name}</div>`);
+          $('savePreviewInfo').innerHTML = Locale.t(
+            `<div><b>진행도:</b> 봉인 ${ownedCards.size}/${CARD_ORDER.length}${yueDefeated ? ' · 유에 격파' : ''} · 마력 Lv.${player.lv}</div>` +
+            `<div><b>착용 의상:</b> ${getCostumeObj().name} · <b>샤오랑 친밀도:</b> ${story.syaoranTrust}</div>`
+          );
         }
-        syncAuthButton();
       }
 
       function openSaveModal() {
         renderAuthModal();
-        $('saveModal').classList.replace('hidden', 'flex'); SoundFX.click();
+        $('saveModal').classList.replace('hidden', 'flex');
+        SoundFX.click();
       }
-      const closeSaveModal = () => { const m = $('saveModal'); if (m.classList.contains('hidden')) return false; m.classList.replace('flex', 'hidden'); return true; };
-      function setSaveMsg(msg, err = false) {
-        const el = $('saveStatusMsg'); el.textContent = Locale.t(msg);
-        el.className = `min-h-[2.4rem] rounded-xl px-3 py-2 text-xs font-story flex items-center justify-center text-center border ${err ? 'bg-rose-950/75 border-rose-400/60 text-rose-100' : 'bg-emerald-950/65 border-emerald-400/55 text-emerald-100'}`;
+
+      function closeSaveModal() {
+        const m = $('saveModal');
+        if (m.classList.contains('hidden')) return false;
+        m.classList.replace('flex', 'hidden');
+        return true;
       }
 
       window.addEventListener('resize', handleResize);
@@ -1291,7 +1375,10 @@
 
       window.addEventListener('keydown', (e) => {
         const code = e.code;
-        if (!$('saveModal').classList.contains('hidden')) { if (code === 'Escape') closeSaveModal(); return; }
+        if (!$('saveModal').classList.contains('hidden')) {
+          if (code === 'Escape') closeSaveModal();
+          return;
+        }
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) e.preventDefault();
         if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
@@ -1299,9 +1386,18 @@
         if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
         if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
 
-        if (mode === 'title') { if (DATA && (code === 'KeyX' || code === 'Enter')) startNewAdventure(); return; }
-        if (!$('bookModal').classList.contains('hidden')) { if (code === 'KeyZ' || code === 'Escape') closeBookModal(); return; }
-        if (!$('wardrobeModal').classList.contains('hidden')) { if (code === 'KeyZ' || code === 'Escape') closeWardrobeModal(); return; }
+        if (mode === 'title') {
+          if (DATA && (code === 'KeyX' || code === 'Enter')) startNewAdventure();
+          return;
+        }
+        if (!$('bookModal').classList.contains('hidden')) {
+          if (code === 'KeyZ' || code === 'Escape') closeBookModal();
+          return;
+        }
+        if (!$('wardrobeModal').classList.contains('hidden')) {
+          if (code === 'KeyZ' || code === 'Escape') closeWardrobeModal();
+          return;
+        }
         if (vn.isActive()) {
           if (vn.state.waitChoice) {
             if (code === 'ArrowUp' || code === 'KeyW') vn.moveChoice(-1);
@@ -1314,7 +1410,15 @@
           return;
         }
         if (battle.isActive()) {
-          battle.handleKey(code);
+          if (typeof battle.handleKey === 'function') {
+            battle.handleKey(code);
+          } else if (battle.isChantActive()) {
+            if (code === 'KeyX' || code === 'Enter' || code === 'Space') battle.completeChantStep(false);
+            else if (code === 'KeyZ' || code === 'Escape') battle.completeChantStep(true);
+          } else if (battle.isTiming()) {
+            if (code === 'KeyX' || code === 'Enter' || code === 'Space') battle.execSeal();
+            else if (code === 'KeyZ' || code === 'Escape') battle.cancelSeal();
+          }
           return;
         }
         if (mode === 'explore') {
@@ -1390,10 +1494,31 @@
       };
       $('btnGuestClose').onclick = closeSaveModal;
       $('btnExitMemory').onclick = exitMemoryMode;
+      $('btnFloatInteract').onclick = (e) => { e.currentTarget.blur(); triggerInteract(); };
+      $('btnSoundToggle').onclick = (e) => { e.currentTarget.blur(); e.currentTarget.textContent = SoundFX.toggle() ? '🎵' : '🔇'; };
+      $('btnKeroHint').onclick = (e) => {
+        e.currentTarget.blur(); if (mode !== 'explore') return;
+        const next = getNextObjective();
+        if (!next) showToast('케로: 토모에다 마을이 완전히 평화로워졌어!');
+        else if (next.isBoss) showToast(`케로: 모든 카드가 모였어! 남쪽 [${BOSS_YUE.zone}]으로 가자!`);
+        else { const tc = next.targetCard || next; showToast(`케로: [${tc.zone}] 쪽에서 "${tc.rumor}" 같은 기운이 느껴져!`); }
+      };
+      $('btnContinueExplore').onclick = () => { $('endingBox').classList.add('hidden'); mode = 'explore'; updateFieldBar(); };
+      $('btnRestartAll').onclick = () => startNewAdventure();
       $('btnAuthSubmit').onclick = async () => {
         setSaveMsg('계정 확인 중...');
         try {
-          const res = await Cloud.loginOrRegister(1, $('savePlayerId').value, $('saveSecret').value);
+          let res;
+          if (typeof Cloud.loginOrRegister === 'function') {
+            res = await Cloud.loginOrRegister(1, $('savePlayerId').value, $('saveSecret').value);
+          } else {
+            const loaded = await Cloud.load(1, $('savePlayerId').value, $('saveSecret').value);
+            const cid = Cloud.sanitizeId($('savePlayerId').value);
+            const sec = Cloud.sanitizeSecret($('saveSecret').value);
+            res = loaded
+              ? { status: 'logged_in', id: cid, secret: sec, data: loaded }
+              : { status: 'registered', id: cid, secret: sec, data: null };
+          }
           cloudCreds = { id: res.id, secret: res.secret };
           syncAuthButton();
           if (res.status === 'logged_in' && res.data) {
@@ -1461,7 +1586,11 @@
           NPCS = toArr(DATA.npcs);
           BOSS_YUE = DATA.bossYue;
           QUICK_SLOTS = toArr(DATA.fieldQuickSlots);
-          COSTUMES = (toArr(DATA.costumes).length >= 8) ? toArr(DATA.costumes) : Rules.DEFAULT_COSTUMES_P1;
+          const dataCostumes = toArr(DATA.costumes);
+          const defaultP1 = toArr(Rules?.DEFAULT_COSTUMES_P1);
+          COSTUMES = dataCostumes.length >= 8
+            ? dataCostumes
+            : (defaultP1.length ? defaultP1 : (dataCostumes.length ? dataCostumes : FALLBACK_COSTUMES));
 
           if (CARDS.jump) { anomaly.jumpX = CARDS.jump.x; anomaly.jumpY = CARDS.jump.y; }
           if (CARDS.glow) { anomaly.glowX = CARDS.glow.x; anomaly.glowY = CARDS.glow.y; }
