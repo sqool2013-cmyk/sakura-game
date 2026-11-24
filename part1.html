@@ -260,7 +260,7 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
           <span>PART I · REMASTER</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-d</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-e</span>
         </div>
       </div>
     </div>
@@ -360,7 +360,7 @@
       <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
       <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CLOUD ARCHIVE</span>
-        <span id="modalVersionBadge">v.0.2.0-d</span>
+        <span id="modalVersionBadge">v.0.2.0-e</span>
       </div>
     </div>
   </div>
@@ -378,11 +378,12 @@
         'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
       );
       let lastErr = null;
-      const cacheBust = '?v=0.2.0-d';
+      const cacheBust = '?v=0.2.0-e';
       for (const base of candidates) {
         try {
+          // core.js는 world.js/battle.js의 './core.js'와 동일한 단일 인스턴스를 공유하도록 쿼리 없이 로드
           const [coreMod, worldMod, battleMod] = await Promise.all([
-            import(`${base}core.js${cacheBust}`),
+            import(`${base}core.js`),
             import(`${base}world.js${cacheBust}`),
             import(`${base}battle.js${cacheBust}`)
           ]);
@@ -413,7 +414,7 @@
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
-      const APP_VER = 'v.0.2.0-d';
+      const APP_VER = 'v.0.2.0-e';
       if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
       if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
