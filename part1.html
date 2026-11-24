@@ -260,7 +260,7 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
           <span>PART I · REMASTER</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-e</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-f</span>
         </div>
       </div>
     </div>
@@ -360,7 +360,7 @@
       <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
       <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CLOUD ARCHIVE</span>
-        <span id="modalVersionBadge">v.0.2.0-e</span>
+        <span id="modalVersionBadge">v.0.2.0-f</span>
       </div>
     </div>
   </div>
@@ -378,7 +378,7 @@
         'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
       );
       let lastErr = null;
-      const cacheBust = '?v=0.2.0-e';
+      const cacheBust = '?v=0.2.0-f';
       for (const base of candidates) {
         try {
           // core.js는 world.js/battle.js의 './core.js'와 동일한 단일 인스턴스를 공유하도록 쿼리 없이 로드
@@ -414,7 +414,7 @@
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
-      const APP_VER = 'v.0.2.0-e';
+      const APP_VER = 'v.0.2.0-f';
       if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
       if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
@@ -428,7 +428,7 @@
       let currentMapId = 'town', portalCd = 0, encCd = 0, nearbyTarget = null, pendingTarget = null;
       let cloudCreds = { id: '', secret: '' };
       let memoryMode = { active: false, cardId: null, snapshot: null };
-
+      let inPrologue = false;
       const story = { metSyaoran: false, syaoranTrust: 0, seenEncounters: new Set(), sealedOrder: [], costumeId: 'sakura_dress' };
       const player = { x: 385, y: 465, dir: 'down', hp: 100, maxHp: 100, mp: 105, maxMp: 105, lv: 1, mult: 1, walk: 0, targetPos: null };
       const kero = { x: 355, y: 445, bob: 0 };
@@ -590,6 +590,7 @@
         vn.finish(true);
         battle.forceClose();
         memoryMode = { active: false, cardId: null, snapshot: null };
+        inPrologue = false;
         $('memoryBanner').classList.add('hidden');
 
         ownedCards = new Set(toArr(saved.ownedCards).length ? toArr(saved.ownedCards) : ['windy']);
@@ -1208,9 +1209,13 @@
           } else {
             updateExplore(dt);
             const cur = getMap();
-            const activeCards = CARD_ORDER
-              .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
-              .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
+            const hideKero = inPrologue && vn.state.i < 3;
+            const hideAnomalies = inPrologue && vn.state.i < 2;
+            const activeCards = hideAnomalies
+              ? []
+              : CARD_ORDER
+                  .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
+                  .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
             const visibleNpcs = NPCS.filter(isNpcVisible);
             const yueReady = !yueDefeated && !memoryMode.active && BOSS_YUE && ownedCards.size === CARD_ORDER.length;
             const bossObj = yueReady && currentMapId === BOSS_YUE.map
@@ -1254,6 +1259,7 @@
                 wateryActive: isCardActiveOnMap('watery'),
                 mazeActive: (currentMapId === 'school' || currentMapId === 'shrine_gate') && isCardActiveOnMap('maze'),
                 shadowNearPlayer,
+                hideKero,
                 showTarget: mode === 'explore'
               }
             });
@@ -1269,6 +1275,7 @@
         vn.finish(true);
         battle.forceClose();
         memoryMode = { active: false, cardId: null, snapshot: null };
+        inPrologue = true;
         $('memoryBanner').classList.add('hidden');
 
         ownedCards = new Set(['windy']);
@@ -1313,6 +1320,7 @@
           { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: '그나마 윈디 한 장은 네 손에 남았어! 자, 이 봉인의 열쇠를 받아 줘! 카드캡터가 되어 열여덟 장의 크로우 카드를 모두 봉인하는 거야!' }
         ];
         vn.start(prologueLines, () => {
+          inPrologue = false;
           world.burst(player.x, player.y, '#38bdf8', 24);
           showToast('📖 크로우 카드 1/19 (윈디) 보유! 마을로 나가 흩어진 18장을 봉인하세요!');
           autoSave('모험 시작');
@@ -1324,6 +1332,7 @@
         vn.finish(true);
         battle.forceClose();
         memoryMode = { active: false, cardId: null, snapshot: null };
+        inPrologue = false;
         $('memoryBanner').classList.add('hidden');
         $('endingBox').classList.add('hidden');
         $('btnLocalContinue').classList.add('hidden');
