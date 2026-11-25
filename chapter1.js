@@ -1,11 +1,11 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 — 제1부 고유 컨트롤러 (chapter1.js) — v.0.1.0
+ * 카드캡터 3부작 — 제1부 고유 컨트롤러 (chapter1.js) — v.0.1.2
  * - 단일 스토리 통합 앱(index.html)과 연동되는 제1부(크로우 카드 편) 모듈
- * - 멀티 세이브 슬롯(자동 1 + 수동 6) 스냅샷·메타·공유 상태(의상/친밀도/추억) 제공
- * - 모달(의상실·도감·세이브) 오픈 중 이동·포인터 입력 완전 차단
- * - 지하 서재 붉은 책 & 윈디 비산 프롤로그 · 10개 층별/구역별 맵 · 8벌 마법 의상실
- * - 유에 격파 시 로비로 끊기지 않고 제2부 막간 시네마틱(Interlude)으로 자연 직결
+ * - 토모요(지수) 촬영 동행 AI: 모든 실내·야외 맵에서 일정 거리로 동행(회복·의상실 전담)
+ * - 샤오랑 친밀도 이중 가산 버그 수정 & 제1부 상한(최대 5) 보정
+ * - 4종 마법 피니시(수렴 마법진 · 최종 보스 X연타 마력 충돌) & 연속 성장 곡선 연동
+ * - 멀티 세이브 슬롯(자동 1 + 수동 6) · 모달 중 이동 차단 · 제2부 막간 시네마틱 직결
  * ============================================================================
  */
 
@@ -29,6 +29,7 @@ export function createChapter(host, DATA) {
     {
       id: 'sakura_dress',
       name: '🌸 벚꽃 배틀 드레스',
+      icon: '🌸',
       unlockType: 'default',
       unlockHint: '기본 지급 의상',
       dressColor: '#f472b6',
@@ -39,6 +40,17 @@ export function createChapter(host, DATA) {
       tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
     }
   ];
+
+  const COSTUME_ICONS = {
+    sakura_dress: '🌸',
+    frog_rain: '🐸',
+    cat_thunder: '🐱',
+    sky_wing: '🪽',
+    alice_maid: '🎀',
+    pierrot_magic: '🃏',
+    star_royal: '👑',
+    pure_angel: '🕊'
+  };
 
   const dataCostumes = toArr(DATA.costumes);
   const defaultP1 = toArr(Rules?.DEFAULT_COSTUMES_P1);
@@ -77,8 +89,11 @@ export function createChapter(host, DATA) {
     seenEncounters: new Set(),
     sealedOrder: [],
     costumeId: 'sakura_dress',
-    unlockedCostumes: new Set(['sakura_dress'])
+    unlockedCostumes: new Set(['sakura_dress']),
+    tomoyoFollowing: false
   };
+
+  const tomoyoPos = { x: 455, y: 485 };
 
   const player = {
     x: 385,
@@ -102,57 +117,56 @@ export function createChapter(host, DATA) {
     light: 0,
     glow: 0,
     glowCd: 0,
-    glowAcc: 0,
-    wind: 0,
-    shield: false,
-    snackBuff: false,
-    cocoaBuff: false
-  };
+  /** 토모요(지수) 촬영 동행 활성화 여부 (마을 첫 도착 이후 모든 실내·야외 맵 동행) */
+  const isTomoyoFollowing = () => !!(story.tomoyoFollowing && !inPrologue);
 
-  const anomaly = {
-    jumpX: CARDS.jump?.x || 365,
-    jumpY: CARDS.jump?.y || 830,
-    jumpHop: 0,
-    jumpBind: 0,
-    glowX: CARDS.glow?.x || 790,
-    glowY: CARDS.glow?.y || 530,
-    mirrorTrail: [],
-    // 학교 1층 도서실(illusion 위치 225, 225 주변) 가짜 환영 분신
-    illusionDecoys: [
-      { x: 135, y: 205, name: '토모요?', hair: '#3b0764', dress: '#c084fc', popped: false },
-      { x: 345, y: 205, name: '케로?', hair: '#facc15', dress: '#fde047', popped: false }
-    ]
-  };
-
-  // --------------------------------------------------------------------------
-  // 3. 핵심 헬퍼 · 성장 곡선 · 원작 동일체 가시성 · 길잡이 탐색
-  // --------------------------------------------------------------------------
-  const getMap = () => MAPS[currentMapId] || MAPS.town;
-
-  const isCardActiveOnMap = (id) => (
-    memoryMode.active ? (memoryMode.cardId === id) : (id !== 'windy' && !ownedCards.has(id))
-  );
-
-  const getUnsealed = () => CARD_ORDER.filter(isCardActiveOnMap).map((id) => CARDS[id]);
-
-  const getCardPos = (c) => (
-    c.id === 'jump'
-      ? { x: anomaly.jumpX, y: anomaly.jumpY }
-      : c.id === 'glow'
-      ? { x: anomaly.glowX, y: anomaly.glowY }
-      : { x: c.x, y: c.y }
-  );
-
-  function countUnsealedInMap(mid) {
-    if (currentMapId === 'town' && MAP_GROUPS[mid]) {
-      const grp = MAP_GROUPS[mid];
-      return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && grp.includes(CARDS[id]?.map)).length;
+  /** 동행 중인 토모요의 실시간 좌표 반환 */
+  function getNpcPos(n) {
+    if (n.id === 'tomoyo' && isTomoyoFollowing()) {
+      return { x: tomoyoPos.x, y: tomoyoPos.y };
     }
-    return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === mid).length;
+    return { x: n.x, y: n.y };
   }
 
-  /** 시계탑에 유에가 강림해 있는 동안 유키토(청명) 숨김 (원작 동일체 고증) */
+  /** 맵 전환·세이브 로드 시 토모요를 사쿠라 뒤쪽 촬영 위치로 안전하게 배치 */
+  function placeTomoyoNearPlayer() {
+    const cur = getMap();
+    const ox = player.dir === 'right' ? -64 : 64;
+    const oy = player.dir === 'down' ? -46 : 46;
+    tomoyoPos.x = clamp(player.x + ox, 44, (cur?.w || 800) - 44);
+    tomoyoPos.y = clamp(player.y + oy, 44, (cur?.h || 600) - 44);
+  }
+
+  /** 사쿠라의 활약상을 촬영하기 위해 일정 거리(약 72px)를 유지하며 부드럽게 동행 */
+  function updateTomoyoFollow(dt) {
+    if (!isTomoyoFollowing()) return;
+    const desiredX = player.x + (player.dir === 'right' ? -68 : player.dir === 'left' ? 68 : -54);
+    const desiredY = player.y + (player.dir === 'down' ? -48 : player.dir === 'up' ? 54 : -34);
+    const distToPlayer = Math.hypot(player.x - tomoyoPos.x, player.y - tomoyoPos.y);
+    const dx = desiredX - tomoyoPos.x;
+    const dy = desiredY - tomoyoPos.y;
+    const distToSpot = Math.hypot(dx, dy);
+
+    if (distToPlayer > 76 && distToSpot > 6) {
+      const spd = Math.min(getMoveSpeed() * 0.94, Math.max(125, distToSpot * 3.4));
+      const cur = getMap();
+      tomoyoPos.x = clamp(tomoyoPos.x + (dx / distToSpot) * spd * dt, 36, (cur?.w || 800) - 36);
+      tomoyoPos.y = clamp(tomoyoPos.y + (dy / distToSpot) * spd * dt, 36, (cur?.h || 600) - 36);
+    } else if (distToPlayer < 46 && distToPlayer > 1) {
+      // 너무 바짝 붙어 카드/포털 클릭을 가리지 않도록 촬영 거리 확보
+      const push = 42 * dt;
+      const cur = getMap();
+      tomoyoPos.x = clamp(tomoyoPos.x - ((player.x - tomoyoPos.x) / distToPlayer) * push, 36, (cur?.w || 800) - 36);
+      tomoyoPos.y = clamp(tomoyoPos.y - ((player.y - tomoyoPos.y) / distToPlayer) * push, 36, (cur?.h || 600) - 36);
+    }
+  }
+
+  /** 시계탑에 유에가 강림해 있는 동안 유키토(청명) 숨김 (원작 동일체 고증) + 토모요 동행 표시 */
   function isNpcVisible(n) {
+    if (n.id === 'tomoyo') {
+      if (inPrologue) return false;
+      return isTomoyoFollowing() || n.map === currentMapId;
+    }
     if (n.map !== currentMapId) return false;
     const yueSummoned = ownedCards.size === CARD_ORDER.length && !yueDefeated && !memoryMode.active;
     if (n.id === 'yukito' && yueSummoned) return false;
@@ -160,6 +174,7 @@ export function createChapter(host, DATA) {
   }
 
   const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0];
+  const getCostumeIcon = (cos) => cos?.icon || COSTUME_ICONS[cos?.id] || '🌸';
 
   function resetAnomalyState() {
     anomaly.jumpX = CARDS.jump?.x || 365;
@@ -295,11 +310,12 @@ export function createChapter(host, DATA) {
       shownActs: Array.from(shownActs),
       story: {
         metSyaoran: story.metSyaoran,
-        syaoranTrust: story.syaoranTrust,
+        syaoranTrust: Rules.clampTrust(story.syaoranTrust, 1),
         seenEncounters: Array.from(story.seenEncounters),
         sealedOrder: story.sealedOrder.slice(),
         costumeId: story.costumeId,
-        unlockedCostumes: getUnlockedCostumeList()
+        unlockedCostumes: getUnlockedCostumeList(),
+        tomoyoFollowing: !!story.tomoyoFollowing
       },
       player: {
         x: Math.round(s ? s.px : player.x),
@@ -330,7 +346,7 @@ export function createChapter(host, DATA) {
     shownActs = new Set(toArr(saved.shownActs));
     const st = saved.story || saved.storyState || {};
     story.metSyaoran = !!st.metSyaoran;
-    story.syaoranTrust = Number(st.syaoranTrust) || 0;
+    story.syaoranTrust = Rules.clampTrust(Number(st.syaoranTrust) || 0, 1);
     story.seenEncounters = new Set(toArr(st.seenEncounters));
     story.sealedOrder = toArr(st.sealedOrder);
     story.costumeId = st.costumeId || shared?.costumeId || 'sakura_dress';
@@ -341,6 +357,10 @@ export function createChapter(host, DATA) {
     ]);
 
     currentMapId = MAPS[saved.currentMapId] ? saved.currentMapId : 'town';
+    story.tomoyoFollowing = typeof st.tomoyoFollowing === 'boolean'
+      ? st.tomoyoFollowing
+      : (currentMapId === 'town' || ownedCards.size > 1);
+
     recalcPower(false);
     const p = saved.player || {};
     const cur = getMap();
@@ -352,6 +372,7 @@ export function createChapter(host, DATA) {
     pendingTarget = null;
     kero.x = player.x - 28;
     kero.y = player.y - 20;
+    placeTomoyoNearPlayer();
 
     Object.assign(buffs, {
       fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, glowAcc: 0,
@@ -370,12 +391,14 @@ export function createChapter(host, DATA) {
   // --------------------------------------------------------------------------
   function updateHUD(force = false) {
     const zn = getZoneName();
-    const sig = `${Locale.getMode()}|${player.lv}|${Math.ceil(player.hp)}|${player.maxHp}|${Math.ceil(player.mp)}|${player.maxMp}|${ownedCards.size}|${story.syaoranTrust}|${zn}|${yueDefeated}|${memoryMode.active}`;
+    const curCos = getCostumeObj();
+    const sig = `${Locale.getMode()}|${player.lv}|${Math.ceil(player.hp)}|${player.maxHp}|${Math.ceil(player.mp)}|${player.maxMp}|${ownedCards.size}|${story.syaoranTrust}|${curCos.id}|${zn}|${yueDefeated}|${memoryMode.active}`;
     if (!force && sig === lastHudSig) return;
     lastHudSig = sig;
 
+    if ($('hudCostumeBadge')) $('hudCostumeBadge').textContent = getCostumeIcon(curCos);
     if ($('hudMagicLv')) $('hudMagicLv').textContent = `마력 Lv.${player.lv}`;
-    if ($('hudTrustBadge')) $('hudTrustBadge').textContent = `⚡친밀 ${story.syaoranTrust}`;
+    if ($('hudTrustBadge')) $('hudTrustBadge').textContent = `⚡친밀 ${story.syaoranTrust}/5`;
     if ($('hudHpBar')) $('hudHpBar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
     if ($('hudMpBar')) $('hudMpBar').style.width = `${Math.max(0, (player.mp / player.maxMp) * 100)}%`;
     if ($('hudHpNum')) $('hudHpNum').textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
@@ -543,6 +566,7 @@ export function createChapter(host, DATA) {
     player.y = sp.y;
     kero.x = sp.x - 26;
     kero.y = sp.y - 18;
+    placeTomoyoNearPlayer();
     player.targetPos = null;
     pendingTarget = null;
     encCd = 1.2;
@@ -574,6 +598,7 @@ export function createChapter(host, DATA) {
       yueDefeated = s.yueDefeated;
       kero.x = player.x - 26;
       kero.y = player.y - 18;
+      placeTomoyoNearPlayer();
     }
     mode = 'explore';
     host.resize();
@@ -622,13 +647,6 @@ export function createChapter(host, DATA) {
     host.openWardrobeModal({
       title: '🎀 토모요의 마법 의상실',
       silent,
-      onHeal() {
-        player.hp = player.maxHp;
-        player.mp = player.maxMp;
-        SoundFX.heal();
-        updateHUD(true);
-        host.showToast('☕ 토모요의 따뜻한 홍차로 HP·MP가 완전 회복되었습니다!');
-      },
       renderGrid(grid) {
         COSTUMES.forEach((cos) => {
           const unlocked = Rules.isCostumeUnlocked(cos, {
@@ -691,8 +709,8 @@ export function createChapter(host, DATA) {
 
       const latest = story.sealedOrder.length ? CARDS[story.sealedOrder[story.sealedOrder.length - 1]] : null;
       const filmMsg = latest
-        ? `방금 봉인하신 [${cardName(latest)}] 장면이 어찌나 사랑스러웠는지 카메라에 고스란히 담아 두었답니다!`
-        : '황혼빛 아래 마법 의상이 정말 눈부셔요! 따뜻한 홍차 드시고 기운 내세요!';
+        ? `방금 봉인하신 [${cardName(latest)}] 장면이 어찌나 사랑스러웠는지 카메라에 고스란히 담아 두었답니다! 보온병에 담아 온 따뜻한 홍차로 기운 내세요!`
+        : '사쿠라의 활약상을 놓치지 않으려고 카메라와 보온병 홍차를 챙겨 따라다니고 있답니다! 필요할 땐 언제든 불러 주세요!';
       let openWardrobeAfter = false;
 
       vn.start([
@@ -799,8 +817,13 @@ export function createChapter(host, DATA) {
     if (syaEnc && !story.seenEncounters.has(id)) {
       story.seenEncounters.add(id);
       story.metSyaoran = true;
-      if (syaEnc.trustBonus) story.syaoranTrust += syaEnc.trustBonus;
-      lines.push(...toArr(syaEnc.lines));
+      const encLines = toArr(syaEnc.lines);
+      // 이중 가산 버그 수정: 대화 선택지에 친밀도 상승(trustDelta)이 있으면 진입 보너스 중복 가산 차단
+      const hasChoiceTrust = encLines.some((ln) => toArr(ln.choices).some((ch) => Number(ch.trustDelta) > 0));
+      if (!hasChoiceTrust && syaEnc.trustBonus) {
+        story.syaoranTrust = Rules.clampTrust(story.syaoranTrust + syaEnc.trustBonus, 1);
+      }
+      lines.push(...encLines);
       return lines;
     }
 
@@ -808,7 +831,7 @@ export function createChapter(host, DATA) {
     if (memoryMode.active) {
       lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'happy', text: `그날 [${cardName(c)}]와 마주했던 기억이야! 다시 한 번 봉인의 순간을 체험해 보자!` });
     } else if (story.sealedOrder.length === 0) {
-      lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: `틀림없어, 크로우 카드 [${cardName(c)}]의 실체야! 저항력을 50% 이하로 깎아야 봉인 마법진이 열려!` });
+      lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'serious', text: `틀림없어, 크로우 카드 [${cardName(c)}]의 실체야! 저항력을 50% 이하로 깎으면 수렴 마법진으로 봉인할 수 있어!` });
     } else if (wc && ownedCards.has(wc.id)) {
       lines.push({ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'happy', text: `[${cardName(c)}]의 정령이야! 마침 약점인 [${cardName(wc)}] 카드를 가지고 있잖아! 행동 예고를 보고 맞서자!` });
     } else {
@@ -879,8 +902,8 @@ export function createChapter(host, DATA) {
         body:
           `<b>[${cardName(f)}]</b>에서 시작해 마지막 <b>[${cardName(l)}]</b>까지 열아홉 장의 크로우 카드를 모두 봉인하고, 달의 심판자 유에에게 새로운 주인으로 인정받았습니다.<br/><br/>` +
           `평화로운 새 학기가 찾아올 무렵, 영국에서 신비로운 전학생이 찾아오고 봉인의 지팡이는 사쿠라만의 <b>별의 지팡이</b>로 깨어나려 하는데...<br/>` +
-          `<span class="text-yellow-200 font-bold mt-2 inline-block">✨ 제1부의 모든 의상(🕊 순백의 천사 드레스 포함) · 샤오랑 친밀도(${story.syaoranTrust}) · 추억이 그대로 이어집니다!</span>`,
-        buttonLabel: '⭐ 제2부: 별빛의 토모에다로 계속하기 (X)',
+          `<span class="text-yellow-200 font-bold mt-2 inline-block">✨ 지금까지 성장한 체력(${player.maxHp})·마력(${player.maxMp})·마법 의상·샤오랑 친밀도(${story.syaoranTrust})가 모두 그대로 이어집니다!</span>`,
+        buttonLabel: '⭐ 별빛의 새 학기로 계속하기 (X)',
         sharedPatch: getSharedState(),
         act1Payload: getSavePayload()
       });
@@ -897,6 +920,7 @@ export function createChapter(host, DATA) {
     player.hp = player.maxHp;
     player.mp = player.maxMp;
     encCd = 2.0;
+    placeTomoyoNearPlayer();
     host.resize();
     updateHUD(true);
     updateFieldBar();
@@ -921,28 +945,35 @@ export function createChapter(host, DATA) {
       kero.x = sx - 26;
       kero.y = sy - 18;
       anomaly.mirrorTrail = [];
+
+      let justJoined = false;
+      if (mid === 'town' && !story.tomoyoFollowing && !inPrologue) {
+        story.tomoyoFollowing = true;
+        justJoined = true;
+      }
+      if (isTomoyoFollowing()) placeTomoyoNearPlayer();
+
       host.resize();
       SoundFX.encounter();
       updateHUD(true);
       const cnt = countUnsealedInMap(mid);
-      host.showToast(mid === 'town' ? '황혼의 토모에다 마을로 나왔습니다.' : `${getMap().name}에 들어왔습니다.${cnt ? ` (이상 현상 ${cnt}곳)` : ''}`);
+      if (justJoined) {
+        host.showToast('🎥 토모요가 촬영을 위해 동행합니다! 어디서든 말을 걸어 홍차 회복과 의상 교체를 이용할 수 있어요!');
+      } else {
+        host.showToast(mid === 'town' ? '황혼의 토모에다 마을로 나왔습니다.' : `${getMap().name}에 들어왔습니다.${cnt ? ` (이상 현상 ${cnt}곳)` : ''}`);
+      }
       if (fade) fade.style.opacity = '0';
     }, 170);
   }
 
   function checkNearby() {
     nearbyTarget = null;
-    let best = 88;
+    let bestScore = 92;
     const cur = getMap();
 
     for (const p of toArr(cur.portals)) {
       const d = Math.hypot(player.x - p.x, player.y - p.y);
-      if (d < 64 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; }
-    }
-    for (const n of NPCS) {
-      if (!isNpcVisible(n)) continue;
-      const d = Math.hypot(player.x - n.x, player.y - n.y);
-      if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; }
+      if (d < 64 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'portal', obj: p }; }
     }
     for (const id of CARD_ORDER) {
       if (!isCardActiveOnMap(id)) continue;
@@ -950,11 +981,19 @@ export function createChapter(host, DATA) {
       if (!c || c.map !== currentMapId) continue;
       const pos = getCardPos(c);
       const d = Math.hypot(player.x - pos.x, player.y - pos.y);
-      if (d < best) { best = d; nearbyTarget = { type: 'card', obj: { ...c, x: pos.x, y: pos.y } }; }
+      if (d < 88 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'card', obj: { ...c, x: pos.x, y: pos.y } }; }
     }
     if (!yueDefeated && !memoryMode.active && BOSS_YUE && currentMapId === BOSS_YUE.map) {
       const d = Math.hypot(player.x - BOSS_YUE.x, player.y - BOSS_YUE.y);
-      if (d < best + 10) { best = d; nearbyTarget = { type: 'boss', obj: BOSS_YUE }; }
+      if (d < 98 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'boss', obj: BOSS_YUE }; }
+    }
+    for (const n of NPCS) {
+      if (!isNpcVisible(n)) continue;
+      const np = getNpcPos(n);
+      const d = Math.hypot(player.x - np.x, player.y - np.y);
+      // 동행 중인 토모요는 카드·포털과 겹칠 때 방해되지 않도록 우선순위 소폭 완화
+      const score = (n.id === 'tomoyo' && isTomoyoFollowing()) ? d + 18 : d;
+      if (d < 88 && score < bestScore) { bestScore = score; nearbyTarget = { type: 'npc', obj: { ...n, x: np.x, y: np.y } }; }
     }
 
     const btn = $('btnFloatInteract');
@@ -1142,6 +1181,7 @@ export function createChapter(host, DATA) {
     kero.x += (player.x - (player.dir === 'right' ? 28 : -28) - kero.x) * Math.min(1, dt * 4.5);
     kero.y += (player.y - 22 - kero.y) * Math.min(1, dt * 4.5);
     kero.bob += dt * 4.5;
+    updateTomoyoFollow(dt);
     world.updateCamera(dt, getMap(), player);
     checkNearby();
     updateHUD();
@@ -1176,12 +1216,12 @@ export function createChapter(host, DATA) {
     const cur = getMap();
     const hideKero = inPrologue && vn.state.i < 3;
     const hideAnomalies = inPrologue && vn.state.i < 2;
-    const activeCards = hideAnomalies
-      ? []
-      : CARD_ORDER
-          .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
-          .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
-    const visibleNpcs = NPCS.filter(isNpcVisible);
+    const visibleNpcs = NPCS.filter(isNpcVisible).map((n) => {
+      if (n.id === 'tomoyo' && isTomoyoFollowing()) {
+        return { ...n, x: tomoyoPos.x, y: tomoyoPos.y };
+      }
+      return n;
+    });
     const yueReady = !yueDefeated && !memoryMode.active && BOSS_YUE && ownedCards.size === CARD_ORDER.length;
     const bossObj = yueReady && currentMapId === BOSS_YUE.map
       ? { type: 'yue', x: BOSS_YUE.x, y: BOSS_YUE.y, label: '☽ 달의 심판자 유에' }
@@ -1251,6 +1291,7 @@ export function createChapter(host, DATA) {
     story.sealedOrder = [];
     story.costumeId = 'sakura_dress';
     story.unlockedCostumes = new Set(['sakura_dress']);
+    story.tomoyoFollowing = false;
 
     const hasBasement = !!MAPS.house_b1;
     currentMapId = hasBasement ? 'house_b1' : (MAPS.house ? 'house' : 'town');
@@ -1301,6 +1342,7 @@ export function createChapter(host, DATA) {
       getOwnedCards: () => ownedCards,
       getSakuraCards: () => new Set(),
       getCostumeId: () => story.costumeId,
+      isCostumeReformed: () => false,
       getSyaoranTrust: () => story.syaoranTrust,
       getFieldBuffs: () => buffs,
       onHUDUpdate: () => updateHUD(true),
@@ -1322,8 +1364,12 @@ export function createChapter(host, DATA) {
       updateFieldBar();
     },
     onTrustDelta(delta) {
-      story.syaoranTrust = Math.max(0, story.syaoranTrust + delta);
+      story.syaoranTrust = Rules.clampTrust(story.syaoranTrust + delta, 1);
       updateHUD(true);
+    },
+    onCostumeBadgeClick() {
+      const cos = getCostumeObj();
+      host.showToast(`🎀 현재 착용: ${cos.name} (${cos.passive}) · 의상 교체와 홍차 회복은 동행 중인 토모요에게!`);
     },
     onLocaleChange() {
       if (!$('bookModal')?.classList.contains('hidden')) openBook(true);
@@ -1347,7 +1393,13 @@ export function createChapter(host, DATA) {
           if (Math.hypot(wx - p.x, wy - p.y) < 44) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
         }
         for (const n of NPCS) {
-          if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 48) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
+          if (!isNpcVisible(n)) continue;
+          const np = getNpcPos(n);
+          if (Math.hypot(wx - np.x, wy - np.y) < 48) {
+            pendingTarget = { type: 'npc', obj: { ...n, x: np.x, y: np.y } };
+            player.targetPos = { x: np.x, y: np.y };
+            return;
+          }
         }
         for (const id of CARD_ORDER) {
           if (isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId) {
