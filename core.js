@@ -1,9 +1,10 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.2.0-b
+ * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.2.0-c
  * - 버전 표기 규칙: 주요 판올림 v.0.2.0 / 버그 수정 시 -b, -c 접미사 부착
+ * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 완전 분리
  * - Firebase RTDB 데이터·아트 병렬 로더 및 명확한 계정 로그인/등록 모듈
- * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 공식 주문
+ * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환
  * - 6종 표정 오버레이 합성 & 2D 캔버스용 건물 스프라이트 캐싱
  * - Web Audio 오르골 BGM & 효과음 / 8벌 마법 의상실 패시브 & 성장 곡선 규칙
  * ============================================================================
@@ -12,9 +13,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  engine: 'v.0.2.0-b',
-  part1: 'v.0.2.0-g',
-  part2: 'v.0.1.0'
+  engine: 'v.0.2.0-c',
+  part1: 'v.0.2.0-h',
+  part2: 'v.0.1.0-b'
 };
 
 /* ----------------------------------------------------------------------------
@@ -127,17 +128,15 @@ export const Utils = {
  * 2. 원작명판(orig: 사쿠라) <-> 국내 공식 번안판(kr: 체리) 자동 변환 엔진
  *    - 받침이 달라지는 인물/지명의 한국어 조사 자동 교정
  *    - 구버전 JSON의 괄호 카드명(예: 바람(윈디))을 단일 호칭(윈디)으로 자동 정제
- *    - 공식 검증된 1·2부 봉인/변환 주문 4~5행 줄맞춤 제공
+ *    - 지팡이 해방(배틀 돌입) 주문과 카드 봉인/변환 주문 완전 분리
  * --------------------------------------------------------------------------*/
 export const Locale = (() => {
   const STORE_KEY = 'sakura_locale_mode';
   let mode = SafeStore.get(STORE_KEY, 'orig') === 'kr' ? 'kr' : 'orig';
   const listeners = new Set();
 
-  // 구버전 JSON 호환용: '바람(윈디)' -> '윈디' 자동 정제 패턴
   const CARD_PAREN_RE = /(바람|비행|나무|방패|도약|거울|꽃|번개|미궁|그림자|환상|검|땅|소멸|물|등불|불|어둠|빛)\((윈디|플라이|우드|실드|점프|미러|플라워|선더|메이즈|섀도|일루전|소드|어시|이레이즈|워터리|글로우|파이어리|다크|라이트)\)/g;
 
-  // 받침 변화가 있는 치환 규칙 (조사 동반 우선 치환)
   const PARTICLE_RULES = [
     { from: '츠키시로 유키토', to: '오청명' },
     { from: '히이라기자와 에리오르', to: '에리얼 신' },
@@ -147,7 +146,6 @@ export const Locale = (() => {
     { from: '토모에다', to: '우수 마을' }
   ];
 
-  // 단순 고정 명칭 및 영창 치환 (긴 구문부터 우선 치환)
   const DIRECT_RULES = [
     ['토모에다 초등학교', '우수초등학교'],
     ['토모에다 마을', '우수 마을'],
@@ -175,27 +173,34 @@ export const Locale = (() => {
     ['토모요', '지수']
   ];
 
-  // 공식 검증 봉인 / 변환 주문 (원작명판 vs 국내 번안판)
+  // 지팡이 소환(배틀 시작) 주문과 카드 봉인/변환(마무리) 주문 분리
   const OFFICIAL_CHANTS = {
+    release_p1: {
+      orig: '어둠의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
+      kr: '어둠의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
+    },
+    release_p2: {
+      orig: '별의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
+      kr: '별의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
+    },
     seal_p1: {
-      orig: '어둠의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!\n그대의 본래 모습으로 돌아가라, 크로우 카드!',
-      kr: '어둠의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!\n너의 본 모습으로 돌아갈 것을 명한다, 크로우 카드!'
+      orig: '그대의 본래 모습으로 돌아가라,\n크로우 카드!',
+      kr: '너의 본 모습으로 돌아갈 것을 명한다,\n크로우 카드!'
     },
     yue_p1: {
-      orig: '어둠의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!\n유에 씨와 모두를 지키는 새로운 주인이 될게요!',
-      kr: '어둠의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!\n유에 씨와 모두를 지키는 새로운 주인이 될게요!'
+      orig: '유에 씨와 모두를 지키는\n새로운 주인이 될게요!',
+      kr: '유에 씨와 모두를 지키는\n새로운 주인이 될게요!'
     },
     transform_p2: {
-      orig: '별의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!\n크로우가 만들어 낸 카드여, 낡은 모습을 버리고 새롭게 태어나라.\n너의 새로운 주인, 사쿠라의 이름 아래!',
-      kr: '별의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!\n크로우가 만들어 낸 카드여, 낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
+      orig: '크로우가 만들어 낸 카드여,\n낡은 모습을 버리고 새롭게 태어나라.\n너의 새로운 주인, 사쿠라의 이름 아래!',
+      kr: '크로우가 만들어 낸 카드여,\n낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
     },
     dual_p2: {
-      orig: '별의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n어둠과 빛이여, 낡은 모습을 버리고 새롭게 태어나라.\n너의 새로운 주인, 사쿠라의 이름 아래!',
-      kr: '별의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n어둠과 빛이여, 낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
+      orig: '어둠과 빛이여,\n낡은 모습을 버리고 새롭게 태어나라.\n너의 새로운 주인, 사쿠라의 이름 아래!',
+      kr: '어둠과 빛이여,\n낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
     }
   };
 
-  // 받침 없는 원작명 -> 받침 있는 번안명 변환 시 조사 매핑
   const PARTICLE_MAP = {
     '가': '이',
     '는': '은',
@@ -218,12 +223,10 @@ export const Locale = (() => {
     if (typeof input !== 'string' || !input) return input;
     let out = input;
 
-    // 1) 고정 복합어 먼저 치환 (예: 토모에다 초등학교 -> 우수초등학교)
     for (const [from, to] of DIRECT_RULES) {
       if (out.includes(from)) out = out.split(from).join(to);
     }
 
-    // 2) 받침이 생기는 명칭 + 뒤따르는 조사 자동 교정
     for (const rule of PARTICLE_RULES) {
       if (!out.includes(rule.from)) continue;
       const re = new RegExp(`${rule.from}(가|는|를|와|랑|야|여|로)?`, 'g');
@@ -233,7 +236,6 @@ export const Locale = (() => {
       });
     }
 
-    // 3) 자연스러운 타이틀 & 호칭 보정
     out = out.replace(/청명(이|은|을|과)가/g, '청명이');
     out = out.replace(/카드캡터:\s*(황혼|별빛|꿈결)의\s*우수 마을/g, '카드캡터 체리: $1의 우수 마을');
     return out;
@@ -256,7 +258,7 @@ export const Locale = (() => {
       const cleaned = cleanCardParens(text);
       return mode === 'kr' ? translateToKr(cleaned) : cleaned;
     },
-    /** 공식 고증 4~5행 영창 주문 반환 (seal_p1 | yue_p1 | transform_p2 | dual_p2) */
+    /** 공식 검증 주문 반환 (release_p1 | release_p2 | seal_p1 | yue_p1 | transform_p2 | dual_p2) */
     getChant(kind = 'seal_p1') {
       const entry = OFFICIAL_CHANTS[kind] || OFFICIAL_CHANTS.seal_p1;
       return mode === 'kr' ? entry.kr : entry.orig;
@@ -290,7 +292,6 @@ export const Art = (() => {
   let rawArt = { avatars: {}, buildings: {}, clow: {}, sakura: {} };
   const buildingCache = {};
 
-  // 6종 상황별 표정 오버레이 레이어 (JSON 표정 데이터가 없을 때도 즉시 생동감 표현)
   const MOOD_OVERLAYS = {
     happy: `<g class="mood-layer"><circle cx="24" cy="28" r="3" fill="#fef08a"/><path d="M132 22 L135 30 L143 33 L135 36 L132 44 L129 36 L121 33 L129 30 Z" fill="#fef08a"/><ellipse cx="52" cy="94" rx="8" ry="4" fill="#fb7185" opacity="0.35"/><ellipse cx="108" cy="94" rx="8" ry="4" fill="#fb7185" opacity="0.35"/></g>`,
     shock: `<g class="mood-layer"><g stroke="#fef08a" stroke-width="2.4" stroke-linecap="round" opacity="0.88"><line x1="12" y1="16" x2="28" y2="30"/><line x1="148" y1="16" x2="132" y2="30"/><line x1="10" y1="54" x2="24" y2="58"/><line x1="150" y1="54" x2="136" y2="58"/></g><path d="M126 48 Q134 62 126 70 Q118 62 126 48 Z" fill="#7dd3fc" stroke="#ffffff" stroke-width="1.4"/></g>`,
@@ -507,7 +508,6 @@ export const SoundFX = (() => {
  * 5. 성장 곡선(HP 100->115 / 105->120) & 마법 의상실 8벌 패시브 공용 규칙
  * --------------------------------------------------------------------------*/
 export const Rules = {
-  /** 제1부 기본 8벌 마법 의상 카탈로그 (구버전 JSON에서도 8벌 의상실 즉시 지원) */
   DEFAULT_COSTUMES_P1: [
     {
       id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', unlockType: 'default', unlockHint: '기본 지급 의상',
@@ -551,11 +551,6 @@ export const Rules = {
     }
   ],
 
-  /**
-   * 1부·2부 체력·마력·레벨 성장 곡선 계산
-   * - 1부: Lv.1~19, HP 100 -> 115 (+의상 HP 보너스), MP 100 + g*14 (+의상 MP 보너스)
-   * - 2부: Lv.1~20, HP 105 -> 120 (+의상 HP 보너스), MP 130 + k*9 (+1부 연동 +20 +의상 MP 보너스)
-   */
   calcStats({ part = 1, progressCount = 0, total = 19, costumeId = 'sakura_dress', part1Linked = false, progCfg = null }) {
     const bonus = this.getCostumeBonuses(costumeId);
     const ratio = Utils.clamp(progressCount / Math.max(1, total - (part === 1 ? 1 : 0)), 0, 1);
@@ -586,7 +581,6 @@ export const Rules = {
     };
   },
 
-  /** 8벌 마법 의상별 전략 패시브 보너스 */
   getCostumeBonuses(costumeId) {
     const base = {
       hpBonus: 0, mpBonus: 0, magicMult: 1.0, allAtkMult: 1.0,
@@ -614,7 +608,6 @@ export const Rules = {
     }
   },
 
-  /** 의상 해금 조건 판정 */
   isCostumeUnlocked(costume, ctx) {
     if (!costume) return false;
     const t = costume.unlockType;
@@ -687,7 +680,6 @@ export const Cloud = {
   sanitizeId,
   sanitizeSecret,
 
-  /** 원스톱 계정 로그인 또는 신규 등록 (기존 기록 있으면 자동 로드, 없으면 새 계정 생성) */
   async loginOrRegister(part, rawId, rawSecret) {
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
@@ -706,7 +698,6 @@ export const Cloud = {
     return { status: 'registered', id: cid, secret: sec, data: null };
   },
 
-  /** 파트별 게임 데이터 + 공용 고퀄리티 벡터 에셋 일괄 로드 */
   async loadBundle(part = 1) {
     const [data, avatars, buildings, clow, sakura] = await Promise.all([
       fetchNode(`sakura/content/part${part}`, true),
