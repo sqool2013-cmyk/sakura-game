@@ -1,10 +1,10 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.2.0-c
- * - 버전 표기 규칙: 주요 판올림 v.0.2.0 / 버그 수정 시 -b, -c 접미사 부착
- * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 완전 분리
- * - Firebase RTDB 데이터·아트 병렬 로더 및 명확한 계정 로그인/등록 모듈
- * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환
+ * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.3.0
+ * - 1·2·3부 통합 아키텍처(index.html + chapter1/2/3.js) 지원 & 기존 페이지 100% 호환
+ * - Firebase RTDB 데이터·아트 병렬 로더 및 3부작 통합 로그인(Cloud.loginTrilogy)
+ * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 자동 보정
+ * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 분리
  * - 6종 표정 오버레이 합성 & 2D 캔버스용 건물 스프라이트 캐싱
  * - Web Audio 오르골 BGM & 효과음 / 8벌 마법 의상실 패시브 & 성장 곡선 규칙
  * ============================================================================
@@ -13,9 +13,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  engine: 'v.0.2.0-c',
-  part1: 'v.0.2.0-h',
-  part2: 'v.0.1.0-b'
+  engine: 'v.0.3.0',
+  trilogy: 'v.0.3.0',
+  part1: 'v.0.3.0',
+  part2: 'v.0.3.0',
+  part3: 'COMING SOON'
 };
 
 /* ----------------------------------------------------------------------------
@@ -126,9 +128,6 @@ export const Utils = {
 
 /* ----------------------------------------------------------------------------
  * 2. 원작명판(orig: 사쿠라) <-> 국내 공식 번안판(kr: 체리) 자동 변환 엔진
- *    - 받침이 달라지는 인물/지명의 한국어 조사 자동 교정
- *    - 구버전 JSON의 괄호 카드명(예: 바람(윈디))을 단일 호칭(윈디)으로 자동 정제
- *    - 지팡이 해방(배틀 돌입) 주문과 카드 봉인/변환 주문 완전 분리
  * --------------------------------------------------------------------------*/
 export const Locale = (() => {
   const STORE_KEY = 'sakura_locale_mode';
@@ -148,6 +147,7 @@ export const Locale = (() => {
 
   const DIRECT_RULES = [
     ['토모에다 초등학교', '우수초등학교'],
+    ['토모에다 중학교', '우수중학교'],
     ['토모에다 마을', '우수 마을'],
     ['츠키미네 신사', '월봉사'],
     ['신사 본당', '월봉사 본당'],
@@ -173,7 +173,6 @@ export const Locale = (() => {
     ['토모요', '지수']
   ];
 
-  // 지팡이 소환(배틀 시작) 주문과 카드 봉인/변환(마무리) 주문 분리
   const OFFICIAL_CHANTS = {
     release_p1: {
       orig: '어둠의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
@@ -182,6 +181,10 @@ export const Locale = (() => {
     release_p2: {
       orig: '별의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
       kr: '별의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
+    },
+    release_p3: {
+      orig: '꿈의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
+      kr: '꿈의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
     },
     seal_p1: {
       orig: '그대의 본래 모습으로 돌아가라,\n크로우 카드!',
@@ -198,6 +201,10 @@ export const Locale = (() => {
     dual_p2: {
       orig: '어둠과 빛이여,\n낡은 모습을 버리고 새롭게 태어나라.\n너의 새로운 주인, 사쿠라의 이름 아래!',
       kr: '어둠과 빛이여,\n낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
+    },
+    secure_p3: {
+      orig: '주인 없는 자여,\n꿈의 지팡이 아래 나의 힘이 되어라.\n고착(시큐어)!',
+      kr: '주인 없는 자여,\n꿈의 지팡이 아래 나의 힘이 되어라.\n고착!'
     }
   };
 
@@ -258,7 +265,6 @@ export const Locale = (() => {
       const cleaned = cleanCardParens(text);
       return mode === 'kr' ? translateToKr(cleaned) : cleaned;
     },
-    /** 공식 검증 주문 반환 (release_p1 | release_p2 | seal_p1 | yue_p1 | transform_p2 | dual_p2) */
     getChant(kind = 'seal_p1') {
       const entry = OFFICIAL_CHANTS[kind] || OFFICIAL_CHANTS.seal_p1;
       return mode === 'kr' ? entry.kr : entry.orig;
@@ -289,7 +295,7 @@ export const Locale = (() => {
  * 3. 벡터 아트 복원 · 6종 상황별 표정 오버레이 · 건물 스프라이트 캐시 매니저
  * --------------------------------------------------------------------------*/
 export const Art = (() => {
-  let rawArt = { avatars: {}, buildings: {}, clow: {}, sakura: {} };
+  let rawArt = { avatars: {}, buildings: {}, clow: {}, sakura: {}, clear: {} };
   const buildingCache = {};
 
   const MOOD_OVERLAYS = {
@@ -307,6 +313,7 @@ export const Art = (() => {
   function cacheBuildings() {
     const items = (rawArt.buildings && rawArt.buildings.items) || {};
     Object.entries(items).forEach(([key, raw]) => {
+      if (buildingCache[key]) return;
       const svg = decodeSvg(raw);
       if (!svg) return;
       const img = new Image();
@@ -319,10 +326,11 @@ export const Art = (() => {
     decodeSvg,
     setRawArt(artObj) {
       rawArt = {
-        avatars: artObj?.avatars || {},
-        buildings: artObj?.buildings || {},
-        clow: artObj?.clow || {},
-        sakura: artObj?.sakura || {}
+        avatars: artObj?.avatars || rawArt.avatars || {},
+        buildings: artObj?.buildings || rawArt.buildings || {},
+        clow: artObj?.clow || rawArt.clow || {},
+        sakura: artObj?.sakura || rawArt.sakura || {},
+        clear: artObj?.clear || rawArt.clear || {}
       };
       cacheBuildings();
     },
@@ -394,7 +402,7 @@ export const Art = (() => {
 })();
 
 /* ----------------------------------------------------------------------------
- * 4. Web Audio 오르골 BGM & 효과음 엔진 (1부 황혼 / 2부 별빛 멜로디 지원)
+ * 4. Web Audio 오르골 BGM & 효과음 엔진 (1부 황혼 / 2부 별빛 / 3부 꿈결 멜로디)
  * --------------------------------------------------------------------------*/
 export const SoundFX = (() => {
   let ac = null;
@@ -405,6 +413,7 @@ export const SoundFX = (() => {
 
   const MELODY_P1 = [523.25, 659.25, 783.99, 659.25, 587.33, 739.99, 880.0, 739.99, 659.25, 783.99, 987.77, 783.99, 698.46, 880.0, 783.99, 659.25];
   const MELODY_P2 = [587.33, 739.99, 880.0, 739.99, 659.25, 783.99, 987.77, 783.99, 587.33, 880.0, 1174.66, 987.77, 880.0, 739.99, 659.25, 587.33];
+  const MELODY_P3 = [659.25, 783.99, 1046.5, 987.77, 783.99, 880.0, 1174.66, 1046.5, 659.25, 987.77, 1318.5, 1174.66, 987.77, 880.0, 783.99, 659.25];
 
   function ensureCtx() {
     if (!enabled) return null;
@@ -438,14 +447,14 @@ export const SoundFX = (() => {
 
   return {
     setTheme(part = 1) {
-      themePart = part === 2 ? 2 : 1;
+      themePart = part === 3 ? 3 : part === 2 ? 2 : 1;
     },
     startBGM() {
       if (bgmTimer || !enabled) return;
       ensureCtx();
       bgmTimer = setInterval(() => {
         if (!enabled) return;
-        const notes = themePart === 2 ? MELODY_P2 : MELODY_P1;
+        const notes = themePart === 3 ? MELODY_P3 : themePart === 2 ? MELODY_P2 : MELODY_P1;
         const n = notes[step % notes.length];
         tone(n, 0.42, 'triangle', 0.024);
         if (step % 4 === 0) tone(n * 0.5, 0.72, 'sine', 0.019);
@@ -505,7 +514,7 @@ export const SoundFX = (() => {
 })();
 
 /* ----------------------------------------------------------------------------
- * 5. 성장 곡선(HP 100->115 / 105->120) & 마법 의상실 8벌 패시브 공용 규칙
+ * 5. 성장 곡선(1부 100->115 / 2부 105->120 / 3부 120->140) & 8벌 의상 규칙
  * --------------------------------------------------------------------------*/
 export const Rules = {
   DEFAULT_COSTUMES_P1: [
@@ -554,6 +563,20 @@ export const Rules = {
   calcStats({ part = 1, progressCount = 0, total = 19, costumeId = 'sakura_dress', part1Linked = false, progCfg = null }) {
     const bonus = this.getCostumeBonuses(costumeId);
     const ratio = Utils.clamp(progressCount / Math.max(1, total - (part === 1 ? 1 : 0)), 0, 1);
+
+    if (part === 3) {
+      const startHp = progCfg?.startHp ?? 120;
+      const maxHpCap = progCfg?.maxHp ?? 140;
+      const baseMp = progCfg?.baseMp ?? 160;
+      const mpPer = progCfg?.mpPerCard ?? 10;
+      const linkMp = part1Linked ? (progCfg?.linkMpBonus ?? 20) : 0;
+      return {
+        lv: 1 + progressCount,
+        maxHp: Math.round(startHp + (maxHpCap - startHp) * ratio) + (bonus.hpBonus || 0),
+        maxMp: baseMp + progressCount * mpPer + linkMp + (bonus.mpBonus || 0),
+        mult: 1.15 + progressCount * 0.038
+      };
+    }
 
     if (part === 2) {
       const startHp = progCfg?.startHp ?? 105;
@@ -625,7 +648,7 @@ export const Rules = {
 };
 
 /* ----------------------------------------------------------------------------
- * 6. Firebase Realtime Database 공용 데이터·아트 로드 및 자유 계정 클라우드
+ * 6. Firebase Realtime Database 공용 데이터·아트 로드 및 3부작 통합 계정 클라우드
  * --------------------------------------------------------------------------*/
 const FIREBASE_CFG = {
   apiKey: "AIzaSyCsIXKvZt9PrES_opeCDYxaSLV02dWVVKA",
@@ -639,6 +662,13 @@ const FIREBASE_CFG = {
 
 const app = initializeApp(FIREBASE_CFG);
 const db = getDatabase(app);
+
+// 메모리 캐시 (1부 -> 2부 전환 시 공용 아트 재다운로드 방지!)
+const contentCache = {
+  artLoaded: false,
+  art: { avatars: null, buildings: null, clow: null, sakura: null, clear: null },
+  parts: {}
+};
 
 function sanitizeId(raw) {
   return String(raw || '')
@@ -680,6 +710,71 @@ export const Cloud = {
   sanitizeId,
   sanitizeSecret,
 
+  /** 공용 아트 4종 1회 병렬 프리로드 (1·2·3부 전환 시 재사용) */
+  async ensureSharedArt(includeSakura = true, includeClear = false) {
+    const tasks = [];
+    if (!contentCache.art.avatars) tasks.push(fetchNode('sakura/content/art/avatars', true).then((v) => { contentCache.art.avatars = v; }));
+    if (!contentCache.art.buildings) tasks.push(fetchNode('sakura/content/art/buildings', true).then((v) => { contentCache.art.buildings = v; }));
+    if (!contentCache.art.clow) tasks.push(fetchNode('sakura/content/art/cards_clow', true).then((v) => { contentCache.art.clow = v; }));
+    if (includeSakura && !contentCache.art.sakura) tasks.push(fetchNode('sakura/content/art/cards_sakura', false).then((v) => { contentCache.art.sakura = v || {}; }));
+    if (includeClear && !contentCache.art.clear) tasks.push(fetchNode('sakura/content/art/cards_clear', false).then((v) => { contentCache.art.clear = v || {}; }));
+    if (tasks.length) await Promise.all(tasks);
+    Art.setRawArt(contentCache.art);
+    contentCache.artLoaded = true;
+    return contentCache.art;
+  },
+
+  /** 특정 부(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 (메모리 캐시 자동 활용) */
+  async loadBundle(part = 1) {
+    const [, data] = await Promise.all([
+      this.ensureSharedArt(part >= 2, part >= 3),
+      contentCache.parts[part]
+        ? Promise.resolve(contentCache.parts[part])
+        : fetchNode(`sakura/content/part${part}`, true).then((v) => {
+            contentCache.parts[part] = v;
+            return v;
+          })
+    ]);
+    return { data, art: contentCache.art };
+  },
+
+  /**
+   * 3부작 통합 계정 로그인 / 신규 등록
+   * - 기존 /sakura/part1/players, part2/players, part3/players 경로 100% 호환
+   * - 한 번 로그인으로 1·2·3부 전체 저장 기록을 함께 불러와 세션 유지
+   */
+  async loginTrilogy(rawId, rawSecret) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요. (한글·영문·숫자 자유 입력)');
+    if (sec.length < 4) throw new Error('비밀번호는 4자 이상 입력해 주세요.');
+
+    const [s1, s2, s3] = await Promise.all([
+      withTimeout(get(ref(db, `sakura/part1/players/${cid}`))),
+      withTimeout(get(ref(db, `sakura/part2/players/${cid}`))),
+      withTimeout(get(ref(db, `sakura/part3/players/${cid}`))).catch(() => ({ exists: () => false }))
+    ]);
+
+    const p1 = s1.exists() ? s1.val() : null;
+    const p2 = s2.exists() ? s2.val() : null;
+    const p3 = s3 && s3.exists() ? s3.val() : null;
+
+    const existing = [p1, p2, p3].filter(Boolean);
+    for (const rec of existing) {
+      if (!secretMatches(rec, sec)) {
+        throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
+      }
+    }
+
+    return {
+      status: existing.length > 0 ? 'logged_in' : 'registered',
+      id: cid,
+      secret: sec,
+      parts: { 1: p1, 2: p2, 3: p3 }
+    };
+  },
+
+  /** 단일 부 로그인/등록 (기존 part1.html / part2.html 하위 호환 유지) */
   async loginOrRegister(part, rawId, rawSecret) {
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
@@ -696,19 +791,6 @@ export const Cloud = {
       return { status: 'logged_in', id: cid, secret: sec, data: val };
     }
     return { status: 'registered', id: cid, secret: sec, data: null };
-  },
-
-  async loadBundle(part = 1) {
-    const [data, avatars, buildings, clow, sakura] = await Promise.all([
-      fetchNode(`sakura/content/part${part}`, true),
-      fetchNode('sakura/content/art/avatars', true),
-      fetchNode('sakura/content/art/buildings', true),
-      fetchNode('sakura/content/art/cards_clow', true),
-      fetchNode('sakura/content/art/cards_sakura', part === 2)
-    ]);
-    const art = { avatars, buildings, clow, sakura: sakura || {} };
-    Art.setRawArt(art);
-    return { data, art };
   },
 
   async save(part, rawId, rawSecret, payload) {
@@ -746,16 +828,7 @@ export const Cloud = {
   },
 
   async loadPart1(rawId, rawSecret) {
-    const cid = sanitizeId(rawId);
-    const sec = sanitizeSecret(rawSecret);
-    if (!cid) throw new Error('아이디를 입력해 주세요.');
-    const snap = await withTimeout(get(ref(db, `sakura/part1/players/${cid}`)));
-    if (!snap.exists()) return null;
-    const val = snap.val();
-    if (sec && !secretMatches(val, sec)) {
-      throw new Error('제1부 기록의 비밀번호가 일치하지 않습니다.');
-    }
-    return val;
+    return this.load(1, rawId, rawSecret);
   },
 
   async del(part, rawId, rawSecret) {
