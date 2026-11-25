@@ -97,19 +97,19 @@
     }
     .ending-backdrop { background: linear-gradient(180deg, rgba(24, 9, 48, 0.96) 0%, rgba(44, 14, 72, 0.96) 50%, rgba(12, 4, 28, 0.98) 100%); backdrop-filter: blur(10px); }
     .modal-backdrop { background: rgba(6, 2, 18, 0.85); backdrop-filter: blur(8px); }
-    #sealCursor { left: 0; top: 0; bottom: 0; width: 10px; will-change: transform; transform: translate3d(0, 0, 0); }
   </style>
 </head>
 <body data-theme="part1" class="flex flex-col h-[100dvh] w-screen overflow-hidden">
 
   <!-- =========================================================================
-   * 상단 공용 HUD (게임 진행 중 표시)
+   * 상단 공용 HUD (의상실 버튼 제거 -> 동행 중인 토모요/지수에게 직접 대화!)
    * =======================================================================-->
   <header id="appHeader" class="hidden shrink-0 z-30 theme-header px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-lg">
     <div class="flex flex-col min-w-0">
       <div class="flex items-center gap-1.5">
         <button id="btnBackTitle" title="타이틀 화면으로 돌아가기" class="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-pink-100 transition">🏠 타이틀</button>
         <span id="hudHeroName" class="font-story font-bold text-pink-200 text-sm sm:text-base">사쿠라</span>
+        <button id="hudCostumeBadge" title="현재 착용 중인 의상 효과 확인" class="px-1.5 py-0.5 rounded-full bg-fuchsia-500/25 hover:bg-fuchsia-500/40 border border-pink-300/60 text-pink-100 text-[11px] font-bold transition">🌸</button>
         <span id="hudMagicLv" class="px-1.5 py-0.5 rounded-full bg-yellow-400/20 border border-yellow-400/60 text-yellow-200 text-[11px] font-bold">마력 Lv.1</span>
         <span id="hudTrustBadge" class="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-[10px] font-bold">⚡친밀 0</span>
         <span id="hudZone" class="hidden md:inline-block text-xs text-cyan-200/90 font-story truncate max-w-[170px]">황혼의 토모에다</span>
@@ -139,7 +139,6 @@
         <span id="hudBookIcon">📖</span><span id="hudBookLabel" class="hidden sm:inline">크로우 북</span>
         <span id="hudCardCount" class="px-1.5 rounded bg-black/40 text-yellow-300">1/19</span>
       </button>
-      <button id="btnOpenWardrobe" class="px-2 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-pink-300/55 text-pink-100 text-xs font-bold transition" title="마법 의상실">🎀<span class="hidden sm:inline ml-1">의상</span></button>
       <button id="btnOpenSave" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[130px] truncate">💾 저장 · 계정</button>
       <button id="btnKeroHint" class="px-2 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/35 border border-pink-400/50 text-pink-100 text-xs font-bold transition" title="케로 힌트">🐾</button>
       <button id="btnSoundToggle" class="px-2 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/50 text-indigo-100 text-xs font-bold transition" title="배경음 토글">🎵</button>
@@ -215,7 +214,7 @@
     </div>
 
     <!-- =======================================================================
-     * 전략 배틀 & 지팡이 봉인 해제 / 영창 시네마틱 오버레이
+     * 전략 배틀 & 4종 마법 피니시 · 지팡이 해방 / 영창 시네마틱 오버레이
      * =====================================================================-->
     <div id="battleOverlay" class="hidden absolute inset-0 z-40 battle-bg flex flex-col overflow-hidden">
       <canvas id="battleVfxCanvas"></canvas>
@@ -245,24 +244,10 @@
           <p id="battleLog" class="font-story text-xs sm:text-sm text-pink-100 leading-relaxed"></p>
         </div>
 
-        <!-- 무딜레이 타이밍 봉인/변환 게이지 -->
-        <div id="sealTimingBox" class="hidden w-full max-w-md glass rounded-2xl p-3.5 text-center">
-          <div class="flex items-center justify-between text-[11px] mb-1">
-            <span id="sealGaugeTitle" class="font-magic text-yellow-300 tracking-widest">SEALING CIRCLE</span>
-            <span id="sealGaugeMeta" class="font-story text-pink-200 font-bold"></span>
-          </div>
-          <p id="sealGaugeDesc" class="font-story text-xs text-pink-100 mb-2">빛나는 구역에 맞춰 <b>X</b> 또는 <b>실행</b> 버튼을 누르세요 (취소: Z)</p>
-          <div id="sealTrack" class="relative h-6 bg-black/75 rounded-full border border-yellow-400/70 overflow-hidden mb-3">
-            <div id="sealSweetZone" class="absolute top-0 bottom-0 bg-gradient-to-r from-yellow-400/40 via-yellow-300/85 to-yellow-400/40 border-x-2 border-yellow-200"></div>
-            <div id="sealCursor" class="absolute bg-pink-400 shadow-[0_0_12px_#f472b6] rounded-full"></div>
-          </div>
-          <div class="flex justify-center gap-2">
-            <button id="btnExecuteSeal" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-amber-500 text-white font-bold text-sm shadow-lg active:scale-95">★ 실행! (X)</button>
-            <button id="btnCancelSeal" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 font-bold text-sm">취소 (Z)</button>
-          </div>
-        </div>
+        <!-- 4종 마법 피니시 동적 스테이지 (수렴 마법진 / 3키 별빛 공명 / X연타 마력 충돌) -->
+        <div id="sealTimingBox" class="hidden w-full max-w-md glass rounded-2xl p-3.5 text-center"></div>
 
-        <!-- 컴팩트 카드 선택 패널 -->
+        <!-- 컴팩트 카드 선택 패널 (직전 선택 카드 & 스크롤 위치 기억!) -->
         <div id="battleCardPicker" class="hidden w-full max-w-3xl glass rounded-2xl p-3 max-h-60 flex flex-col">
           <div class="flex items-center justify-between mb-2">
             <span id="battlePickerTitle" class="font-story text-xs sm:text-sm font-bold text-yellow-200">해방할 카드 선택 (방향키 + X / 취소: Z)</span>
@@ -287,7 +272,7 @@
             <button id="btnCmdCard" class="px-3 py-2 rounded-xl bg-purple-600/80 hover:bg-purple-500 border border-purple-300/60 text-white text-xs font-bold">🃏 카드 해방<span id="btnCardSub" class="block text-[10px] font-normal text-purple-100">보유 카드</span></button>
             <button id="btnCmdFocus" class="px-3 py-2 rounded-xl bg-sky-700/80 hover:bg-sky-600 border border-sky-300/60 text-white text-xs font-bold">🛡 방어·호흡<span class="block text-[10px] font-normal text-sky-100">피해65%↓+MP</span></button>
             <button id="btnCmdSyaoran" class="hidden px-3 py-2 rounded-xl bg-emerald-600/85 hover:bg-emerald-500 border border-emerald-300 text-white text-xs font-bold disabled:opacity-40">⚡ 샤오랑 원호<span class="block text-[10px] font-normal text-emerald-100">결계파괴·뇌제</span></button>
-            <button id="btnCmdSeal" class="px-3 py-2 rounded-xl bg-amber-600/85 hover:bg-amber-500 border border-yellow-300 text-white text-xs font-bold disabled:opacity-40"><span id="btnSealMain">🌟 봉인!</span><span id="btnSealSub" class="block text-[10px] font-normal text-yellow-100">저항력 50%↓</span></button>
+            <button id="btnCmdSeal" class="px-3 py-2 rounded-xl bg-amber-600/85 hover:bg-amber-500 border border-yellow-300 text-white text-xs font-bold disabled:opacity-40"><span id="btnSealMain">🎯 수렴 봉인!</span><span id="btnSealSub" class="block text-[10px] font-normal text-yellow-100">저항력 50%↓</span></button>
           </div>
         </div>
       </div>
@@ -309,7 +294,7 @@
     </div>
 
     <!-- =======================================================================
-     * 단일 대작 타이틀 화면 (런처 없는 순수 연속 RPG 진입)
+     * 단일 대작 타이틀 화면
      * =====================================================================-->
     <div id="titleOverlay" class="absolute inset-0 z-[45] title-backdrop overflow-y-auto flex items-center justify-center p-4">
       <div class="max-w-lg w-full glass rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden my-auto">
@@ -329,7 +314,7 @@
           황혼의 <b>크로우 카드</b>와 별빛의 <b>사쿠라 카드</b>로 이어지는 하나의 마법 이야기.
         </p>
 
-        <!-- 최근 세이브 프리뷰 배지 (저장 기록이 있을 때만 표시) -->
+        <!-- 최근 세이브 프리뷰 배지 -->
         <div id="titleLatestCard" class="hidden mb-3.5 rounded-2xl bg-black/40 border border-pink-300/45 px-3.5 py-2.5 text-left text-xs font-story relative z-10">
           <div class="flex items-center justify-between gap-2 mb-0.5">
             <span id="titleLatestArc" class="font-bold text-yellow-200"></span>
@@ -350,17 +335,17 @@
         <!-- 조작 안내 & 버전 표기 -->
         <div class="mt-4 bg-black/30 rounded-2xl p-2.5 text-left text-[11px] text-indigo-100/90 space-y-0.5 border border-white/10 relative z-10">
           <div>• <b>이동</b>: 방향키 / WASD / 맵 클릭·드래그 · <b>확인·조사</b>: <b class="text-yellow-300">X</b></div>
-          <div>• <b>취소·닫기·스킵</b>: <b class="text-yellow-300">Z</b> · <b>필드 카드</b>: <b class="text-pink-300">1 ~ 6</b></div>
+          <div>• <b>취소·닫기·스킵</b>: <b class="text-yellow-300">Z</b> · <b>필드 카드</b>: <b class="text-pink-300">1 ~ 6</b> · <b>회복·의상</b>: 동행하는 토모요에게!</div>
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75 relative z-10">
           <span>SEAMLESS TRILOGY EDITION</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.1.0</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.1.2</span>
         </div>
       </div>
     </div>
 
     <!-- =======================================================================
-     * 막간 시네마틱 전환 오버레이 (제1부 완 -> 제2부 자연 직결)
+     * 막간 시네마틱 전환 오버레이 (제1부 완 -> 제2부 자연 직결 + 슬롯 저장)
      * =====================================================================-->
     <div id="interludeOverlay" class="hidden absolute inset-0 z-[55] interlude-backdrop flex flex-col items-center justify-center p-6 text-center">
       <div class="relative flex items-center justify-center mb-6">
@@ -372,11 +357,14 @@
       <p id="interludeSub" class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">ACT I COMPLETE · INTERLUDE</p>
       <h2 id="interludeTitle" class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">황혼이 지나고, 별빛의 새 학기</h2>
       <p id="interludeBody" class="font-story text-sm sm:text-base text-pink-100/90 max-w-xl leading-relaxed mb-7"></p>
-      <button id="btnInterludeNext" class="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 hover:brightness-110 border-2 border-yellow-200 text-white font-story font-bold text-sm sm:text-base shadow-2xl transition">⭐ 다음 이야기로 계속하기 (X)</button>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <button id="btnInterludeNext" class="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 hover:brightness-110 border-2 border-yellow-200 text-white font-story font-bold text-sm sm:text-base shadow-2xl transition">⭐ 다음 이야기로 계속하기 (X)</button>
+        <button id="btnInterludeSave" class="px-5 py-3.5 rounded-2xl bg-emerald-700/75 hover:bg-emerald-600/85 border border-emerald-300/70 text-emerald-50 font-story font-bold text-sm transition">💾 완결 기록 슬롯에 남기기</button>
+      </div>
     </div>
 
     <!-- =======================================================================
-     * 완결 엔딩 화면 (현재 공개된 최종 장 완료 시)
+     * 완결 엔딩 화면
      * =====================================================================-->
     <div id="endingBox" class="hidden absolute inset-0 z-[45] ending-backdrop flex items-center justify-center p-4">
       <div class="max-w-xl w-full glass rounded-3xl p-6 sm:p-8 text-center">
@@ -409,7 +397,7 @@
   </div>
 
   <!-- =========================================================================
-   * 공용 마법 의상실 모달 (방향키 선택 + X 착용 완벽 지원 · 맵 이동 차단!)
+   * 공용 마법 의상실 모달 (동행하는 토모요 전용 · 방향키+X 선택 · 맵 이동 차단!)
    * =======================================================================-->
   <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
     <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
@@ -418,10 +406,7 @@
           <h2 id="wardrobeTitle" class="font-story text-lg font-bold text-pink-200">🎀 토모요의 마법 의상실</h2>
           <p class="text-xs text-yellow-100/85 font-story">방향키로 의상을 고르고 <b>X</b> 또는 클릭으로 갈아입으세요 · 닫기(Z)</p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button id="btnWardrobeHeal" class="px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-yellow-300/65 text-yellow-100 text-xs font-story font-bold transition">☕ 홍차 회복</button>
-          <button id="btnCloseWardrobe" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
-        </div>
+        <button id="btnCloseWardrobe" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
       </div>
       <div id="wardrobeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1"></div>
     </div>
@@ -440,7 +425,6 @@
         <button id="btnCloseSave" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
       </div>
 
-      <!-- 상단 탭 전환 (세이브 슬롯 / 계정 로그인) -->
       <div class="grid grid-cols-2 gap-2">
         <button id="tabSlots" class="py-2 rounded-xl text-xs font-story font-bold border transition bg-emerald-600/35 border-emerald-300 text-emerald-100">💾 세이브 슬롯 (7개)</button>
         <button id="tabAccount" class="py-2 rounded-xl text-xs font-story font-bold border transition bg-black/35 border-white/15 text-slate-300 hover:bg-white/10">👤 클라우드 계정</button>
@@ -457,7 +441,6 @@
 
       <!-- 탭 2: 클라우드 계정 로그인 / 대시보드 -->
       <div id="panelAccount" class="hidden flex-1 overflow-y-auto flex flex-col gap-3 pr-1">
-        <!-- 로그인 전 -->
         <div id="authLoginView" class="flex flex-col gap-3">
           <p class="text-xs font-story text-pink-100/90 leading-relaxed">
             아이디와 비밀번호로 로그인하면 <b>자동 저장 1슬롯 + 수동 저장 6슬롯</b> 전체가 클라우드에 안전하게 보관되어 다른 기기에서도 이어할 수 있습니다.
@@ -475,7 +458,6 @@
           <button id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 border border-emerald-300/75 text-white font-story font-bold text-sm shadow-lg">🔓 로그인 / 새 계정 만들기</button>
         </div>
 
-        <!-- 로그인 후 -->
         <div id="authDashView" class="hidden flex flex-col gap-3">
           <div class="rounded-2xl bg-emerald-950/55 border border-emerald-400/50 p-3.5 flex items-center justify-between gap-2">
             <div>
@@ -499,16 +481,16 @@
       <div id="saveStatusMsg" class="shrink-0 min-h-[2.2rem] rounded-xl bg-black/45 border border-white/10 px-3 py-1.5 text-xs font-story text-amber-100 flex items-center justify-center text-center">원하는 슬롯을 선택해 저장하거나 불러오세요. · 닫기(Esc)</div>
       <div class="shrink-0 flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CHRONICLE · MULTI-SLOT</span>
-        <span id="modalVersionBadge">v.0.1.0</span>
+        <span id="modalVersionBadge">v.0.1.2</span>
       </div>
     </div>
   </div>
 
   <!-- =========================================================================
-   * 통합 단일 스토리 호스트 & 멀티 세이브 컨트롤러
+   * 통합 단일 스토리 호스트 & 멀티 세이브 컨트롤러 (v.0.1.2)
    * =======================================================================-->
   <script type="module">
-    const APP_VER = 'v.0.1.0';
+    const APP_VER = 'v.0.1.2';
     let ENGINE_BASE = '';
 
     /** 공용 엔진 3종 로드 (core.js는 쿼리 없이 로드해 모든 모듈이 단일 인스턴스 공유) */
@@ -551,7 +533,7 @@
       }
 
       const {
-        SAVE_SLOTS, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
+        SAVE_SLOTS, Timers, Utils, Locale, SoundFX, Cloud,
         createWorldEngine, createVNEngine, createBattleEngine
       } = engines;
       const { $ } = Utils;
@@ -566,11 +548,9 @@
       const keys = { up: false, down: false, left: false, right: false };
       const chapterCache = {};
 
-      // 캠페인 공유 히스토리 (1부 -> 2부 -> 3부 연속 계승)
       let campaign = createFreshCampaign();
       let activeChapter = null;
       let toastId = null;
-      let wardrobeHealHandler = null;
       let wardrobeIdx = 0;
       let pendingInterlude = null;
       let armedDeleteSlot = '';
@@ -584,6 +564,7 @@
           shared: {
             costumeId: 'sakura_dress',
             unlockedCostumes: ['sakura_dress'],
+            reformedCostumes: [],
             syaoranTrust: 0,
             part1Cleared: false,
             part2Cleared: false,
@@ -612,6 +593,7 @@
         getOwnedCards: () => activeChapter?.battleHooks?.getOwnedCards?.() || new Set(),
         getSakuraCards: () => activeChapter?.battleHooks?.getSakuraCards?.() || new Set(),
         getCostumeId: () => activeChapter?.battleHooks?.getCostumeId?.() || 'sakura_dress',
+        isCostumeReformed: () => activeChapter?.battleHooks?.isCostumeReformed?.() || false,
         getSyaoranTrust: () => activeChapter?.battleHooks?.getSyaoranTrust?.() || 0,
         getFieldBuffs: () => activeChapter?.battleHooks?.getFieldBuffs?.() || {},
         onHUDUpdate: () => activeChapter?.battleHooks?.onHUDUpdate?.(),
@@ -623,7 +605,7 @@
       });
 
       // -----------------------------------------------------------------------
-      // 2. 입력 차단 & 모달 상태 판별 (의상실/도감/세이브 중 맵 이동 원천 차단!)
+      // 2. 입력 차단 & 모달 상태 판별
       // -----------------------------------------------------------------------
       function resetMoveKeys() {
         keys.up = keys.down = keys.left = keys.right = false;
@@ -660,12 +642,17 @@
           ...(campaign.shared.unlockedCostumes || ['sakura_dress']),
           ...(sharedPatch.unlockedCostumes || [])
         ]));
+        const mergedReformed = Array.from(new Set([
+          ...(campaign.shared.reformedCostumes || []),
+          ...(sharedPatch.reformedCostumes || [])
+        ]));
 
         campaign.currentAct = part;
         campaign.shared = {
           ...campaign.shared,
           ...sharedPatch,
-          unlockedCostumes: mergedUnlocked
+          unlockedCostumes: mergedUnlocked,
+          reformedCostumes: mergedReformed
         };
         campaign[`act${part}`] = chPayload;
 
@@ -719,7 +706,7 @@
         $('toastText').textContent = Locale.t(msg);
         $('toastBox').style.opacity = '1';
         Timers.clear(toastId);
-        toastId = Timers.after(() => { $('toastBox').style.opacity = '0'; }, 3400);
+        toastId = Timers.after(() => { $('toastBox').style.opacity = '0'; }, 3500);
       }
 
       function showChapterBanner(sub, title) {
@@ -737,7 +724,7 @@
         $('hudBookLabel').textContent = Locale.t(p === 2 ? '사쿠라 북' : p === 3 ? '클리어 북' : '크로우 북');
         $('fieldMagicBarLabel').textContent = p === 2 ? 'STAR' : p === 3 ? 'DREAM' : 'FIELD';
         $('btnWandLabel').textContent = p === 2 ? '⭐ 별의 지팡이' : p === 3 ? '🔮 꿈의 지팡이' : '🪄 지팡이';
-        $('btnCardSub').textContent = p === 2 ? '★실시간 변환' : '보유 카드';
+        $('btnCardSub').textContent = p === 2 ? '✨3키 ★변환' : '보유 카드';
       }
 
       function handleResize() {
@@ -806,7 +793,7 @@
       Locale.onChange(syncLocaleUI);
 
       // -----------------------------------------------------------------------
-      // 5. 도감 · 의상실(방향키+X 선택 지원!) · 막간 전환 · 엔딩 모달
+      // 5. 도감 · 의상실(방향키+X 선택 · 맵 이동 차단!) · 막간 전환 · 엔딩 모달
       // -----------------------------------------------------------------------
       function openBookModal({ title, sub, renderGrid, silent = false }) {
         resetMoveKeys();
@@ -826,7 +813,6 @@
         return true;
       }
 
-      /** 의상실 포커스 하이라이트 동기화 (키보드 방향키 / 마우스 호버 공용) */
       function syncWardrobeFocus() {
         const grid = $('wardrobeGrid');
         if (!grid) return;
@@ -842,17 +828,15 @@
         });
       }
 
-      function openWardrobeModal({ title, renderGrid, onHeal, silent = false }) {
+      function openWardrobeModal({ title, renderGrid, silent = false }) {
         resetMoveKeys();
         if (title) $('wardrobeTitle').textContent = Locale.t(title);
-        wardrobeHealHandler = typeof onHeal === 'function' ? onHeal : null;
         const grid = $('wardrobeGrid');
         grid.innerHTML = '';
         if (typeof renderGrid === 'function') renderGrid(grid);
 
         const cards = Array.from(grid.children);
         if (!silent) {
-          // 최초 오픈 시 현재 착용 중인 의상 카드로 초기 포커스 맞춤
           const eqIdx = cards.findIndex((el) => el.textContent.includes('현재 착용 중'));
           wardrobeIdx = eqIdx >= 0 ? eqIdx : 0;
         }
@@ -915,7 +899,7 @@
         }
       }
 
-      /** 제1부 완결 -> 제2부 막간 시네마틱 전환 (끊김 없는 단일 스토리 연결!) */
+      /** 제1부 완결 -> 제2부 막간 시네마틱 전환 */
       function transitionToNextAct(nextAct, { sub, title, body, buttonLabel, icon = '⭐', sharedPatch = null, act1Payload = null, act2Payload = null } = {}) {
         resetMoveKeys();
         if (act1Payload) campaign.act1 = act1Payload;
@@ -927,6 +911,10 @@
             unlockedCostumes: Array.from(new Set([
               ...(campaign.shared.unlockedCostumes || ['sakura_dress']),
               ...(sharedPatch.unlockedCostumes || [])
+            ])),
+            reformedCostumes: Array.from(new Set([
+              ...(campaign.shared.reformedCostumes || []),
+              ...(sharedPatch.reformedCostumes || [])
             ]))
           };
         }
@@ -936,7 +924,7 @@
         $('interludeSub').textContent = sub || `ACT ${nextAct - 1} COMPLETE · INTERLUDE`;
         $('interludeTitle').textContent = Locale.t(title || '황혼이 지나고, 별빛의 새 학기');
         $('interludeBody').innerHTML = Locale.t(body || '');
-        $('btnInterludeNext').textContent = Locale.t(buttonLabel || `⭐ 제${nextAct}부로 계속하기 (X)`);
+        $('btnInterludeNext').textContent = Locale.t(buttonLabel || `⭐ 다음 이야기로 계속하기 (X)`);
         $('interludeOverlay').classList.remove('hidden');
         SoundFX.seal();
       }
@@ -1060,7 +1048,6 @@
           list.appendChild(row);
         });
 
-        // 슬롯 버튼 핸들러 연결
         list.querySelectorAll('[data-save-slot]').forEach((btn) => {
           btn.addEventListener('click', async () => {
             const sk = btn.dataset.saveSlot;
@@ -1265,7 +1252,6 @@
 
       // -----------------------------------------------------------------------
       // 8. 키보드 · 포인터 · 모바일 패드 · 버튼 통합 바인딩
-      //    (모달 열림 시 맵 이동 키 입력 완벽 차단 + 의상실 방향키 선택 지원!)
       // -----------------------------------------------------------------------
       window.addEventListener('resize', handleResize);
       window.addEventListener('blur', resetMoveKeys);
@@ -1273,7 +1259,6 @@
       window.addEventListener('keydown', (e) => {
         const code = e.code;
 
-        // 1) 입력창 포커스 중에는 Escape만 처리
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
           if (code === 'Escape') closeSaveModal();
           return;
@@ -1281,7 +1266,6 @@
 
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) e.preventDefault();
 
-        // 2) 모달 / 오버레이 우선 처리 (이 구간에서는 keys.up/down/left/right 절대 켜지 않음!)
         if (!$('saveModal').classList.contains('hidden')) {
           if (code === 'Escape' || code === 'KeyZ') closeSaveModal();
           return;
@@ -1318,7 +1302,6 @@
 
         if (!activeChapter) return;
 
-        // 3) 대화창(VN) 및 배틀 우선 처리
         if (vn.isActive()) {
           if (vn.state.waitChoice) {
             if (code === 'ArrowUp' || code === 'KeyW') vn.moveChoice(-1);
@@ -1335,7 +1318,6 @@
           return;
         }
 
-        // 4) 순수 탐험 상태일 때만 이동 키 활성화
         if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
         if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
         if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
@@ -1407,19 +1389,23 @@
       $('btnStartNew').onclick = () => startFreshChronicle();
       $('btnBackTitle').onclick = (e) => { e.currentTarget.blur(); returnToTitle(); };
 
+      $('hudCostumeBadge').onclick = (e) => {
+        e.currentTarget.blur();
+        SoundFX.click();
+        activeChapter?.onCostumeBadgeClick?.();
+      };
       $('btnOpenBook').onclick = (e) => { e.currentTarget.blur(); activeChapter?.openBook?.(); };
       $('btnCloseBook').onclick = closeBookModal;
       $('bookModal').onclick = (e) => { if (e.target.id === 'bookModal') closeBookModal(); };
-      $('btnOpenWardrobe').onclick = (e) => { e.currentTarget.blur(); activeChapter?.openWardrobe?.(); };
       $('btnCloseWardrobe').onclick = closeWardrobeModal;
       $('wardrobeModal').onclick = (e) => { if (e.target.id === 'wardrobeModal') closeWardrobeModal(); };
-      $('btnWardrobeHeal').onclick = () => { if (wardrobeHealHandler) wardrobeHealHandler(); };
       $('btnExitMemory').onclick = () => activeChapter?.exitMemoryMode?.();
       $('btnFloatInteract').onclick = (e) => { e.currentTarget.blur(); activeChapter?.onInteract?.(); };
       $('btnKeroHint').onclick = (e) => { e.currentTarget.blur(); activeChapter?.onKeroHint?.(); };
       $('btnSoundToggle').onclick = (e) => { e.currentTarget.blur(); e.currentTarget.textContent = SoundFX.toggle() ? '🎵' : '🔇'; };
 
       $('btnInterludeNext').onclick = confirmInterlude;
+      $('btnInterludeSave').onclick = () => openSaveModal('slots');
       $('btnContinueExplore').onclick = () => {
         $('endingBox').classList.add('hidden');
         activeChapter?.onContinueAfterEnding?.();
