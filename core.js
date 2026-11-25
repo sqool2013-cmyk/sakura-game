@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.2.0
+ * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.2.0-b
  * - 버전 표기 규칙: 주요 판올림 v.0.2.0 / 버그 수정 시 -b, -c 접미사 부착
  * - Firebase RTDB 데이터·아트 병렬 로더 및 명확한 계정 로그인/등록 모듈
  * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 공식 주문
@@ -12,15 +12,101 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  engine: 'v.0.2.0',
-  part1: 'v.0.2.0',
+  engine: 'v.0.2.0-b',
+  part1: 'v.0.2.0-g',
   part2: 'v.0.1.0'
 };
 
 /* ----------------------------------------------------------------------------
  * 1. 안전 스토리지 & 중앙 타이머 & 기본 유틸리티
  * --------------------------------------------------------------------------*/
-// ... existing code ...
+export const SafeStore = {
+  get(key, fallback = null) {
+    try {
+      const v = window.localStorage.getItem(key);
+      return v === null ? fallback : v;
+    } catch {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      window.localStorage.setItem(key, String(value));
+    } catch {}
+  },
+  getJSON(key, fallback = null) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  setJSON(key, obj) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(obj));
+    } catch {}
+  },
+  remove(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {}
+  }
+};
+
+export const Timers = (() => {
+  const timeouts = new Set();
+  const intervals = new Set();
+  return {
+    after(fn, ms) {
+      const id = setTimeout(() => {
+        timeouts.delete(id);
+        fn();
+      }, ms);
+      timeouts.add(id);
+      return id;
+    },
+    every(fn, ms) {
+      const id = setInterval(fn, ms);
+      intervals.add(id);
+      return id;
+    },
+    clear(id) {
+      if (id == null) return;
+      if (timeouts.has(id)) {
+        clearTimeout(id);
+        timeouts.delete(id);
+      }
+      if (intervals.has(id)) {
+        clearInterval(id);
+        intervals.delete(id);
+      }
+    },
+    clearAll() {
+      timeouts.forEach(clearTimeout);
+      timeouts.clear();
+      intervals.forEach(clearInterval);
+      intervals.clear();
+    }
+  };
+})();
+
+export const Utils = {
+  $(id) {
+    return document.getElementById(id);
+  },
+  toArr(v) {
+    return Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+  },
+  clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  },
+  hasBatchim(word) {
+    if (!word) return false;
+    const ch = String(word).trim().slice(-1);
+    const code = ch.charCodeAt(0);
+    return code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0;
+  },
   /** 단어 끝 받침에 맞는 조사 자동 부착 (예: '과/와', '이/가', '은/는', '을/를') */
   withParticle(word, pair = '과/와') {
     if (!word) return '';
@@ -41,7 +127,7 @@ export const VERSION = {
  * 2. 원작명판(orig: 사쿠라) <-> 국내 공식 번안판(kr: 체리) 자동 변환 엔진
  *    - 받침이 달라지는 인물/지명의 한국어 조사 자동 교정
  *    - 구버전 JSON의 괄호 카드명(예: 바람(윈디))을 단일 호칭(윈디)으로 자동 정제
- *    - 공식 검증된 1·2부 봉인/변환 주문 4행 줄맞춤 제공
+ *    - 공식 검증된 1·2부 봉인/변환 주문 4~5행 줄맞춤 제공
  * --------------------------------------------------------------------------*/
 export const Locale = (() => {
   const STORE_KEY = 'sakura_locale_mode';
@@ -53,12 +139,12 @@ export const Locale = (() => {
 
   // 받침 변화가 있는 치환 규칙 (조사 동반 우선 치환)
   const PARTICLE_RULES = [
-    { from: '츠키시로 유키토', to: '오청명', batchim: true },
-    { from: '히이라기자와 에리오르', to: '에리얼 신', batchim: true },
-    { from: '에리오르', to: '에리얼', batchim: true },
-    { from: '유키토', to: '청명', batchim: true },
-    { from: '토우야', to: '도진', batchim: true },
-    { from: '토모에다', to: '우수 마을', batchim: true }
+    { from: '츠키시로 유키토', to: '오청명' },
+    { from: '히이라기자와 에리오르', to: '에리얼 신' },
+    { from: '에리오르', to: '에리얼' },
+    { from: '유키토', to: '청명' },
+    { from: '토우야', to: '도진' },
+    { from: '토모에다', to: '우수 마을' }
   ];
 
   // 단순 고정 명칭 및 영창 치환 (긴 구문부터 우선 치환)
@@ -109,18 +195,48 @@ export const Locale = (() => {
     }
   };
 
+  // 받침 없는 원작명 -> 받침 있는 번안명 변환 시 조사 매핑
   const PARTICLE_MAP = {
-// ... existing code ...
-    out = out.replace(/청명(이|은|을|과)가/g, '청명이');
-    out = out.replace(/카드캡터:\s*(황혼|별빛|꿈결)의\s*우수 마을/g, '카드캡터 체리: $1의 우수 마을');
-    return out;
-  }
+    '가': '이',
+    '는': '은',
+    '를': '을',
+    '와': '과',
+    '랑': '이랑',
+    '야': '아',
+    '여': '이여',
+    '로': '으로'
+  };
 
   function cleanCardParens(input) {
     if (typeof input !== 'string' || !input) return input;
     return input
       .replace(CARD_PAREN_RE, '$2')
       .replace(/레리즈\(해방\)/g, '레리즈');
+  }
+
+  function translateToKr(input) {
+    if (typeof input !== 'string' || !input) return input;
+    let out = input;
+
+    // 1) 고정 복합어 먼저 치환 (예: 토모에다 초등학교 -> 우수초등학교)
+    for (const [from, to] of DIRECT_RULES) {
+      if (out.includes(from)) out = out.split(from).join(to);
+    }
+
+    // 2) 받침이 생기는 명칭 + 뒤따르는 조사 자동 교정
+    for (const rule of PARTICLE_RULES) {
+      if (!out.includes(rule.from)) continue;
+      const re = new RegExp(`${rule.from}(가|는|를|와|랑|야|여|로)?`, 'g');
+      out = out.replace(re, (_, part) => {
+        if (!part) return rule.to;
+        return rule.to + (PARTICLE_MAP[part] || part);
+      });
+    }
+
+    // 3) 자연스러운 타이틀 & 호칭 보정
+    out = out.replace(/청명(이|은|을|과)가/g, '청명이');
+    out = out.replace(/카드캡터:\s*(황혼|별빛|꿈결)의\s*우수 마을/g, '카드캡터 체리: $1의 우수 마을');
+    return out;
   }
 
   return {
@@ -147,7 +263,29 @@ export const Locale = (() => {
     },
     setMode(next) {
       const clean = next === 'kr' ? 'kr' : 'orig';
-// ... existing code ...
+      if (clean === mode) return mode;
+      mode = clean;
+      SafeStore.set(STORE_KEY, mode);
+      listeners.forEach((fn) => {
+        try {
+          fn(mode);
+        } catch {}
+      });
+      return mode;
+    },
+    toggle() {
+      return this.setMode(mode === 'orig' ? 'kr' : 'orig');
+    },
+    onChange(fn) {
+      if (typeof fn === 'function') listeners.add(fn);
+      return () => listeners.delete(fn);
+    }
+  };
+})();
+
+/* ----------------------------------------------------------------------------
+ * 3. 벡터 아트 복원 · 6종 상황별 표정 오버레이 · 건물 스프라이트 캐시 매니저
+ * --------------------------------------------------------------------------*/
 export const Art = (() => {
   let rawArt = { avatars: {}, buildings: {}, clow: {}, sakura: {} };
   const buildingCache = {};
@@ -162,7 +300,31 @@ export const Art = (() => {
   };
 
   function decodeSvg(str) {
-// ... existing code ...
+    return typeof str === 'string' ? str.replace(/«/g, '<').replace(/»/g, '>') : '';
+  }
+
+  function cacheBuildings() {
+    const items = (rawArt.buildings && rawArt.buildings.items) || {};
+    Object.entries(items).forEach(([key, raw]) => {
+      const svg = decodeSvg(raw);
+      if (!svg) return;
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      buildingCache[key] = img;
+    });
+  }
+
+  return {
+    decodeSvg,
+    setRawArt(artObj) {
+      rawArt = {
+        avatars: artObj?.avatars || {},
+        buildings: artObj?.buildings || {},
+        clow: artObj?.clow || {},
+        sakura: artObj?.sakura || {}
+      };
+      cacheBuildings();
+    },
     getBuilding(key) {
       const img = buildingCache[key];
       return (img && img.complete && img.naturalWidth > 0) ? img : null;
@@ -179,7 +341,168 @@ export const Art = (() => {
       return base.replace(/<\/svg>\s*$/i, `${overlay}</svg>`);
     },
     getCard(card, isSakura = false) {
-// ... existing code ...
+      if (!card) return '';
+      const clow = rawArt.clow || {};
+      const sak = rawArt.sakura || {};
+
+      if (card.isBoss) {
+        if (isSakura || card.id === 'eriol_boss') {
+          return decodeSvg((sak.bosses && sak.bosses.eriol_card) || '');
+        }
+        const tpl = decodeSvg(clow.frameTemplate || '');
+        const inner = decodeSvg((clow.cards && clow.cards.yue) || '');
+        return tpl.replace('{{RULER}}', '☽').replace('{{ART}}', inner).replace('{{TITLE}}', 'THE JUDGE YUE');
+      }
+
+      if (isSakura && sak.frameTemplate) {
+        const tpl = decodeSvg(sak.frameTemplate);
+        const inner = decodeSvg((sak.cards && sak.cards[card.id]) || (clow.cards && clow.cards[card.id]) || '');
+        return tpl.replace('{{ART}}', inner).replace('{{TITLE}}', card.en || '');
+      }
+
+      const tpl = decodeSvg(clow.frameTemplate || '');
+      const inner = decodeSvg((clow.cards && clow.cards[card.id]) || '');
+      const mark = card.ruler === 'kero' ? '☀' : '☽';
+      return tpl.replace('{{RULER}}', mark).replace('{{ART}}', inner).replace('{{TITLE}}', card.en || '');
+    },
+    getManifest(target, { isPart2 = false, bossPhase = 1 } = {}) {
+      if (!target) return '';
+      const clow = rawArt.clow || {};
+      const sak = rawArt.sakura || {};
+
+      if (target.isBoss) {
+        if (isPart2 || target.id === 'eriol_boss') {
+          const b = sak.bosses || {};
+          return decodeSvg(bossPhase === 1 ? (b.spinel_ruby || '') : (b.eriol_final || ''));
+        }
+        return decodeSvg((clow.spirits && clow.spirits.yue) || '');
+      }
+
+      if (target.isIncident && target.bossKey) {
+        const b = sak.bosses || {};
+        if (b[target.bossKey]) return decodeSvg(b[target.bossKey]);
+      }
+
+      const body = decodeSvg((clow.spirits && clow.spirits[target.id]) || '');
+      if (body.trim().startsWith('<svg')) return body;
+      const tpl = decodeSvg((isPart2 && sak.trialSpiritTemplate) ? sak.trialSpiritTemplate : (clow.spiritTemplate || ''));
+      if (tpl && body) return tpl.replace('{{BODY}}', body);
+      return this.getCard(target, isPart2);
+    }
+  };
+})();
+
+/* ----------------------------------------------------------------------------
+ * 4. Web Audio 오르골 BGM & 효과음 엔진 (1부 황혼 / 2부 별빛 멜로디 지원)
+ * --------------------------------------------------------------------------*/
+export const SoundFX = (() => {
+  let ac = null;
+  let enabled = true;
+  let bgmTimer = null;
+  let step = 0;
+  let themePart = 1;
+
+  const MELODY_P1 = [523.25, 659.25, 783.99, 659.25, 587.33, 739.99, 880.0, 739.99, 659.25, 783.99, 987.77, 783.99, 698.46, 880.0, 783.99, 659.25];
+  const MELODY_P2 = [587.33, 739.99, 880.0, 739.99, 659.25, 783.99, 987.77, 783.99, 587.33, 880.0, 1174.66, 987.77, 880.0, 739.99, 659.25, 587.33];
+
+  function ensureCtx() {
+    if (!enabled) return null;
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    } catch {
+      return null;
+    }
+  }
+
+  function tone(freq, dur = 0.18, type = 'sine', vol = 0.075, delay = 0) {
+    const c = ensureCtx();
+    if (!c) return;
+    try {
+      const t0 = c.currentTime + delay;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g);
+      g.connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    } catch {}
+  }
+
+  return {
+    setTheme(part = 1) {
+      themePart = part === 2 ? 2 : 1;
+    },
+    startBGM() {
+      if (bgmTimer || !enabled) return;
+      ensureCtx();
+      bgmTimer = setInterval(() => {
+        if (!enabled) return;
+        const notes = themePart === 2 ? MELODY_P2 : MELODY_P1;
+        const n = notes[step % notes.length];
+        tone(n, 0.42, 'triangle', 0.024);
+        if (step % 4 === 0) tone(n * 0.5, 0.72, 'sine', 0.019);
+        step++;
+      }, themePart === 2 ? 500 : 520);
+    },
+    toggle() {
+      enabled = !enabled;
+      if (!enabled && bgmTimer) {
+        clearInterval(bgmTimer);
+        bgmTimer = null;
+      } else if (enabled) {
+        this.startBGM();
+      }
+      return enabled;
+    },
+    isEnabled() {
+      return enabled;
+    },
+    click() {
+      tone(740, 0.07, 'sine', 0.05);
+    },
+    encounter() {
+      tone(523.25, 0.16, 'triangle', 0.07, 0);
+      tone(659.25, 0.16, 'triangle', 0.07, 0.08);
+      tone(783.99, 0.28, 'sine', 0.08, 0.16);
+    },
+    magic() {
+      tone(587.33, 0.14, 'sine', 0.08, 0);
+      tone(880, 0.18, 'triangle', 0.08, 0.07);
+      tone(1174.66, 0.24, 'sine', 0.07, 0.14);
+    },
+    syaoran() {
+      tone(440, 0.12, 'sawtooth', 0.06, 0);
+      tone(659.25, 0.14, 'triangle', 0.07, 0.06);
+      tone(1046.5, 0.24, 'sine', 0.08, 0.12);
+    },
+    hit() {
+      tone(190, 0.14, 'sawtooth', 0.07, 0);
+      tone(125, 0.18, 'square', 0.05, 0.05);
+    },
+    heal() {
+      tone(523.25, 0.16, 'sine', 0.07, 0);
+      tone(659.25, 0.18, 'sine', 0.07, 0.08);
+      tone(1046.5, 0.3, 'triangle', 0.07, 0.16);
+    },
+    seal() {
+      const chord = themePart === 2
+        ? [587.33, 739.99, 880, 1174.66, 1479.98]
+        : [523.25, 659.25, 783.99, 1046.5, 1318.5];
+      chord.forEach((f, i) => tone(f, 0.34, 'triangle', 0.08, i * 0.09));
+    },
+    transform() {
+      this.seal();
+    }
+  };
+})();
+
 /* ----------------------------------------------------------------------------
  * 5. 성장 곡선(HP 100->115 / 105->120) & 마법 의상실 8벌 패시브 공용 규칙
  * --------------------------------------------------------------------------*/
@@ -192,27 +515,27 @@ export const Rules = {
       passive: '최대 MP +5', tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
     },
     {
-      id: 'frog_rain', name: '🐸 개구리 우비 슈트', unlockType: 'card', unlockCard: 'watery', unlockHint: '「워터리」 봉인 시 해금',
+      id: 'frog_rain', name: '🐸 개구리 우비 슈트', unlockType: 'card', unlockCard: 'watery', unlockHint: '워터리 봉인 시 해금',
       dressColor: '#4ade80', accentColor: '#fef08a', hatType: 'frog', hatColor: '#22c55e',
       passive: '물·바람 피해 25% 경감 · 필드 물결 밀림 면역', tomoyoQuote: '비 오는 날에도 끄떡없는 개구리 후드 우비와 노란 장화랍니다!'
     },
     {
-      id: 'cat_thunder', name: '🐱 고양이 귀 번개 슈트', unlockType: 'card', unlockCard: 'thunder', unlockHint: '「선더」 봉인 시 해금',
+      id: 'cat_thunder', name: '🐱 고양이 귀 번개 슈트', unlockType: 'card', unlockCard: 'thunder', unlockHint: '선더 봉인 시 해금',
       dressColor: '#1e1b4b', accentColor: '#facc15', hatType: 'cat', hatColor: '#1e1b4b',
       passive: '마법 공격 위력 +10% · 번개/화염 피해 20% 경감', tomoyoQuote: '고양이 귀 후드와 노란 리본! 전기가 통하지 않는 특수 마법 천으로 지었답니다!'
     },
     {
-      id: 'sky_wing', name: '🪽 하늘빛 날개 드레스', unlockType: 'cards_all', unlockCards: ['fly', 'jump'], unlockHint: '「플라이」 + 「점프」 봉인 시 해금',
+      id: 'sky_wing', name: '🪽 하늘빛 날개 드레스', unlockType: 'cards_all', unlockCards: ['fly', 'jump'], unlockHint: '플라이 + 점프 봉인 시 해금',
       dressColor: '#38bdf8', accentColor: '#ffffff', hatType: 'wing', hatColor: '#e0f2fe',
       passive: '필드 이동 속도 +12% · 봉인 게이지 구역 +4%', tomoyoQuote: '하늘을 가르는 순백의 프릴과 날개 리본이에요! 발걸음도 한결 가벼워질 거예요!'
     },
     {
-      id: 'alice_maid', name: '🎀 앨리스 메이드 드레스', unlockType: 'cards_any', unlockCards: ['mirror', 'flower'], unlockHint: '「미러」 또는 「플라워」 봉인 시 해금',
+      id: 'alice_maid', name: '🎀 앨리스 메이드 드레스', unlockType: 'cards_any', unlockCards: ['mirror', 'flower'], unlockHint: '미러 또는 플라워 봉인 시 해금',
       dressColor: '#2563eb', accentColor: '#ffffff', hatType: 'ribbon', hatColor: '#f8fafc',
       passive: '회복(플라워·글로우·라이트) 효과 +25%', tomoyoQuote: '파란 드레스에 순백의 앞치마와 큰 리본! 치유의 마력이 더욱 포근하게 퍼진답니다!'
     },
     {
-      id: 'pierrot_magic', name: '🃏 피에로 매직 슈트', unlockType: 'cards_all', unlockCards: ['illusion', 'maze'], unlockHint: '「일루전」 + 「메이즈」 봉인 시 해금',
+      id: 'pierrot_magic', name: '🃏 피에로 매직 슈트', unlockType: 'cards_all', unlockCards: ['illusion', 'maze'], unlockHint: '일루전 + 메이즈 봉인 시 해금',
       dressColor: '#7e22ce', accentColor: '#fde047', hatType: 'jester', hatColor: '#a855f7',
       passive: '치명타(1.3배 피해) 확률 20% 발생', tomoyoQuote: '금빛 방울이 달린 장난스러운 어릿광대 슈트예요! 상대를 깜짝 놀라게 할 일격이 터질 거예요!'
     },
@@ -286,7 +609,7 @@ export const Rules = {
         return { ...base, turnMpRegen: 4 };
       case 'pure_angel':
         return { ...base, hpBonus: 10, mpBonus: 15, magicMult: 1.12, allAtkMult: 1.12 };
-      default: // sakura_dress
+      default:
         return { ...base, mpBonus: 5 };
     }
   },
@@ -307,7 +630,59 @@ export const Rules = {
     return false;
   }
 };
-// ... existing code ...
+
+/* ----------------------------------------------------------------------------
+ * 6. Firebase Realtime Database 공용 데이터·아트 로드 및 자유 계정 클라우드
+ * --------------------------------------------------------------------------*/
+const FIREBASE_CFG = {
+  apiKey: "AIzaSyCsIXKvZt9PrES_opeCDYxaSLV02dWVVKA",
+  authDomain: "neit-pc.firebaseapp.com",
+  databaseURL: "https://neit-pc-default-rtdb.firebaseio.com",
+  projectId: "neit-pc",
+  storageBucket: "neit-pc.firebasestorage.app",
+  messagingSenderId: "833154417780",
+  appId: "1:833154417780:web:b94e8cb42751abdccdfd21"
+};
+
+const app = initializeApp(FIREBASE_CFG);
+const db = getDatabase(app);
+
+function sanitizeId(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/[.#$\[\]\/]/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 24);
+}
+
+function sanitizeSecret(raw) {
+  return String(raw || '').trim().slice(0, 16);
+}
+
+function secretMatches(savedVal, inputSec) {
+  if (!savedVal) return true;
+  const storedSec = savedVal.secret != null ? String(savedVal.secret) : '';
+  const storedPin = savedVal.pin != null ? String(savedVal.pin) : '';
+  if (!storedSec && !storedPin) return true;
+  return (storedSec && storedSec === inputSec) || (storedPin && storedPin === inputSec);
+}
+
+function withTimeout(promise, ms = 12000) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('서버 응답 시간 초과')), ms))
+  ]);
+}
+
+async function fetchNode(path, required = true) {
+  const snap = await withTimeout(get(ref(db, path)));
+  if (!snap.exists()) {
+    if (required) throw new Error(`${path} 경로에 데이터가 없습니다.`);
+    return null;
+  }
+  return snap.val();
+}
+
 export const Cloud = {
   sanitizeId,
   sanitizeSecret,
@@ -333,6 +708,79 @@ export const Cloud = {
 
   /** 파트별 게임 데이터 + 공용 고퀄리티 벡터 에셋 일괄 로드 */
   async loadBundle(part = 1) {
-// ... existing code ...
+    const [data, avatars, buildings, clow, sakura] = await Promise.all([
+      fetchNode(`sakura/content/part${part}`, true),
+      fetchNode('sakura/content/art/avatars', true),
+      fetchNode('sakura/content/art/buildings', true),
+      fetchNode('sakura/content/art/cards_clow', true),
+      fetchNode('sakura/content/art/cards_sakura', part === 2)
+    ]);
+    const art = { avatars, buildings, clow, sakura: sakura || {} };
+    Art.setRawArt(art);
+    return { data, art };
+  },
+
+  async save(part, rawId, rawSecret, payload) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+    if (sec.length < 4) throw new Error('비밀번호는 4자 이상 입력해 주세요.');
+
+    const nodeRef = ref(db, `sakura/part${part}/players/${cid}`);
+    const cur = await withTimeout(get(nodeRef));
+    if (cur.exists() && !secretMatches(cur.val(), sec)) {
+      throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
+    }
+    await withTimeout(set(nodeRef, {
+      ...payload,
+      playerId: cid,
+      secret: sec,
+      pin: sec,
+      updatedAt: Date.now()
+    }));
+    return { id: cid, secret: sec };
+  },
+
+  async load(part, rawId, rawSecret) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+    const snap = await withTimeout(get(ref(db, `sakura/part${part}/players/${cid}`)));
+    if (!snap.exists()) return null;
+    const val = snap.val();
+    if (!secretMatches(val, sec)) {
+      throw new Error('비밀번호가 일치하지 않습니다.');
+    }
+    return val;
+  },
+
+  async loadPart1(rawId, rawSecret) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+    const snap = await withTimeout(get(ref(db, `sakura/part1/players/${cid}`)));
+    if (!snap.exists()) return null;
+    const val = snap.val();
+    if (sec && !secretMatches(val, sec)) {
+      throw new Error('제1부 기록의 비밀번호가 일치하지 않습니다.');
+    }
+    return val;
+  },
+
+  async del(part, rawId, rawSecret) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+    const nodeRef = ref(db, `sakura/part${part}/players/${cid}`);
+    const snap = await withTimeout(get(nodeRef));
+    if (!snap.exists()) throw new Error('삭제할 저장 데이터가 없습니다.');
+    if (!secretMatches(snap.val(), sec)) {
+      throw new Error('비밀번호가 일치하지 않습니다.');
+    }
+    await withTimeout(remove(nodeRef));
+    return cid;
+  }
+};
+
 export const SakuraCore = { VERSION, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud };
 window.SakuraCore = SakuraCore;
