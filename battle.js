@@ -1,13 +1,16 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.2.0-c
+ * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.1.2
  * - 비주얼 노벨 대화창 (6종 표정 mood 오버레이 · 감정 모션 · AUTO 기본 OFF)
  * - 배틀 돌입 시 지팡이 봉인 해제(레리즈 / 봉인 해제) 컷인 연출 (Z 즉시 스킵)
- * - 저항력 50% 이하 봉인 개방 & 랜덤 구역 고난도 무딜레이 게이지
+ * - 상황별 4종 마법 피니시 시스템 (스윙 게이지 일변도 탈피!):
+ *   1) 수렴 마법진 (Ritual Ring) : 1부 크로우 카드 봉인 & 2부 별빛 공명 변환
+ *   2) 3키 별빛 공명 (Star Combo) : 2부 전투 중 실시간 ★사쿠라/체리 카드 각성
+ *   3) 순수 전략 격파             : 2부 5대 기묘한 사건 보스 (게이지 없이 HP 0 즉시 돌파!)
+ *   4) 마력 충돌 (Magic Clash)   : 최종 보스전 (1부 유에 · 2부 에리오르 X 연타 대결!)
+ * - 카드 선택 패널 직전 선택 카드 & 스크롤 위치 기억 (연속 사용 편의성 대폭 개선)
  * - 배틀 커맨드 & 카드 그리드 키보드(방향키/WASD + X/Z) 완전 조작
- * - 컴팩트 원클릭 카드 칩(효과 요약 태그) + 상단 포커스 카드 상세 설명 바
- * - 8벌 의상 패시브(치명타·회복+25%·속성 경감·MP재생) & 토우야/유키토 버프 반영
- * - 카드 봉인/변환 시 순수 봉인·변환 주문 & [정령 -> 카드] 3단계 실시간 변신!
+ * - 8벌 + 2벌 의상 & ★별빛 리폼 패시브 반영 · 스포일러 태그/중복 코드 제거
  * ============================================================================
  */
 import { Utils, Locale, Art, SoundFX, Rules, Timers } from './core.js';
@@ -263,7 +266,7 @@ export function createVNEngine({ onModeChange, onTrustDelta } = {}) {
 }
 
 /* ----------------------------------------------------------------------------
- * 2. 전략 배틀 · 샤오랑 원호 · 실시간 ★변환 · 무딜레이 게이지 · 영창 엔진
+ * 2. 전략 배틀 · 4종 마법 피니시 · 카드 위치 기억 · 영창 시네마틱 엔진
  * --------------------------------------------------------------------------*/
 export function createBattleEngine(hooks) {
   /**
@@ -273,15 +276,16 @@ export function createBattleEngine(hooks) {
    * - getCards(): CARDS map
    * - getCardOrder(): string[]
    * - getPlayer(): { hp, maxHp, mp, maxMp, lv, mult }
-   * - getOwnedCards(): Set (1부 보유 카드, 2부는 전체 19장)
-   * - getSakuraCards(): Set (2부 변환 완료 카드)
+   * - getOwnedCards(): Set
+   * - getSakuraCards(): Set
    * - getCostumeId(): string
+   * - isCostumeReformed?(): boolean
    * - getSyaoranTrust(): number
    * - getFieldBuffs(): { shield, wind, snackBuff, cocoaBuff }
    * - onHUDUpdate(): void
    * - onModeChange(mode): void
    * - onVictory(target, meta): void
-   * - onLiveCardConverted(card): void  // 제2부 전투 중 실시간 ★사쿠라 카드 진화 콜백
+   * - onLiveCardConverted(card): void
    * - onDefeat(): void
    * - onFlee(): void
    */
@@ -291,9 +295,16 @@ export function createBattleEngine(hooks) {
   let viewW = 960;
   let viewH = 640;
 
+  // 카드 선택창 직전 커서 & 스크롤 위치 기억
+  let lastCardId = null;
+  let lastPickerScrollTop = 0;
+
+  const DIR_ARROWS = { up: '▲', down: '▼', left: '◀', right: '▶' };
+  const ALL_DIRS = ['up', 'down', 'left', 'right'];
+
   const state = {
     active: false,
-    enemy: null, // 카드, 제2부 사건 보스(isIncident), 또는 최종 보스(isBoss)
+    enemy: null,
     hp: 100,
     maxHp: 100,
     busy: false,
@@ -311,8 +322,8 @@ export function createBattleEngine(hooks) {
     sEvade: false,
     sRef: false,
     sFocus: false,
-    snackGuard: false, // 유키토 버프: 피해 22% 경감 + 매 턴 MP +3
-    cocoaBoost: false, // 토우야 버프: 공격 +15% + 치명타 +10%
+    snackGuard: false,
+    cocoaBoost: false,
     // 샤오랑 원호 상태
     syaoranUsed: false,
     syaoranSaveUsed: false,
@@ -321,15 +332,26 @@ export function createBattleEngine(hooks) {
     pickerOpen: false,
     pickerIdx: 0,
     pickerItems: [],
-    // 무딜레이 스윙 게이지 상태
+    // 4종 마법 피니시 상태 (ring | combo | clash)
     timing: false,
-    timingMode: 'seal', // 'seal' | 'live_transform'
+    finishKind: null, // 'ring' | 'combo' | 'clash'
     pendingLiveCardId: null,
-    curPos: 0,
-    curDir: 1,
-    sweetStart: 36,
-    sweetW: 24,
-    trackW: 320
+    // (1) 수렴 마법진 (Ritual Ring)
+    ringRadius: 100,
+    ringSpeed: 64,
+    ringMin: 28,
+    ringMax: 52,
+    // (2) 3키 별빛 공명 (Star Combo)
+    comboSeq: [],
+    comboStep: 0,
+    comboTime: 0,
+    comboMaxTime: 5.5,
+    // (3) 최종 보스 마력 충돌 (Magic Clash)
+    clashVal: 50,
+    clashTime: 8.5,
+    clashMaxTime: 8.5,
+    clashPushBack: 17,
+    clashTapPower: 7.8
   };
 
   const chant = {
@@ -345,6 +367,11 @@ export function createBattleEngine(hooks) {
     finalCards: [],
     isSakura: false
   };
+
+  function getCostumeBonuses() {
+    const isReformed = typeof hooks.isCostumeReformed === 'function' ? !!hooks.isCostumeReformed() : false;
+    return Rules.getCostumeBonuses(hooks.getCostumeId(), isReformed);
+  }
 
   /** 배틀 돌입 지팡이 봉인 해제 컷인용 전용 벡터 (1부 봉인의 지팡이 / 2부 별의 지팡이) */
   function getWandReleaseSVG(isPart2) {
@@ -446,20 +473,15 @@ export function createBattleEngine(hooks) {
       vfxCanvas.height = Math.floor(h * dpr);
       vfxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    if (state.timing) {
-      state.trackW = $('sealTrack')?.clientWidth || 320;
-      syncCursorVisual();
-    }
   }
 
-  /** 적 유형(보스/사건/카드)에 따른 표시 이름 반환 */
   function getEnemyDisplayName(e) {
     if (!e) return '';
     if (e.isBoss) {
       if (hooks.part === 2) return state.phase === 1 ? '스피넬 썬 & 루비 문' : '에리오르';
       return '유에';
     }
-    if (e.isIncident) return e.kr || e.title || '사건 보스';
+    if (e.isIncident) return e.kr || e.title || '기묘한 마법 현상';
     return cardName(e);
   }
 
@@ -473,11 +495,9 @@ export function createBattleEngine(hooks) {
         type: 'recover',
         label: e.isBoss
           ? (hooks.part === 2
-              ? '💫 결전 마무리 찬스! 지금 [★ 어둠·빛 여명!]으로 토모에다의 아침을 열자!'
-              : '💫 심판 돌파 찬스! 지금 [🌟 최후의 해방!]을 실행하자!')
-          : e.isIncident
-          ? '💫 사건 돌파 찬스! 지금 [★ 사건 돌파!]를 실행하지 않으면 마력을 회복한다!'
-          : `💫 탈진 상태! 지금 [${hooks.part === 2 ? '★ 사쿠라 변환!' : '🌟 봉인!'}] 하지 않으면 다음 턴 저항력을 회복한다!`
+              ? '🔥 마력 충돌 찬스! 지금 [🔥 마력 충돌!]로 에리오르의 어둠을 밀어내자!'
+              : '🔥 마력 충돌 찬스! 지금 [🔥 마력 충돌!]로 유에의 심판을 돌파하자!')
+          : `💫 탈진 상태! 지금 [${hooks.part === 2 ? '★ 수렴 변환!' : '🎯 수렴 봉인!'}] 하지 않으면 저항력을 회복한다!`
       };
       return;
     }
@@ -498,15 +518,15 @@ export function createBattleEngine(hooks) {
         }
       } else {
         if (state.phase === 1) {
-          state.intent = st === 1 ? { type: 'attack', dmg: 25, label: '🦋 스피넬 썬 & 루비 문 합동 마력탄 (예상 피해 25)' }
+          state.intent = st === 1 ? { type: 'attack', dmg: 26, label: '🦋 스피넬 썬 & 루비 문 합동 마력탄 (예상 피해 26)' }
             : st === 2 ? { type: 'barrier', label: '🛡 다음 턴 [흑태양의 결계] 전개 예정 (소드·이레이즈·원호로 파괴)' }
             : st === 3 ? { type: 'charge', label: '⚡ 스피넬 썬이 푸른 마력을 응집한다! 다음 턴 강공격 예고!' }
-            : { type: 'big', dmg: 46, label: '🔥 [강력 예고!] 흑태양과 홍월의 교차 포화 (피해 46 · 방어/실드/점프 권장!)' };
+            : { type: 'big', dmg: 48, label: '🔥 [강력 예고!] 흑태양과 홍월의 교차 포화 (피해 48 · 방어/실드/점프 권장!)' };
         } else {
-          state.intent = st === 1 ? { type: 'drain', dmg: 29, mp: 16, label: '🌑 에리오르의 영원한 수면 어둠 (피해 29 + MP 16 흡수)' }
+          state.intent = st === 1 ? { type: 'drain', dmg: 30, mp: 16, label: '🌑 에리오르의 영원한 수면 어둠 (피해 30 + MP 16 흡수)' }
             : st === 2 ? { type: 'reflect', label: '🪞 다음 턴 [크로우의 반사 거울막] 전개 예정 (전개 후 공격 시 반사!)' }
             : st === 3 ? { type: 'charge', label: '🌌 에리오르가 태양과 달의 지팡이를 들어올린다! 최후의 시련 예고!' }
-            : { type: 'big', dmg: 56, label: '🌌 [치명 예고!] 토모에다를 덮는 영원한 어둠 (피해 56 · 방어/실드/점프 필수!)' };
+            : { type: 'big', dmg: 58, label: '🌌 [치명 예고!] 토모에다를 덮는 영원한 어둠 (피해 58 · 방어/실드/점프 필수!)' };
         }
       }
       return;
@@ -531,44 +551,34 @@ export function createBattleEngine(hooks) {
     }
   }
 
-  function canAttemptSeal() {
-    if (!state.enemy) return false;
+  /** 마무리(수렴 마법진 / 마력 충돌) 시도 가능 여부 */
+  function canAttemptFinish() {
+    const e = state.enemy;
+    if (!e || e.isIncident) return false; // 2부 사건 보스는 게이지 없이 HP 0으로 순수 격파!
+    if (e.isBoss) {
+      if (state.phase === 1) return state.hp <= state.maxHp * 0.55;
+      return state.exhausted || state.hp <= state.maxHp * 0.35;
+    }
     return state.exhausted || state.hp <= state.maxHp * 0.5;
   }
 
-  function sealMetrics() {
+  /** 수렴 마법진(Ritual Ring) 난이도 계산 */
+  function ringMetrics() {
     const e = state.enemy;
-    const costumeBonus = Rules.getCostumeBonuses(hooks.getCostumeId()).sealZoneBonus || 0;
-    if (state.timingMode === 'live_transform') {
-      return { w: Math.min(36, 28 + costumeBonus), s: 118, lbl: '별빛 공명' };
-    }
-    if (!e) return { w: 22, s: 120, lbl: '보통' };
+    const cosBonus = getCostumeBonuses().sealZoneBonus || 0;
+    if (!e) return { band: 24, speed: 60, lbl: '집중' };
 
     const r = Utils.clamp(state.hp / Math.max(1, state.maxHp), 0, 1);
-    const starBonus = hooks.part === 2 ? Math.min(4, Math.floor((hooks.getSakuraCards?.()?.size || 0) / 5)) : 0;
     const isElemental = ['windy', 'watery', 'firey', 'earthy'].includes(e.id);
     const isTop = ['dark', 'light'].includes(e.id);
 
-    // v.0.2.0 난이도 상향: 저항력 50% -> 0% 구간에 맞춰 긴장감 있는 구역·속도 설계
-    let w = Math.round(30 - r * 28) + starBonus + costumeBonus;
-    let s = Math.round(108 + r * 115);
-
-    if (isElemental) { w -= 3; s += 16; }
-    if (isTop) { w -= 5; s += 26; }
-    if (e.isIncident) { w -= 3; s += 18; }
-    if (e.isBoss) {
-      w = Math.max(10, Math.round(w * (state.phase === 1 ? 0.78 : 0.72)));
-      s = Math.round(s * (state.phase === 1 ? 1.18 : 1.26));
-    }
-    w = Utils.clamp(w, 10, 38);
-    return { w, s, lbl: s >= 175 ? '초고속' : s >= 140 ? '빠름' : '집중' };
-  }
-
-  function syncCursorVisual() {
-    const cursor = $('sealCursor');
-    if (!cursor) return;
-    const maxX = Math.max(1, state.trackW - 10);
-    cursor.style.transform = `translate3d(${(state.curPos / 100) * maxX}px, 0, 0)`;
+    // 저항력 0% -> 링 폭 30%(여유), 속도 48/s / 저항력 50% -> 링 폭 16%(긴장), 속도 78/s
+    let band = Math.round(30 - r * 28) + cosBonus;
+    let speed = Math.round(48 + r * 62);
+    if (isElemental) { band -= 2; speed += 8; }
+    if (isTop) { band -= 4; speed += 14; }
+    band = Utils.clamp(band, 12, 38);
+    return { band, speed, lbl: speed >= 82 ? '초고속' : speed >= 65 ? '빠름' : '집중' };
   }
 
   function getCommandButtons() {
@@ -634,10 +644,12 @@ export function createBattleEngine(hooks) {
       }
     }
 
-    // 적 상태 배지
     const eb = [];
     if (e.isBoss) {
       eb.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/40 border border-sky-300/60 text-sky-100">${hooks.part === 1 ? '☽ 달 카드 반감 · 구속 면역' : '구속 면역 · 2페이즈 최종 결전'}</span>`);
+    }
+    if (e.isIncident) {
+      eb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/35 border border-pink-300 text-pink-100">⚔ 순수 전략 격파 (HP 0으로 돌파!)</span>');
     }
     if (state.exhausted) eb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400/35 border border-yellow-200 text-yellow-100">🌟 탈진! 마무리 찬스!</span>');
     if (state.eGuard) eb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/35 border border-yellow-300 text-yellow-100">🛡 결계 활성</span>');
@@ -646,7 +658,6 @@ export function createBattleEngine(hooks) {
     if (state.bind > 0) eb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/35 border border-cyan-300 text-cyan-100">⛓ 구속</span>');
     if ($('battleStatusBadges')) $('battleStatusBadges').innerHTML = eb.join('');
 
-    // 주인공 버프 배지
     const sb = [];
     if (state.sShield) sb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/30 border border-yellow-300 text-yellow-100">🛡 결계</span>');
     if (state.sEvade) sb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-500/30 border border-pink-300 text-pink-100">✨ 도약 회피</span>');
@@ -657,26 +668,38 @@ export function createBattleEngine(hooks) {
     if (trust >= 3 && !state.syaoranSaveUsed) sb.push('<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/30 border border-emerald-300 text-emerald-100">⚡ 위기엄호</span>');
     if ($('battleSakuraBuffs')) $('battleSakuraBuffs').innerHTML = sb.join('');
 
-    // 봉인/돌파 메인 버튼 (저항력 50% 이하일 때만 개방!)
-    const sealReady = canAttemptSeal();
-    const m = sealMetrics();
-    if ($('btnSealMain')) {
-      $('btnSealMain').textContent = Locale.t(
-        !sealReady
-          ? '🔒 봉인 불가'
-          : e.isBoss
-          ? (state.phase === 1 ? '🌟 결계 돌파!' : (hooks.part === 2 ? '★ 어둠·빛 여명!' : '🌟 최후의 해방!'))
-          : e.isIncident
-          ? '★ 사건 돌파!'
-          : hooks.part === 2
-          ? '★ 사쿠라 변환!'
-          : '🌟 봉인!'
-      );
-    }
-    if ($('btnSealSub')) {
-      $('btnSealSub').textContent = !sealReady
-        ? '저항력 50%↓ 필요'
-        : `${state.exhausted ? '탈진! ' : ''}구역 ${m.w}% · ${m.lbl}`;
+    // 마무리 버튼 (사건 보스는 순수 격파, 최종 보스는 마력 충돌, 카드전은 수렴 마법진!)
+    const sealBtn = $('btnCmdSeal');
+    const ready = canAttemptFinish();
+    if (e.isIncident) {
+      if ($('btnSealMain')) $('btnSealMain').textContent = '⚔ 순수 격파';
+      if ($('btnSealSub')) $('btnSealSub').textContent = 'HP 0으로 해결';
+      if (sealBtn) sealBtn.disabled = true;
+    } else if (e.isBoss) {
+      if ($('btnSealMain')) {
+        $('btnSealMain').textContent = Locale.t(
+          !ready ? '🔒 충돌 불가' : state.phase === 1 ? '🔥 결계 충돌!' : '🔥 마력 충돌!'
+        );
+      }
+      if ($('btnSealSub')) {
+        $('btnSealSub').textContent = !ready
+          ? (state.phase === 1 ? '저항력 55%↓ 필요' : '저항력 35%↓ 필요')
+          : 'X 연타 정면승부!';
+      }
+      if (sealBtn) sealBtn.disabled = !ready || state.busy || state.timing || chant.active;
+    } else {
+      const m = ringMetrics();
+      if ($('btnSealMain')) {
+        $('btnSealMain').textContent = Locale.t(
+          !ready ? '🔒 봉인 불가' : hooks.part === 2 ? '🎯 사쿠라 변환!' : '🎯 수렴 봉인!'
+        );
+      }
+      if ($('btnSealSub')) {
+        $('btnSealSub').textContent = !ready
+          ? '저항력 50%↓ 필요'
+          : `${state.exhausted ? '탈진! ' : ''}링 ${m.band}% · ${m.lbl}`;
+      }
+      if (sealBtn) sealBtn.disabled = !ready || state.busy || state.timing || chant.active;
     }
 
     const btnSya = $('btnCmdSyaoran');
@@ -691,9 +714,6 @@ export function createBattleEngine(hooks) {
     ['btnCmdWand', 'btnCmdCard', 'btnCmdFocus'].forEach((id) => {
       if ($(id)) $(id).disabled = state.busy || state.timing || chant.active;
     });
-    if ($('btnCmdSeal')) {
-      $('btnCmdSeal').disabled = !sealReady || state.busy || state.timing || chant.active;
-    }
 
     syncCommandHighlight();
     if (hooks.onHUDUpdate) hooks.onHUDUpdate();
@@ -729,7 +749,7 @@ export function createBattleEngine(hooks) {
       pickerIdx: 0,
       pickerItems: [],
       timing: false,
-      timingMode: 'seal',
+      finishKind: null,
       pendingLiveCardId: null
     });
     buffs.shield = false;
@@ -755,10 +775,11 @@ export function createBattleEngine(hooks) {
     const tag = $('battleEnemyTag');
     if (tag) {
       if (target.isBoss) {
-        tag.textContent = Locale.t(hooks.part === 1 ? '☽ 달의 심판자' : '🌌 에리오르 최종 시련');
+        tag.textContent = Locale.t(hooks.part === 1 ? '☽ 달의 심판자' : '🌌 최후의 시련');
         tag.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/40 border border-sky-300/70 text-sky-100';
       } else if (target.isIncident) {
-        tag.textContent = Locale.t('✦ 에리오르의 마법 사건');
+        // 스포일러 방지: 초반 사건에서는 절대 에리오르 이름을 노출하지 않음!
+        tag.textContent = Locale.t('✦ 기묘한 마법 사건');
         tag.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/35 border border-pink-300 text-pink-100';
       } else if (target.ruler === 'kero') {
         tag.textContent = '☀ 태양 지배';
@@ -782,11 +803,10 @@ export function createBattleEngine(hooks) {
     const startMsg = target.isBoss
       ? (hooks.part === 1 ? '달의 심판자 유에가 은빛 날개를 펼쳤다!' : '스피넬 썬과 루비 문이 검은 날개와 진홍 나비 날개를 펼쳤다!')
       : target.isIncident
-      ? `${target.kr}이(가) 앞을 가로막는다! [🃏 카드 해방]에서 크로우 카드를 실시간 [★ 별빛 변환]해 돌파하자!`
-      : `${cardName(target)}의 정령이 실체화했다! 저항력을 50% 이하로 약화시켜 봉인하자!`;
+      ? `${target.kr}이(가) 앞을 가로막는다! 추천 카드를 3키 별빛 공명으로 각성시키며 저항력을 0으로 만들어 격파하자!`
+      : `${cardName(target)}의 정령이 실체화했다! 저항력을 50% 이하로 약화시켜 수렴 마법진으로 봉인하자!`;
     setLog(startMsg + bonus);
 
-    // 배틀 돌입 시 지팡이 봉인 해제(레리즈 / 봉인 해제) 컷인 연출 선행!
     state.busy = true;
     updateUI();
     openWandRelease(() => {
@@ -797,7 +817,7 @@ export function createBattleEngine(hooks) {
   }
 
   function damageEnemy(raw, { isBreak = false, isWand = false, isWeak = false, fromReflect = false } = {}) {
-    const cos = Rules.getCostumeBonuses(hooks.getCostumeId());
+    const cos = getCostumeBonuses();
     let dmg = raw;
     const notes = [];
 
@@ -858,7 +878,6 @@ export function createBattleEngine(hooks) {
     return { dmg, reflected: 0, phaseUp, note: notes.length ? ` (${notes.join(', ')})` : '' };
   }
 
-  /** 카드별 컴팩트 1줄 요약 태그 생성 */
   function shortEffectTag(c, isSak) {
     if (c.effect === 'heal') return isSak ? '💚HP+66·MP+18' : '💚HP+50·MP+13';
     if (c.effect === 'light_heal') return `⚔${c.power}·💚회복`;
@@ -872,6 +891,8 @@ export function createBattleEngine(hooks) {
 
   function closeCardPicker() {
     if (!state.pickerOpen) return false;
+    const grid = $('battleCardGrid');
+    if (grid) lastPickerScrollTop = grid.scrollTop;
     state.pickerOpen = false;
     $('battleCardPicker')?.classList.add('hidden');
     syncCommandHighlight();
@@ -892,27 +913,30 @@ export function createBattleEngine(hooks) {
     return bar;
   }
 
-  function syncPickerHighlight() {
+  function syncPickerHighlight(autoScroll = true) {
     const items = state.pickerItems;
     if (!items.length) return;
     state.pickerIdx = Utils.clamp(state.pickerIdx, 0, items.length - 1);
     const cur = items[state.pickerIdx];
+    if (cur) lastCardId = cur.id;
+
     items.forEach((it, idx) => {
       const sel = idx === state.pickerIdx;
       it.el.classList.toggle('ring-2', sel);
       it.el.classList.toggle('ring-yellow-300', sel);
       it.el.classList.toggle('bg-purple-800/90', sel && it.canUse);
-      if (sel) it.el.scrollIntoView({ block: 'nearest' });
+      if (sel && autoScroll) it.el.scrollIntoView({ block: 'nearest' });
     });
+
     const bar = ensureDetailBar();
     if (bar && cur) {
       const prefix = cur.isWk ? '★약점/추천! ' : cur.isRes ? '⚠달 반감 · ' : '';
-      const modeTip = cur.canLiveTransform ? ' [X: ★변환 해방 / C: 일반 사용]' : ' [X / 클릭: 즉시 해방]';
+      const modeTip = cur.canLiveTransform ? ' [X: ✨3키 ★변환 해방 / C: 일반 사용]' : ' [X / 클릭: 즉시 해방]';
       bar.textContent = Locale.t(`${prefix}${cardName(cur.card)} — ${cur.card.desc}${cur.canUse ? modeTip : ' (MP 부족 또는 사용 불가)'}`);
     }
   }
 
-  /** 컴팩트 원클릭 카드 선택 패널 열기 (방향키/WASD + X 즉시 해방 지원) */
+  /** 컴팩트 원클릭 카드 선택 패널 (직전 선택 카드 & 스크롤 위치 완벽 기억!) */
   function openCardPicker() {
     if (!state.active || state.busy || state.timing || chant.active) return;
     const grid = $('battleCardGrid');
@@ -932,7 +956,7 @@ export function createBattleEngine(hooks) {
     if ($('battlePickerTitle')) {
       $('battlePickerTitle').textContent = Locale.t(
         isP2
-          ? '카드 선택 (방향키·클릭 / X: ★변환·해방 / C: 일반 / Z: 닫기)'
+          ? '카드 선택 (X: ✨3키 ★변환·해방 / C: 일반 / Z: 닫기)'
           : '크로우 카드 선택 (방향키 + X 또는 원클릭 즉시 해방 · Z: 닫기)'
       );
     }
@@ -970,7 +994,7 @@ export function createBattleEngine(hooks) {
       }`;
 
       const badge = isSelf
-        ? '<span class="text-[9px] px-1 rounded bg-rose-500 text-white font-bold">시련중</span>'
+        ? '<span class="text-[9px] px-1 rounded bg-rose-500 text-white font-bold">공명중</span>'
         : isWk
         ? `<span class="text-[9px] px-1 rounded bg-yellow-300 text-black font-bold">${e.isIncident ? '추천' : '약점'}</span>`
         : isRes
@@ -995,16 +1019,17 @@ export function createBattleEngine(hooks) {
       const idx = state.pickerItems.length;
       chip.addEventListener('mouseenter', () => {
         state.pickerIdx = idx;
-        syncPickerHighlight();
+        syncPickerHighlight(false);
       });
       chip.addEventListener('click', (ev) => {
         if (!canUse) return;
+        lastCardId = id;
         const normEl = ev.target.closest('[data-norm]');
         closeCardPicker();
         if (normEl) {
           useCard(id, false);
         } else if (canLiveTransform) {
-          startLiveTransformGauge(id);
+          startStarCombo(id);
         } else {
           useCard(id, false);
         }
@@ -1015,11 +1040,26 @@ export function createBattleEngine(hooks) {
     }
 
     state.pickerOpen = true;
+
+    // 직전에 선택했던 카드가 목록에 있으면 그 카드로 즉시 복원!
+    const rememberedIdx = lastCardId ? state.pickerItems.findIndex((it) => it.id === lastCardId) : -1;
     const firstUsable = state.pickerItems.findIndex((it) => it.canUse);
-    state.pickerIdx = firstUsable >= 0 ? firstUsable : 0;
+    state.pickerIdx = rememberedIdx >= 0 ? rememberedIdx : (firstUsable >= 0 ? firstUsable : 0);
+
     $('battleCardPicker')?.classList.remove('hidden');
     syncCommandHighlight();
-    syncPickerHighlight();
+
+    // 직전 스크롤 위치 복원 후, 포커스 카드가 화면 밖이면 최소 이동
+    grid.scrollTop = lastPickerScrollTop;
+    syncPickerHighlight(rememberedIdx < 0);
+    if (rememberedIdx >= 0 && state.pickerItems[rememberedIdx]?.el) {
+      const el = state.pickerItems[rememberedIdx].el;
+      const top = el.offsetTop - grid.offsetTop;
+      const bottom = top + el.offsetHeight;
+      if (top < grid.scrollTop || bottom > grid.scrollTop + grid.clientHeight) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    }
     SoundFX.click();
   }
 
@@ -1058,7 +1098,6 @@ export function createBattleEngine(hooks) {
     Timers.after(() => postPlayerTurn(false), 660);
   }
 
-  /** 샤오랑 부적 원호 — 친밀도 Lv.2 이상 전투당 1회 (결계/반사 파괴 + 뇌제초래 피해!) */
   function doSyaoranAssist() {
     const trust = hooks.getSyaoranTrust ? hooks.getSyaoranTrust() : 0;
     if (!state.active || state.busy || state.timing || chant.active || state.syaoranUsed || trust < 2) return;
@@ -1067,7 +1106,7 @@ export function createBattleEngine(hooks) {
     closeCardPicker();
 
     const p = hooks.getPlayer();
-    const baseDmg = Math.round((38 + trust * 6) * Math.max(1, p.mult * 0.92));
+    const baseDmg = Math.round((38 + Math.min(10, trust) * 5) * Math.max(1, p.mult * 0.92));
     const r = damageEnemy(baseDmg, { isBreak: true, isWeak: true });
     SoundFX.syaoran();
     shakeEnemy();
@@ -1077,11 +1116,11 @@ export function createBattleEngine(hooks) {
     Timers.after(() => postPlayerTurn(r.phaseUp), 820);
   }
 
-  /** 카드 해방 실행 (8벌 의상 패시브: 회복+25%, 마법+10~12%, 치명타 반영) */
   function useCard(id, liveAwakened = false) {
     const cards = hooks.getCards();
     const c = cards[id];
     if (!c) return;
+    lastCardId = id;
     const p = hooks.getPlayer();
     const isP2 = hooks.part === 2;
     const sakura = hooks.getSakuraCards ? hooks.getSakuraCards() : new Set();
@@ -1093,7 +1132,7 @@ export function createBattleEngine(hooks) {
     if (!liveAwakened) p.mp = Math.max(0, p.mp - cost);
     spawnVFX(c.vfx);
 
-    const cos = Rules.getCostumeBonuses(hooks.getCostumeId());
+    const cos = getCostumeBonuses();
     const costumeMagic = cos.magicMult || 1;
     const healMult = cos.healMult || 1;
     const sakMult = liveAwakened ? 1.65 : isSak ? 1.3 : (isP2 ? 0.85 : 1.0);
@@ -1194,6 +1233,19 @@ export function createBattleEngine(hooks) {
     updateUI();
   }
 
+  /** 2부 5대 사건 보스: 게이지 없이 HP 0 달성 즉시 순수 격파! */
+  function resolveIncidentVictory() {
+    const e = state.enemy;
+    state.busy = true;
+    state.hp = 0;
+    SoundFX.seal();
+    spawnVFX('seal');
+    shakeEnemy();
+    setLog(`✨ [${e.kr}]의 기묘한 마법 현상을 완전히 돌파했다!`);
+    updateUI();
+    Timers.after(() => finishBattleVictory(e), 850);
+  }
+
   function postPlayerTurn(phaseUp) {
     if (!state.active) return;
     const p = hooks.getPlayer();
@@ -1203,6 +1255,10 @@ export function createBattleEngine(hooks) {
     if (state.hp <= 0) {
       state.hp = 0;
       state.eGuard = state.eRef = state.eEvade = false;
+      // 제2부 5대 기묘한 사건 보스는 게이지 없이 HP 0 달성 즉시 승리!
+      if (state.enemy.isIncident) {
+        return resolveIncidentVictory();
+      }
       if (!state.exhausted) {
         state.exhausted = true;
         pickIntent();
@@ -1210,11 +1266,9 @@ export function createBattleEngine(hooks) {
         setLog(
           state.enemy.isBoss
             ? (hooks.part === 2
-                ? '에리오르의 어둠이 흔들린다! 지금 [★ 어둠·빛 여명!]으로 토모에다의 아침을 열자!'
-                : '유에의 달빛이 흔들린다! 지금 [🌟 최후의 해방!]으로 심판을 돌파하자!')
-            : state.enemy.isIncident
-            ? `${state.enemy.kr}의 마력이 약해졌다! 지금 [★ 사건 돌파!]를 눌러 사건을 완전히 해결하자!`
-            : `${cardName(state.enemy)}가 탈진했다! 지금 [${hooks.part === 2 ? '★ 사쿠라 변환!' : '🌟 봉인!'}] 마법진을 펼치자!`
+                ? '에리오르의 어둠이 흔들린다! 지금 [🔥 마력 충돌!]로 최후의 별빛을 밀어붙이자!'
+                : '유에의 달빛이 흔들린다! 지금 [🔥 마력 충돌!]로 심판을 돌파하자!')
+            : `${cardName(state.enemy)}가 탈진했다! 지금 [${hooks.part === 2 ? '🎯 사쿠라 변환!' : '🎯 수렴 봉인!'}] 마법진을 펼치자!`
         );
         state.busy = false;
         updateUI();
@@ -1239,14 +1293,7 @@ export function createBattleEngine(hooks) {
       SoundFX.magic();
       return { txt: `[미러]가 공격을 되돌려 ${r}의 피해를 반사했다!`, ref: r };
     }
-    if (state.sRef) {
-      state.sRef = false;
-      const r = Math.round(raw * 1.35);
-      SoundFX.magic();
-      return { txt: `[거울(미러)]이 공격을 되돌려 ${r}의 피해를 반사했다!`, ref: r };
-    }
 
-    // 친밀도 Lv.3 이상: 위기 시(HP 35% 이하 또는 치명타 예상) 샤오랑 자동 대리 방어 1회!
     if (trust >= 3 && !state.syaoranSaveUsed && (p.hp <= p.maxHp * 0.35 || raw >= p.hp)) {
       state.syaoranSaveUsed = true;
       SoundFX.syaoran();
@@ -1257,7 +1304,7 @@ export function createBattleEngine(hooks) {
     let d = raw;
     let pre = '';
 
-    const cos = Rules.getCostumeBonuses(hooks.getCostumeId());
+    const cos = getCostumeBonuses();
     if (cos.elemResist < 1 && ['thunder', 'firey', 'inc_rain', 'inc_spinel'].includes(state.enemy?.id)) {
       d = Math.round(d * cos.elemResist);
     }
@@ -1289,7 +1336,7 @@ export function createBattleEngine(hooks) {
   }
 
   function applyTurnEndRegen() {
-    const cosRegen = Rules.getCostumeBonuses(hooks.getCostumeId()).turnMpRegen || 0;
+    const cosRegen = getCostumeBonuses().turnMpRegen || 0;
     const snackRegen = state.snackGuard ? 3 : 0;
     const total = cosRegen + snackRegen;
     if (total > 0) {
@@ -1360,6 +1407,10 @@ export function createBattleEngine(hooks) {
         refPhaseUp = res.phaseUp;
         shakeEnemy();
         if (state.hp <= 0) {
+          if (e.isIncident) {
+            state.sFocus = false;
+            return resolveIncidentVictory();
+          }
           state.exhausted = true;
           msg += ' 상대가 반사 충격으로 탈진했다!';
         }
@@ -1383,102 +1434,226 @@ export function createBattleEngine(hooks) {
     state.active = false;
     state.busy = false;
     state.timing = false;
+    state.finishKind = null;
     chant.active = false;
     $('battleOverlay')?.classList.add('hidden');
     if (hooks.onDefeat) hooks.onDefeat();
   }
 
   /* --------------------------------------------------------------------------
-   * 무딜레이 타이밍 게이지 (저항력 50%↓ 개방 · 랜덤 구역 배치)
+   * 3. 4종 마법 피니시 엔진 (수렴 마법진 / 3키 별빛 공명 / X연타 마력 충돌)
+   *    - #sealTimingBox 내부에 상황별 전용 인터랙티브 스테이지를 동적 렌더링
    * ------------------------------------------------------------------------*/
-  function openGauge(mode, liveCardId = null) {
-    if (!state.active || state.busy || state.timing || chant.active) return;
-    if (mode === 'seal' && !canAttemptSeal()) {
-      setLog('아직 상대의 저항력이 너무 강해! 저항력을 50% 이하로 약화시켜야 봉인할 수 있어!');
-      SoundFX.click();
-      return;
-    }
-    closeCardPicker();
-    state.timing = true;
-    state.timingMode = mode;
-    state.pendingLiveCardId = liveCardId;
-    state.curPos = Math.random() < 0.5 ? 2 : 98;
-    state.curDir = state.curPos < 50 ? 1 : -1;
-
-    const m = sealMetrics();
-    state.sweetW = m.w;
-    // 매 시도마다 20% ~ (80 - w)% 사이 랜덤 위치에 성공 구역 배치
-    const minStart = 20;
-    const maxStart = Math.max(minStart, 80 - m.w);
-    state.sweetStart = Math.round(minStart + Math.random() * (maxStart - minStart));
-
-    if ($('sealSweetZone')) {
-      $('sealSweetZone').style.left = `${state.sweetStart}%`;
-      $('sealSweetZone').style.width = `${state.sweetW}%`;
-    }
-    if ($('sealGaugeTitle')) {
-      $('sealGaugeTitle').textContent = mode === 'live_transform'
-        ? 'LIVE STAR AWAKENING'
-        : hooks.part === 2 ? 'STAR TRANSFORMATION CIRCLE' : 'SEALING CIRCLE';
-    }
-    if ($('sealGaugeMeta')) {
-      $('sealGaugeMeta').textContent = `성공 구역 ${m.w}% · ${m.lbl}`;
-    }
-    if ($('sealGaugeDesc')) {
-      const c = liveCardId ? hooks.getCards()[liveCardId] : null;
-      $('sealGaugeDesc').innerHTML = Locale.t(
-        mode === 'live_transform' && c
-          ? `<b>[${cardName(c)}]</b>을(를) 사쿠라 카드로 각성! 빛나는 구역에 맞춰 <b>X</b> 또는 실행!`
-          : '랜덤 위치의 빛나는 구역에 맞춰 <b>X</b> 또는 <b>실행</b>을 누르세요 (취소: Z)'
-      );
-    }
-
-    $('sealTimingBox')?.classList.remove('hidden');
-    state.trackW = $('sealTrack')?.clientWidth || 320;
-    syncCursorVisual();
-    updateUI();
-  }
-
-  function startSeal() {
-    openGauge('seal', null);
-  }
-
-  function startLiveTransformGauge(cardId) {
-    const c = hooks.getCards()[cardId];
-    const p = hooks.getPlayer();
-    if (!c || p.mp < c.mpCost) return;
-    openGauge('live_transform', cardId);
+  function closeFinishBox() {
+    state.timing = false;
+    state.finishKind = null;
+    state.pendingLiveCardId = null;
+    $('sealTimingBox')?.classList.add('hidden');
   }
 
   function cancelSeal() {
     if (!state.timing) return;
-    state.timing = false;
-    state.pendingLiveCardId = null;
-    $('sealTimingBox')?.classList.add('hidden');
+    closeFinishBox();
+    SoundFX.click();
     updateUI();
   }
 
-  function execSeal() {
-    if (!state.timing) return;
-    const modeNow = state.timingMode;
-    const liveId = state.pendingLiveCardId;
-    state.timing = false;
-    state.pendingLiveCardId = null;
-    $('sealTimingBox')?.classList.add('hidden');
+  /** 메인 [🌟 봉인! / 🔥 마력 충돌!] 버튼 클릭 진입점 */
+  function startSeal() {
+    if (!state.active || state.busy || state.timing || chant.active) return;
+    const e = state.enemy;
+    if (!e) return;
+    if (e.isIncident) {
+      setLog('기묘한 사건 보스는 봉인 게이지 없이 저항력을 0으로 만들면 즉시 해결됩니다!');
+      SoundFX.click();
+      return;
+    }
+    if (!canAttemptFinish()) {
+      const req = e.isBoss ? (state.phase === 1 ? '55%' : '35%') : '50%';
+      setLog(`아직 상대의 저항력이 너무 강해! 저항력을 ${req} 이하로 약화시켜야 해!`);
+      SoundFX.click();
+      return;
+    }
+    if (e.isBoss) startMagicClash();
+    else startRitualRing();
+  }
+
+  /* ---- [피니시 1] 수렴 마법진 (Ritual Ring) : 1부 봉인 & 2부 공명 변환 ---- */
+  function startRitualRing() {
+    closeCardPicker();
+    const box = $('sealTimingBox');
+    if (!box) return;
+
+    const m = ringMetrics();
+    const center = 38 + Math.round((Math.random() - 0.5) * 14); // 31 ~ 45 사이 랜덤 목표 반경
+    state.ringMin = Math.max(16, Math.round(center - m.band / 2));
+    state.ringMax = Math.min(82, Math.round(center + m.band / 2));
+    state.ringSpeed = m.speed;
+    state.ringRadius = 100;
+    state.timing = true;
+    state.finishKind = 'ring';
+
+    const isP2 = hooks.part === 2;
+    const targetOuterPct = state.ringMax;
+    const targetInnerPct = state.ringMin;
+
+    box.innerHTML = `
+      <div class="flex items-center justify-between text-[11px] mb-1">
+        <span class="font-magic ${isP2 ? 'text-pink-200' : 'text-yellow-300'} tracking-widest">🎯 ${isP2 ? 'STAR CONVERGENCE RING' : 'RITUAL SEALING RING'}</span>
+        <span class="font-story text-pink-200 font-bold">판정폭 ${m.band}% · ${m.lbl}</span>
+      </div>
+      <p class="font-story text-xs text-pink-100 mb-2.5">${Locale.t('줄어드는 빛의 고리가 <b>황금 마법진 구역</b>에 겹치는 순간 <b>X</b> 또는 <b>실행</b>을 누르세요!')}</p>
+      <div class="relative w-36 h-36 mx-auto mb-3 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border border-dashed border-purple-400/35 animate-spin-slow"></div>
+        <!-- 황금 판정 띠 (바깥 경계 ~ 안쪽 경계) -->
+        <div class="absolute rounded-full border-2 border-yellow-300/90 bg-yellow-300/18 shadow-[0_0_16px_rgba(250,204,21,0.35)]" style="width:${targetOuterPct}%;height:${targetOuterPct}%;"></div>
+        <div class="absolute rounded-full bg-[#15082c]/85 border border-yellow-200/75" style="width:${targetInnerPct}%;height:${targetInnerPct}%;"></div>
+        <!-- 중앙 별 코어 -->
+        <div id="ritualCore" class="relative z-10 text-lg transition-transform duration-100">${isP2 ? '⭐' : '✦'}</div>
+        <!-- 수렴하는 움직이는 고리 (GPU scale) -->
+        <div id="ritualRingCircle" class="absolute inset-0 rounded-full border-[4px] border-pink-400 shadow-[0_0_14px_#f472b6] pointer-events-none" style="will-change:transform;transform:scale(1);"></div>
+      </div>
+      <div class="flex justify-center gap-2">
+        <button id="btnExecRing" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-amber-500 text-white font-bold text-sm shadow-lg active:scale-95">${Locale.t(isP2 ? '★ 지금 변환! (X)' : '🌟 지금 봉인! (X)')}</button>
+        <button id="btnCancelFinish" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 font-bold text-sm">취소 (Z)</button>
+      </div>
+    `;
+    box.classList.remove('hidden');
+    $('btnExecRing')?.addEventListener('pointerdown', (ev) => { ev.preventDefault(); execRing(); });
+    $('btnCancelFinish')?.addEventListener('click', cancelSeal);
+    SoundFX.click();
+    updateUI();
+  }
+
+  function syncRingVisual() {
+    const ring = $('ritualRingCircle');
+    if (ring) {
+      ring.style.transform = `scale(${(state.ringRadius / 100).toFixed(3)})`;
+      const inZone = state.ringRadius >= state.ringMin - 1.5 && state.ringRadius <= state.ringMax + 1.5;
+      ring.style.borderColor = inZone ? '#fef08a' : '#f472b6';
+      const core = $('ritualCore');
+      if (core) core.style.transform = inZone ? 'scale(1.32)' : 'scale(1)';
+    }
+  }
+
+  function execRing() {
+    if (!state.timing || state.finishKind !== 'ring') return;
+    const r = state.ringRadius;
+    const hit = r >= state.ringMin - 1.8 && r <= state.ringMax + 1.8;
+    closeFinishBox();
     state.busy = true;
 
-    const tw = Math.max(1, state.trackW);
-    const px = (state.curPos / 100) * (tw - 10);
-    const centerPct = ((px + 5) / tw) * 100;
-    const hit = centerPct >= state.sweetStart - 0.85 && centerPct <= state.sweetStart + state.sweetW + 0.85;
+    if (hit) {
+      const e = state.enemy;
+      const isP2 = hooks.part === 2;
+      openChant({
+        cards: [e],
+        spiritTarget: e,
+        isSakura: isP2,
+        mainChant: Locale.getChant(isP2 ? 'transform_p2' : 'seal_p1'),
+        subQuote: isP2 ? e.transformQuote : e.sealQuote,
+        onDone: () => finishBattleVictory(e)
+      });
+    } else {
+      handleFinishFail('수렴 마법진 타이밍이 어긋나 봉인진이 깨졌다!');
+    }
+  }
 
-    // 1) 제2부 전투 중 실시간 ★변환 해방 판정
-    if (modeNow === 'live_transform' && liveId) {
-      const c = hooks.getCards()[liveId];
-      const p = hooks.getPlayer();
-      p.mp = Math.max(0, p.mp - c.mpCost);
+  /* ---- [피니시 2] 3키 별빛 공명 (Star Combo) : 2부 전투 중 실시간 ★카드 변환 ---- */
+  function startStarCombo(cardId) {
+    const c = hooks.getCards()[cardId];
+    const p = hooks.getPlayer();
+    if (!c || p.mp < c.mpCost) return;
 
-      if (hit) {
+    closeCardPicker();
+    const box = $('sealTimingBox');
+    if (!box) return;
+
+    // 3방향 커맨드 생성 (3개 모두 똑같지 않게 보정)
+    const seq = [
+      ALL_DIRS[Math.floor(Math.random() * 4)],
+      ALL_DIRS[Math.floor(Math.random() * 4)],
+      ALL_DIRS[Math.floor(Math.random() * 4)]
+    ];
+    if (seq[0] === seq[1] && seq[1] === seq[2]) {
+      seq[2] = ALL_DIRS[(ALL_DIRS.indexOf(seq[2]) + 1) % 4];
+    }
+
+    const cosBonus = getCostumeBonuses().sealZoneBonus || 0;
+    state.comboSeq = seq;
+    state.comboStep = 0;
+    state.comboMaxTime = 5.4 + cosBonus * 0.22;
+    state.comboTime = state.comboMaxTime;
+    state.pendingLiveCardId = cardId;
+    state.timing = true;
+    state.finishKind = 'combo';
+
+    box.innerHTML = `
+      <div class="flex items-center justify-between text-[11px] mb-1">
+        <span class="font-magic text-pink-200 tracking-widest">✨ STAR RESONANCE COMBO</span>
+        <span class="font-story text-yellow-200 font-bold">${Locale.t(`[${cardName(c)}] 실시간 ★각성`)}</span>
+      </div>
+      <p class="font-story text-xs text-pink-100 mb-2">방향키(WASD) 또는 아래 화살표를 <b>순서대로 3번</b> 입력해 별빛을 공명시키세요! (취소: Z)</p>
+      <div id="comboSlots" class="flex items-center justify-center gap-3 my-2.5"></div>
+      <div class="h-2 bg-black/70 rounded-full overflow-hidden border border-pink-300/50 mb-3">
+        <div id="comboTimeBar" class="h-full bg-gradient-to-r from-pink-400 via-yellow-300 to-fuchsia-400" style="width:100%"></div>
+      </div>
+      <div class="flex items-center justify-center gap-2 mb-2.5">
+        <button data-cdir="left" class="w-11 h-10 rounded-xl bg-purple-900/90 hover:bg-pink-600 border border-pink-300/60 text-yellow-200 font-bold text-base active:scale-95">◀</button>
+        <button data-cdir="up" class="w-11 h-10 rounded-xl bg-purple-900/90 hover:bg-pink-600 border border-pink-300/60 text-yellow-200 font-bold text-base active:scale-95">▲</button>
+        <button data-cdir="down" class="w-11 h-10 rounded-xl bg-purple-900/90 hover:bg-pink-600 border border-pink-300/60 text-yellow-200 font-bold text-base active:scale-95">▼</button>
+        <button data-cdir="right" class="w-11 h-10 rounded-xl bg-purple-900/90 hover:bg-pink-600 border border-pink-300/60 text-yellow-200 font-bold text-base active:scale-95">▶</button>
+      </div>
+      <div class="flex justify-center">
+        <button id="btnCancelFinish" class="px-4 py-1.5 rounded-xl bg-slate-700 text-slate-200 font-bold text-xs">취소 (Z)</button>
+      </div>
+    `;
+    box.classList.remove('hidden');
+    box.querySelectorAll('[data-cdir]').forEach((btn) => {
+      btn.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        inputComboDir(btn.dataset.cdir);
+      });
+    });
+    $('btnCancelFinish')?.addEventListener('click', cancelSeal);
+    renderComboSlots();
+    SoundFX.click();
+    updateUI();
+  }
+
+  function renderComboSlots() {
+    const wrap = $('comboSlots');
+    if (!wrap) return;
+    wrap.innerHTML = state.comboSeq.map((dir, idx) => {
+      const done = idx < state.comboStep;
+      const cur = idx === state.comboStep;
+      const cls = done
+        ? 'bg-gradient-to-br from-pink-500 to-amber-400 border-yellow-200 text-white scale-105 shadow-[0_0_14px_rgba(250,204,21,0.7)]'
+        : cur
+        ? 'bg-purple-800/90 border-yellow-300 text-yellow-200 ring-2 ring-yellow-300/80 scale-110'
+        : 'bg-black/55 border-white/20 text-slate-300';
+      return `<div class="w-14 h-14 rounded-2xl border-2 flex flex-col items-center justify-center transition ${cls}">
+        <span class="text-xl font-bold leading-none">${done ? '★' : DIR_ARROWS[dir]}</span>
+        <span class="text-[9px] font-mono mt-0.5">${idx + 1}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function inputComboDir(dir) {
+    if (!state.timing || state.finishKind !== 'combo') return;
+    const expected = state.comboSeq[state.comboStep];
+    if (dir === expected) {
+      SoundFX.comboStep?.(state.comboStep);
+      spawnVFX('seal');
+      state.comboStep++;
+      renderComboSlots();
+      if (state.comboStep >= state.comboSeq.length) {
+        const liveId = state.pendingLiveCardId;
+        const c = hooks.getCards()[liveId];
+        const p = hooks.getPlayer();
+        closeFinishBox();
+        state.busy = true;
+        p.mp = Math.max(0, p.mp - c.mpCost);
         openChant({
           cards: [c],
           spiritTarget: c,
@@ -1490,100 +1665,166 @@ export function createBattleEngine(hooks) {
             useCard(liveId, true);
           }
         });
-      } else {
-        SoundFX.hit();
-        setLog(`별의 마력 집중이 흐트러져 [${cardName(c)}] 변환에 실패했다! (크로우 카드 위력으로 발동)`);
-        updateUI();
-        Timers.after(() => useCard(liveId, false), 650);
       }
-      return;
-    }
-
-    // 2) 일반 봉인 / 사건 돌파 / 최종 보스 결전 판정
-    if (hit) {
-      const e = state.enemy;
-
-      if (e.isBoss) {
-        if (state.phase === 1) {
-          state.hp = Math.ceil(state.maxHp * 0.5);
-          state.phase = 2;
-          state.eGuard = true;
-          enterBossPhase2();
-          return;
-        }
-        if (hooks.part === 2) {
-          const cards = hooks.getCards();
-          openChant({
-            cards: [cards.dark, cards.light],
-            spiritTarget: e,
-            isSakura: true,
-            mainChant: Locale.getChant('dual_p2'),
-            subQuote: '어둠과 빛이 손을 맞잡고 별빛 사쿠라 카드로 피어나며 토모에다의 아침이 열렸다!',
-            onDone: () => finishBattleVictory(e)
-          });
-        } else {
-          openChant({
-            cards: [e],
-            spiritTarget: e,
-            isSakura: false,
-            mainChant: Locale.getChant('yue_p1'),
-            subQuote: '달의 심판자 유에가 부드러운 미소와 함께 새로운 주인을 인정했다.',
-            onDone: () => finishBattleVictory(e)
-          });
-        }
-        return;
-      }
-
-      if (e.isIncident) {
-        SoundFX.seal();
-        spawnVFX('seal');
-        setLog(`✨ [${e.kr}]의 마법이 별빛 아래 말끔히 사라졌다!`);
-        updateUI();
-        Timers.after(() => finishBattleVictory(e), 780);
-        return;
-      }
-
-      const isP2 = hooks.part === 2;
-      openChant({
-        cards: [e],
-        spiritTarget: e,
-        isSakura: isP2,
-        mainChant: Locale.getChant(isP2 ? 'transform_p2' : 'seal_p1'),
-        subQuote: isP2 ? e.transformQuote : e.sealQuote,
-        onDone: () => finishBattleVictory(e)
-      });
     } else {
       SoundFX.hit();
-      const r = state.hp / Math.max(1, state.maxHp);
-      const res = hurtPlayer(Math.max(8, Math.round(state.enemy.atk * (0.85 + r * 0.5))));
-      if (state.exhausted) {
-        state.exhausted = false;
-        state.hp = Math.max(14, Math.round(state.maxHp * 0.16));
+      state.comboStep = 0;
+      const box = $('sealTimingBox');
+      if (box) {
+        box.classList.remove('shake-hit');
+        void box.offsetWidth;
+        box.classList.add('shake-hit');
       }
-      setLog(`마법진이 깨졌다! 역습 — ${res.txt}`);
-      updateUI();
-      if (hooks.getPlayer().hp <= 0) handleDefeat();
-      else {
-        Timers.after(() => {
-          pickIntent();
-          state.busy = false;
-          updateUI();
-        }, 800);
+      renderComboSlots();
+    }
+  }
+
+  function failStarCombo() {
+    const liveId = state.pendingLiveCardId;
+    const c = hooks.getCards()[liveId];
+    const p = hooks.getPlayer();
+    closeFinishBox();
+    state.busy = true;
+    p.mp = Math.max(0, p.mp - (c?.mpCost || 0));
+    SoundFX.hit();
+    setLog(`별빛 공명 시간이 지나 [${cardName(c)}] 변환에 실패했다! (크로우 카드 위력으로 발동)`);
+    updateUI();
+    Timers.after(() => useCard(liveId, false), 650);
+  }
+
+  /* ---- [피니시 3] 마력 충돌 (Magic Clash · X 연타!) : 최종 보스전 ---- */
+  function startMagicClash() {
+    closeCardPicker();
+    const box = $('sealTimingBox');
+    if (!box) return;
+
+    const cosBonus = getCostumeBonuses().sealZoneBonus || 0;
+    state.clashVal = state.exhausted ? 54 : 42;
+    state.clashMaxTime = 8.5;
+    state.clashTime = state.clashMaxTime;
+    state.clashPushBack = Math.max(12, (state.exhausted ? 15.5 : 20.5) - cosBonus * 0.45);
+    state.clashTapPower = 7.8;
+    state.timing = true;
+    state.finishKind = 'clash';
+
+    const heroName = Locale.t('사쿠라');
+    const bossName = Locale.t(getEnemyDisplayName(state.enemy));
+
+    box.innerHTML = `
+      <div class="flex items-center justify-between text-[11px] mb-1">
+        <span class="font-magic text-yellow-300 tracking-widest">🔥 MAGIC CLASH · FINAL DUEL</span>
+        <span id="clashTimerText" class="font-mono text-pink-200 font-bold">${state.clashTime.toFixed(1)}s</span>
+      </div>
+      <p class="font-story text-xs text-pink-100 mb-2"><b>X 키를 연타</b>(또는 아래 버튼 연타)해 마력 구슬을 상대 쪽 끝까지 밀어내세요!</p>
+      <div class="flex justify-between text-[10px] font-story font-bold mb-1 px-1">
+        <span class="text-pink-300">✦ ${heroName}</span>
+        <span class="text-sky-300">${bossName} ☽</span>
+      </div>
+      <div class="relative h-7 bg-indigo-950/90 rounded-full border-2 border-yellow-300/75 overflow-hidden mb-3">
+        <div id="clashPlayerBar" class="h-full bg-gradient-to-r from-pink-500 via-fuchsia-400 to-yellow-300 transition-[width] duration-75" style="width:${state.clashVal}%"></div>
+        <div id="clashOrb" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border-2 border-yellow-200 shadow-[0_0_16px_#fef08a]" style="left:${state.clashVal}%"></div>
+      </div>
+      <div class="flex justify-center gap-2">
+        <button id="btnClashTap" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 border border-yellow-200 text-white font-bold text-sm shadow-xl active:scale-95">🔥 마력 밀어내기! (X 연타)</button>
+        <button id="btnCancelFinish" class="px-3.5 py-2 rounded-xl bg-slate-700 text-slate-200 font-bold text-xs">취소 (Z)</button>
+      </div>
+    `;
+    box.classList.remove('hidden');
+    $('btnClashTap')?.addEventListener('pointerdown', (ev) => { ev.preventDefault(); tapClash(); });
+    $('btnCancelFinish')?.addEventListener('click', cancelSeal);
+    SoundFX.encounter();
+    updateUI();
+  }
+
+  function syncClashVisual() {
+    const bar = $('clashPlayerBar');
+    const orb = $('clashOrb');
+    const tEl = $('clashTimerText');
+    if (bar) bar.style.width = `${state.clashVal.toFixed(1)}%`;
+    if (orb) orb.style.left = `${state.clashVal.toFixed(1)}%`;
+    if (tEl) tEl.textContent = `${Math.max(0, state.clashTime).toFixed(1)}s`;
+  }
+
+  function tapClash() {
+    if (!state.timing || state.finishKind !== 'clash') return;
+    state.clashVal = Math.min(100, state.clashVal + state.clashTapPower);
+    SoundFX.clashTap?.();
+    if (Math.random() < 0.35) spawnVFX('seal');
+    syncClashVisual();
+
+    if (state.clashVal >= 100) {
+      const e = state.enemy;
+      closeFinishBox();
+      state.busy = true;
+      if (state.phase === 1) {
+        state.hp = Math.ceil(state.maxHp * 0.5);
+        state.phase = 2;
+        state.eGuard = true;
+        enterBossPhase2();
+        return;
+      }
+      if (hooks.part === 2) {
+        const cards = hooks.getCards();
+        openChant({
+          cards: [cards.dark, cards.light],
+          spiritTarget: e,
+          isSakura: true,
+          mainChant: Locale.getChant('dual_p2'),
+          subQuote: '어둠과 빛이 손을 맞잡고 별빛 사쿠라 카드로 피어나며 토모에다의 아침이 열렸다!',
+          onDone: () => finishBattleVictory(e)
+        });
+      } else {
+        openChant({
+          cards: [e],
+          spiritTarget: e,
+          isSakura: false,
+          mainChant: Locale.getChant('yue_p1'),
+          subQuote: '달의 심판자 유에가 부드러운 미소와 함께 새로운 주인을 인정했다.',
+          onDone: () => finishBattleVictory(e)
+        });
       }
     }
+  }
+
+  function handleFinishFail(reasonMsg) {
+    SoundFX.hit();
+    const r = state.hp / Math.max(1, state.maxHp);
+    const res = hurtPlayer(Math.max(8, Math.round(state.enemy.atk * (0.85 + r * 0.5))));
+    if (state.exhausted) {
+      state.exhausted = false;
+      state.hp = Math.max(14, Math.round(state.maxHp * 0.16));
+    }
+    setLog(`${reasonMsg} 역습 — ${res.txt}`);
+    updateUI();
+    if (hooks.getPlayer().hp <= 0) handleDefeat();
+    else {
+      Timers.after(() => {
+        pickIntent();
+        state.busy = false;
+        updateUI();
+      }, 800);
+    }
+  }
+
+  /** 공용 X / 모바일 실행 호환 */
+  function execSeal() {
+    if (!state.timing) return;
+    if (state.finishKind === 'ring') execRing();
+    else if (state.finishKind === 'clash') tapClash();
   }
 
   function finishBattleVictory(target) {
     state.active = false;
     state.busy = false;
     state.timing = false;
+    state.finishKind = null;
     state.pickerOpen = false;
     $('battleOverlay')?.classList.add('hidden');
     if (hooks.onVictory) hooks.onVictory(target);
   }
 
   /* --------------------------------------------------------------------------
-   * 배틀 돌입 지팡이 봉인 해제 컷인 & 3단계 정령 -> 카드 실시간 변신 영창
+   * 4. 배틀 돌입 지팡이 봉인 해제 컷인 & 3단계 정령 -> 카드 실시간 변신 영창
    * ------------------------------------------------------------------------*/
   function openWandRelease(onDone) {
     const isP2 = hooks.part === 2;
@@ -1672,7 +1913,6 @@ export function createBattleEngine(hooks) {
     chant.len = 0;
     chant.onDone = onDone;
 
-    // 1단계: 영창 전반부 동안 정령 실체화 본체 표시
     const vis = $('chantCardVisual');
     if (vis) {
       vis.className = 'w-44 h-48 sm:w-52 sm:h-56 rounded-3xl manifest-stage p-2 relative z-10 flex items-center justify-center animate-float';
@@ -1698,7 +1938,6 @@ export function createBattleEngine(hooks) {
     }
     $('chantOverlay')?.classList.remove('hidden');
 
-    // 2단계 변신 트리거 시점 (주문의 약 65% 지점 — 봉인/변환 클라이맥스 행)
     const flipPoint = Math.floor(chant.full.length * 0.65);
 
     Timers.clear(chant.tId);
@@ -1742,7 +1981,9 @@ export function createBattleEngine(hooks) {
     if (fn) fn();
   }
 
-  /** 배틀 전용 키보드 통합 핸들러 (방향키/WASD + X/Z/C 완전 지원) */
+  /* --------------------------------------------------------------------------
+   * 5. 배틀 전용 키보드 통합 핸들러 (4종 피니시 + 커맨드 + 카드 그리드)
+   * ------------------------------------------------------------------------*/
   function handleKey(code) {
     if (!state.active) return false;
 
@@ -1751,14 +1992,27 @@ export function createBattleEngine(hooks) {
       else if (code === 'KeyZ' || code === 'Escape') completeChantStep(true);
       return true;
     }
+
     if (state.timing) {
-      if (code === 'KeyX' || code === 'Enter' || code === 'Space') execSeal();
-      else if (code === 'KeyZ' || code === 'Escape') cancelSeal();
+      if (code === 'KeyZ' || code === 'Escape') {
+        cancelSeal();
+        return true;
+      }
+      if (state.finishKind === 'ring') {
+        if (code === 'KeyX' || code === 'Enter' || code === 'Space') execRing();
+      } else if (state.finishKind === 'clash') {
+        if (code === 'KeyX' || code === 'Enter' || code === 'Space') tapClash();
+      } else if (state.finishKind === 'combo') {
+        if (code === 'ArrowUp' || code === 'KeyW') inputComboDir('up');
+        else if (code === 'ArrowDown' || code === 'KeyS') inputComboDir('down');
+        else if (code === 'ArrowLeft' || code === 'KeyA') inputComboDir('left');
+        else if (code === 'ArrowRight' || code === 'KeyD') inputComboDir('right');
+      }
       return true;
     }
+
     if (state.busy) return true;
 
-    // 카드 선택 그리드 키보드 탐색
     if (state.pickerOpen) {
       const len = state.pickerItems.length;
       const cols = window.innerWidth >= 640 ? 3 : 2;
@@ -1766,20 +2020,22 @@ export function createBattleEngine(hooks) {
         closeCardPicker();
         SoundFX.click();
       } else if (len > 0) {
-        if (code === 'ArrowRight' || code === 'KeyD') { state.pickerIdx = (state.pickerIdx + 1) % len; syncPickerHighlight(); SoundFX.click(); }
-        else if (code === 'ArrowLeft' || code === 'KeyA') { state.pickerIdx = (state.pickerIdx - 1 + len) % len; syncPickerHighlight(); SoundFX.click(); }
-        else if (code === 'ArrowDown' || code === 'KeyS') { state.pickerIdx = Math.min(len - 1, state.pickerIdx + cols); syncPickerHighlight(); SoundFX.click(); }
-        else if (code === 'ArrowUp' || code === 'KeyW') { state.pickerIdx = Math.max(0, state.pickerIdx - cols); syncPickerHighlight(); SoundFX.click(); }
+        if (code === 'ArrowRight' || code === 'KeyD') { state.pickerIdx = (state.pickerIdx + 1) % len; syncPickerHighlight(true); SoundFX.click(); }
+        else if (code === 'ArrowLeft' || code === 'KeyA') { state.pickerIdx = (state.pickerIdx - 1 + len) % len; syncPickerHighlight(true); SoundFX.click(); }
+        else if (code === 'ArrowDown' || code === 'KeyS') { state.pickerIdx = Math.min(len - 1, state.pickerIdx + cols); syncPickerHighlight(true); SoundFX.click(); }
+        else if (code === 'ArrowUp' || code === 'KeyW') { state.pickerIdx = Math.max(0, state.pickerIdx - cols); syncPickerHighlight(true); SoundFX.click(); }
         else if (code === 'KeyX' || code === 'Enter') {
           const item = state.pickerItems[state.pickerIdx];
           if (item && item.canUse) {
+            lastCardId = item.id;
             closeCardPicker();
-            if (item.canLiveTransform) startLiveTransformGauge(item.id);
+            if (item.canLiveTransform) startStarCombo(item.id);
             else useCard(item.id, false);
           }
         } else if (code === 'KeyC') {
           const item = state.pickerItems[state.pickerIdx];
           if (item && item.canUse) {
+            lastCardId = item.id;
             closeCardPicker();
             useCard(item.id, false);
           }
@@ -1788,7 +2044,6 @@ export function createBattleEngine(hooks) {
       return true;
     }
 
-    // 하단 커맨드 바 키보드 탐색
     const btns = getCommandButtons();
     if (!btns.length) return true;
     if (code === 'ArrowRight' || code === 'KeyD') {
@@ -1801,10 +2056,10 @@ export function createBattleEngine(hooks) {
       SoundFX.click();
     } else if (code === 'KeyX' || code === 'Enter') {
       const targetBtn = btns[state.cmdIdx];
-      if (targetBtn && !targetBtn.disabled) targetBtn.click();
-      else if (targetBtn && targetBtn.id === 'btnCmdSeal' && !canAttemptSeal()) {
-        setLog('아직 상대의 저항력이 너무 강해! 저항력을 50% 이하로 약화시켜야 봉인할 수 있어!');
-        SoundFX.click();
+      if (targetBtn && !targetBtn.disabled) {
+        targetBtn.click();
+      } else if (targetBtn && targetBtn.id === 'btnCmdSeal') {
+        startSeal();
       }
     }
     return true;
@@ -1813,27 +2068,37 @@ export function createBattleEngine(hooks) {
   function flee() {
     if (!state.active || state.busy || chant.active) return;
     state.active = false;
-    state.timing = false;
-    $('sealTimingBox')?.classList.add('hidden');
-    $('battleCardPicker')?.classList.add('hidden');
+    closeFinishBox();
+    closeCardPicker();
     $('battleOverlay')?.classList.add('hidden');
     if (hooks.onModeChange) hooks.onModeChange('explore');
     if (hooks.onFlee) hooks.onFlee();
   }
 
-  /** 배틀 프레임 업데이트 (무딜레이 커서 이동 & VFX 파티클) */
+  /** 배틀 프레임 업데이트 (3종 미니게임 애니메이션 & VFX 파티클) */
   function updateAndRenderVFX(dt) {
     if (state.timing) {
-      state.curPos += state.curDir * sealMetrics().s * dt;
-      if (state.curPos >= 100) {
-        state.curPos = 100;
-        state.curDir = -1;
+      if (state.finishKind === 'ring') {
+        state.ringRadius -= state.ringSpeed * dt;
+        if (state.ringRadius <= 8) state.ringRadius = 100;
+        syncRingVisual();
+      } else if (state.finishKind === 'combo') {
+        state.comboTime -= dt;
+        const bar = $('comboTimeBar');
+        if (bar) bar.style.width = `${Math.max(0, (state.comboTime / state.comboMaxTime) * 100)}%`;
+        if (state.comboTime <= 0) {
+          failStarCombo();
+        }
+      } else if (state.finishKind === 'clash') {
+        state.clashTime -= dt;
+        state.clashVal = Math.max(0, state.clashVal - state.clashPushBack * dt);
+        syncClashVisual();
+        if (state.clashVal <= 0 || state.clashTime <= 0) {
+          closeFinishBox();
+          state.busy = true;
+          handleFinishFail('마력 충돌에서 밀려나고 말았다!');
+        }
       }
-      if (state.curPos <= 0) {
-        state.curPos = 0;
-        state.curDir = 1;
-      }
-      syncCursorVisual();
     }
 
     if (!vfxCtx) return;
@@ -1861,23 +2126,19 @@ export function createBattleEngine(hooks) {
     state.active = false;
     state.busy = false;
     state.timing = false;
+    state.finishKind = null;
     state.pickerOpen = false;
     chant.active = false;
     ['battleOverlay', 'chantOverlay', 'sealTimingBox', 'battleCardPicker'].forEach((id) => $(id)?.classList.add('hidden'));
   }
 
-  // 버튼 바인딩 (실행 버튼은 pointerdown으로 0ms 즉시 판정!)
+  // 공용 버튼 바인딩
   $('btnCmdWand')?.addEventListener('click', doWand);
   $('btnCmdCard')?.addEventListener('click', openCardPicker);
   $('btnCmdFocus')?.addEventListener('click', doFocus);
   $('btnCmdSeal')?.addEventListener('click', startSeal);
   $('btnCmdSyaoran')?.addEventListener('click', doSyaoranAssist);
   $('btnClosePicker')?.addEventListener('click', closeCardPicker);
-  $('btnExecuteSeal')?.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    execSeal();
-  });
-  $('btnCancelSeal')?.addEventListener('click', cancelSeal);
   $('btnChantDone')?.addEventListener('click', (e) => {
     e.stopPropagation();
     completeChantStep(false);
