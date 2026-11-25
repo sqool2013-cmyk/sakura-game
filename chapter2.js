@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 — 제2부 고유 컨트롤러 (chapter2.js) — v.0.1.0
+ * 카드캡터 3부작 — 제2부 고유 컨트롤러 (chapter2.js) — v.0.1.2
  * - 통합 단일 스토리 앱(index.html)과 연동되는 제2부(사쿠라/체리 카드 편) 모듈
- * - 제1부에서 해금한 의상·착용 의상·샤오랑 친밀도·추억(첫/마지막 카드, 미러) 무손실 계승
- * - 멀티 세이브 슬롯(자동 1 + 수동 6) 스냅샷·메타·공유 상태 연동
- * - 모달(의상실·도감·세이브) 오픈 중 이동·포인터 입력 완전 차단
- * - 10개 층별/구역별 맵 · 에리오르 5대 하이브리드 사건 + 최종장(다크·라이트 동시 각성)
- * - 전투 중 실시간 ★ 사쿠라/체리 카드 변환 해방 · 반투명 유키토 · 에리오르 신비감 대사
+ * - 토모요(지수) 촬영 동행 AI: 모든 실내·야외 맵에서 일정 거리로 동행(회복·의상실 전담)
+ * - 1부 해금 의상 ★별빛 리폼(패시브 강화) + 2부 전용 신규 의상 2벌(중복 해금 대사 제거)
+ * - 연속 무퇴보 HP/MP 성장(120->145 / 210->324) · 샤오랑 친밀도 상한(Lv.10)
+ * - 4종 마법 피니시(3키 별빛 공명 · 사건 순수 격파 · 수렴 마법진 · X연타 마력 충돌) 연동
+ * - "1부에서~" 메타 문구 자동 자연화 · 제2부 공명 지점 필드 이상 현상 상호작용 보완
  * ============================================================================
  */
 
@@ -16,7 +16,7 @@ export function createChapter(host, DATA) {
   const { $, toArr, clamp, cardName, cardRuby } = Utils;
 
   // --------------------------------------------------------------------------
-  // 1. 제2부 데이터 바인딩 & 기본 상수
+  // 1. 제2부 데이터 바인딩 & 의상 통합(1부 8벌 리폼 메타 + 2부 신규 2벌)
   // --------------------------------------------------------------------------
   const CARDS = DATA.cards || {};
   const CARD_ORDER = toArr(DATA.cardOrder);
@@ -27,31 +27,74 @@ export function createChapter(host, DATA) {
   const BOSS_ERIOL = DATA.bossEriol;
   const QUICK_SLOTS = toArr(DATA.fieldQuickSlots);
 
-  const FALLBACK_COSTUMES = [
-    {
-      id: 'sakura_dress',
-      name: '🌸 벚꽃 배틀 드레스',
-      unlockType: 'default',
-      unlockHint: '기본 지급 의상',
-      dressColor: '#ec4899',
-      accentColor: '#fef08a',
-      hatType: 'beret',
-      hatColor: '#e11d48',
-      passive: '최대 MP +5',
-      tomoyoQuote: '별의 지팡이와 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+  const COSTUME_ICONS = {
+    sakura_dress: '🌸',
+    frog_rain: '🐸',
+    cat_thunder: '🐱',
+    sky_wing: '🪽',
+    alice_maid: '🎀',
+    pierrot_magic: '🃏',
+    star_royal: '👑',
+    pure_angel: '🕊',
+    star_opening: '⭐',
+    eclipse_cape: '🌙'
+  };
+
+  /** 단일 스토리 몰입감을 깨는 "1부~" 메타 문구 자동 자연화 */
+  function naturalizeMeta(text) {
+    if (typeof text !== 'string' || !text) return text;
+    return text
+      .replace(/1부에서\s*제일\s*먼저/g, '처음으로')
+      .replace(/1부에서\s*처음으로/g, '지난 학기에 처음으로')
+      .replace(/1부부터\s*이어진/g, '처음부터 이어져 온')
+      .replace(/1부\s*기록\s*연동\s*또는\s*/g, '')
+      .replace(/1부\s*클리어\s*계승\s*또는\s*/g, '유에의 심판 돌파 또는 ')
+      .replace(/1부\s*계승/g, '지난 학기의 추억');
+  }
+
+  const FALLBACK_COSTUMES = toArr(Rules?.DEFAULT_COSTUMES_P1).length
+    ? toArr(Rules.DEFAULT_COSTUMES_P1)
+    : [{
+        id: 'sakura_dress',
+        name: '🌸 벚꽃 배틀 드레스',
+        icon: '🌸',
+        unlockType: 'default',
+        unlockHint: '기본 지급 의상',
+        dressColor: '#ec4899',
+        accentColor: '#fef08a',
+        hatType: 'beret',
+        hatColor: '#e11d48',
+        passive: '최대 MP +5',
+        reformedPassive: '★별빛 리폼: 최대 MP +12 · 마법 위력 +5%',
+        tomoyoQuote: '별의 지팡이와 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+      }];
+
+  const baseP1Map = new Map(toArr(Rules?.DEFAULT_COSTUMES_P1).map((c) => [c.id, c]));
+  const rawCostumes = toArr(DATA.costumes).length ? toArr(DATA.costumes) : FALLBACK_COSTUMES;
+  const mergedCostumes = rawCostumes.map((c) => {
+    const p1Def = baseP1Map.get(c.id) || {};
+    return {
+      ...p1Def,
+      ...c,
+      icon: c.icon || p1Def.icon || COSTUME_ICONS[c.id] || '🌸',
+      reformedPassive: c.reformedPassive || p1Def.reformedPassive || `★별빛 리폼: ${c.passive || ''}`,
+      unlockHint: naturalizeMeta(c.unlockHint || p1Def.unlockHint || ''),
+      tomoyoQuote: naturalizeMeta(c.tomoyoQuote || p1Def.tomoyoQuote || '')
+    };
+  });
+  for (const extra of toArr(Rules?.DEFAULT_COSTUMES_P2_EXTRA)) {
+    if (!mergedCostumes.some((c) => c.id === extra.id)) {
+      mergedCostumes.push({ ...extra });
     }
-  ];
+  }
+  const COSTUMES = mergedCostumes;
 
-  const dataCostumes = toArr(DATA.costumes);
-  const COSTUMES = dataCostumes.length ? dataCostumes : FALLBACK_COSTUMES;
-
-  const MAP_GROUPS = {
-    house: ['house', 'house_f1', 'house_b1', 'house_f2'],
-    house_f1: ['house_f1', 'house_b1', 'house_f2'],
-    school: ['school', 'school_f1', 'school_f2', 'school_hall'],
-    school_f1: ['school_f1', 'school_f2', 'school_hall'],
-    shrine: ['shrine', 'shrine_gate', 'shrine_main', 'shrine_cave'],
-    shrine_gate: ['shrine_gate', 'shrine_main', 'shrine_cave']
+  const INCIDENT_COSTUME_REWARD = {
+    inc_rain: 'frog_rain',
+    inc_penguin: 'sky_wing',
+    inc_school: 'alice_maid',
+    inc_spinel: 'pierrot_magic',
+    inc_ruby: 'eclipse_cape'
   };
 
   // --------------------------------------------------------------------------
@@ -76,8 +119,11 @@ export function createChapter(host, DATA) {
     seenMilestones: new Set(),
     metEriol: false,
     costumeId: 'sakura_dress',
-    unlockedCostumes: new Set(['sakura_dress'])
+    unlockedCostumes: new Set(['sakura_dress', 'star_opening']),
+    reformedCostumes: new Set()
   };
+
+  const tomoyoPos = { x: 455, y: 485 };
 
   const part1Link = {
     linked: false,
@@ -92,12 +138,12 @@ export function createChapter(host, DATA) {
     x: 385,
     y: 465,
     dir: 'down',
-    hp: 105,
-    maxHp: 105,
-    mp: 135,
-    maxMp: 135,
+    hp: 120,
+    maxHp: 120,
+    mp: 210,
+    maxMp: 210,
     lv: 1,
-    mult: 1.05,
+    mult: 1.55,
     walk: 0,
     targetPos: null
   };
@@ -174,24 +220,115 @@ export function createChapter(host, DATA) {
   }
 
   const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0];
+  const getCostumeIcon = (cos) => cos?.icon || COSTUME_ICONS[cos?.id] || '🌸';
+  const isCostumeReformed = (cosId = story.costumeId) => story.reformedCostumes.has(cosId);
+
+  /** 토모요(지수) 동행 좌표 및 추적 AI (실내·야외 모든 맵에서 촬영 거리 유지) */
+  function getNpcPos(n) {
+    if (n.id === 'tomoyo') return { x: tomoyoPos.x, y: tomoyoPos.y };
+    return { x: n.x, y: n.y };
+  }
+
+  function placeTomoyoNearPlayer() {
+    const cur = getMap();
+    const ox = player.dir === 'right' ? -64 : 64;
+    const oy = player.dir === 'down' ? -46 : 46;
+    tomoyoPos.x = clamp(player.x + ox, 44, (cur?.w || 800) - 44);
+    tomoyoPos.y = clamp(player.y + oy, 44, (cur?.h || 600) - 44);
+  }
+
+  function updateTomoyoFollow(dt) {
+    const desiredX = player.x + (player.dir === 'right' ? -68 : player.dir === 'left' ? 68 : -54);
+    const desiredY = player.y + (player.dir === 'down' ? -48 : player.dir === 'up' ? 54 : -34);
+    const distToPlayer = Math.hypot(player.x - tomoyoPos.x, player.y - tomoyoPos.y);
+    const dx = desiredX - tomoyoPos.x;
+    const dy = desiredY - tomoyoPos.y;
+    const distToSpot = Math.hypot(dx, dy);
+    const cur = getMap();
+
+    if (distToPlayer > 76 && distToSpot > 6) {
+      const spd = Math.min(getMoveSpeed() * 0.94, Math.max(130, distToSpot * 3.4));
+      tomoyoPos.x = clamp(tomoyoPos.x + (dx / distToSpot) * spd * dt, 36, (cur?.w || 800) - 36);
+      tomoyoPos.y = clamp(tomoyoPos.y + (dy / distToSpot) * spd * dt, 36, (cur?.h || 600) - 36);
+    } else if (distToPlayer < 46 && distToPlayer > 1) {
+      const push = 42 * dt;
+      tomoyoPos.x = clamp(tomoyoPos.x - ((player.x - tomoyoPos.x) / distToPlayer) * push, 36, (cur?.w || 800) - 36);
+      tomoyoPos.y = clamp(tomoyoPos.y - ((player.y - tomoyoPos.y) / distToPlayer) * push, 36, (cur?.h || 600) - 36);
+    }
+  }
 
   /**
-   * 원작 동일체 및 최종장 가시성 방어:
+   * 원작 동일체 및 최종장 가시성 방어 + 토모요 전 맵 동행:
+   * - 토모요는 사쿠라와 함께 모든 실내·야외 맵에 동행
    * - 마을 맵에 유키토(청명)가 존재할 때 중복 유에 NPC 숨김
    * - 최종장 개방 시 학교 앞 에리오르 NPC 숨김 (시계탑 최종 보스로 이동)
    */
   function isNpcVisible(n) {
+    if (n.id === 'tomoyo') return true;
     if (n.map !== currentMapId) return false;
     if (n.id === 'yue' && NPCS.some((x) => x.id === 'yukito')) return false;
     if (n.id === 'eriol' && isFinalUnlocked()) return false;
     return true;
   }
+  /** 단일 캠페인 공유 상태(1부 해금 의상 · 리폼 의상 · 친밀도 · 추억) 계승 반영 */
+  function applySharedState(shared) {
+    if (!shared || typeof shared !== 'object') return;
+    toArr(shared.unlockedCostumes).forEach((cid) => story.unlockedCostumes.add(cid));
+    toArr(shared.reformedCostumes).forEach((cid) => story.reformedCostumes.add(cid));
+    story.unlockedCostumes.add('star_opening');
+    if (shared.costumeId && COSTUMES.some((c) => c.id === shared.costumeId)) {
+      story.costumeId = shared.costumeId;
+    }
+    const trust = Rules.clampTrust(Number(shared.syaoranTrust) || 0, 2);
+    if (trust > story.syaoranTrust) story.syaoranTrust = trust;
 
-  /** 유키토(청명) 반투명도 (0.38 -> 1.0, 사쿠라 카드 각성 진행도에 비례해 선명해짐) */
-  function getYukitoAlpha() {
-    if (eriolDefeated) return 1.0;
-    const ratio = clamp(sakuraCards.size / Math.max(1, CARD_ORDER.length), 0, 1);
-    return Number((0.38 + ratio * 0.62).toFixed(2));
+    if (shared.part1Cleared || shared.firstSealedCard || shared.hadMirror) {
+      part1Link.linked = true;
+      part1Link.firstCard = shared.firstSealedCard || part1Link.firstCard || 'fly';
+      part1Link.lastCard = shared.lastSealedCard || part1Link.lastCard || 'light';
+      part1Link.syaoranTrust = Math.max(part1Link.syaoranTrust, trust);
+      part1Link.yueDefeated = !!shared.part1Cleared || part1Link.yueDefeated;
+      part1Link.hadMirror = !!shared.hadMirror || part1Link.hadMirror;
+    }
+  }
+
+  function recalcPower(healBonus = false) {
+    const prevMaxHp = player.maxHp;
+    const prevMaxMp = player.maxMp;
+    const stats = Rules.calcStats({
+      part: 2,
+      progressCount: sakuraCards.size,
+      total: CARD_ORDER.length || 19,
+      costumeId: story.costumeId,
+      isReformed: isCostumeReformed(),
+      part1Linked: part1Link.linked,
+      progCfg: DATA?.progression
+    });
+    player.lv = stats.lv;
+    player.maxHp = stats.maxHp;
+    player.maxMp = stats.maxMp;
+    player.mult = stats.mult;
+    if (healBonus) {
+      if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
+      if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
+    }
+    player.hp = clamp(player.hp, 1, player.maxHp);
+    player.mp = clamp(player.mp, 0, player.maxMp);
+  }
+
+  function getMoveSpeed() {
+    let s = 245 + (sakuraCards.has('jump') ? 22 : 0);
+    s *= Rules.getCostumeBonuses(story.costumeId, isCostumeReformed()).speedMult || 1;
+    if (buffs.fly > 0 || buffs.flyLand) s *= (sakuraCards.has('fly') ? 1.7 : 1.55);
+    return s;
+  }
+
+  /** 연속 성장(HP 120~145 / 배율 1.55~2.15)에 맞춘 제2부 전투 적 저항력 균형 보정 */
+  function getScaledBattleTarget(target) {
+    if (!target) return target;
+    if (target.isBoss) return { ...target, maxHp: Math.round((target.maxHp || 720) * 1.18) };
+    if (target.isIncident) return { ...target, maxHp: Math.round((target.maxHp || 280) * 1.25) };
+    return { ...target, maxHp: Math.round((target.maxHp || 180) * 1.15) };
   }
 
   function resetAnomalyState() {
@@ -360,7 +497,8 @@ export function createChapter(host, DATA) {
     return {
       costumeId: story.costumeId,
       unlockedCostumes: getUnlockedCostumeList(),
-      syaoranTrust: story.syaoranTrust,
+      reformedCostumes: Array.from(story.reformedCostumes),
+      syaoranTrust: Rules.clampTrust(story.syaoranTrust, 2),
       part1Cleared: part1Link.yueDefeated,
       part2Cleared: eriolDefeated,
       firstSealedCard: part1Link.firstCard,
@@ -389,12 +527,13 @@ export function createChapter(host, DATA) {
       clearedIncidents: Array.from(s ? s.clearedIncidents : clearedIncidents),
       shownActs: Array.from(shownActs),
       story: {
-        syaoranTrust: story.syaoranTrust,
+        syaoranTrust: Rules.clampTrust(story.syaoranTrust, 2),
         convertedOrder: story.convertedOrder.slice(),
         seenMilestones: Array.from(story.seenMilestones),
         metEriol: !!story.metEriol,
         costumeId: story.costumeId,
-        unlockedCostumes: getUnlockedCostumeList()
+        unlockedCostumes: getUnlockedCostumeList(),
+        reformedCostumes: Array.from(story.reformedCostumes)
       },
       part1Link: { ...part1Link },
       player: {
@@ -426,12 +565,13 @@ export function createChapter(host, DATA) {
     shownActs = new Set(toArr(saved.shownActs));
 
     const st = saved.story || {};
-    story.syaoranTrust = Math.max(2, Number(st.syaoranTrust) || 2);
+    story.syaoranTrust = Rules.clampTrust(Math.max(2, Number(st.syaoranTrust) || 2), 2);
     story.convertedOrder = toArr(st.convertedOrder);
     story.seenMilestones = new Set(toArr(st.seenMilestones));
     story.metEriol = !!st.metEriol;
     story.costumeId = st.costumeId || 'sakura_dress';
-    story.unlockedCostumes = new Set(['sakura_dress', ...toArr(st.unlockedCostumes)]);
+    story.unlockedCostumes = new Set(['sakura_dress', 'star_opening', ...toArr(st.unlockedCostumes)]);
+    story.reformedCostumes = new Set(toArr(st.reformedCostumes));
 
     if (saved.part1Link && saved.part1Link.linked) {
       Object.assign(part1Link, saved.part1Link);
@@ -450,8 +590,7 @@ export function createChapter(host, DATA) {
     pendingTarget = null;
     kero.x = player.x - 28;
     kero.y = player.y - 20;
-
-    Object.assign(buffs, {
+    placeTomoyoNearPlayer();
       fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, glowAcc: 0,
       wind: 0, shield: !!saved.shield, snackBuff: false, cocoaBuff: false
     });
@@ -468,12 +607,14 @@ export function createChapter(host, DATA) {
   // --------------------------------------------------------------------------
   function updateHUD(force = false) {
     const zn = getZoneName();
-    const sig = `${Locale.getMode()}|${player.lv}|${Math.ceil(player.hp)}|${player.maxHp}|${Math.ceil(player.mp)}|${player.maxMp}|${sakuraCards.size}|${clearedIncidents.size}|${story.syaoranTrust}|${zn}|${eriolDefeated}|${memoryMode.active}`;
+    const curCos = getCostumeObj();
+    const sig = `${Locale.getMode()}|${player.lv}|${Math.ceil(player.hp)}|${player.maxHp}|${Math.ceil(player.mp)}|${player.maxMp}|${sakuraCards.size}|${clearedIncidents.size}|${story.syaoranTrust}|${curCos.id}|${isCostumeReformed()}|${zn}|${eriolDefeated}|${memoryMode.active}`;
     if (!force && sig === lastHudSig) return;
     lastHudSig = sig;
 
+    if ($('hudCostumeBadge')) $('hudCostumeBadge').textContent = getCostumeIcon(curCos);
     if ($('hudMagicLv')) $('hudMagicLv').textContent = `★ 별마력 Lv.${player.lv}`;
-    if ($('hudTrustBadge')) $('hudTrustBadge').textContent = `⚡친밀 ${story.syaoranTrust}`;
+    if ($('hudTrustBadge')) $('hudTrustBadge').textContent = `⚡친밀 ${story.syaoranTrust}/10`;
     if ($('hudHpBar')) $('hudHpBar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
     if ($('hudMpBar')) $('hudMpBar').style.width = `${Math.max(0, (player.mp / player.maxMp) * 100)}%`;
     if ($('hudHpNum')) $('hudHpNum').textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
@@ -642,6 +783,7 @@ export function createChapter(host, DATA) {
     player.y = clamp(c.y + 60, 60, cur.h - 60);
     kero.x = player.x - 26;
     kero.y = player.y - 18;
+    placeTomoyoNearPlayer();
     player.targetPos = null;
     pendingTarget = null;
     encCd = 1.2;
@@ -674,6 +816,7 @@ export function createChapter(host, DATA) {
       eriolDefeated = s.eriolDefeated;
       kero.x = player.x - 26;
       kero.y = player.y - 18;
+      placeTomoyoNearPlayer();
     }
     mode = 'explore';
     host.resize();
@@ -723,13 +866,6 @@ export function createChapter(host, DATA) {
     host.openWardrobeModal({
       title: '🎀 토모요의 마법 의상실',
       silent,
-      onHeal() {
-        player.hp = player.maxHp;
-        player.mp = player.maxMp;
-        SoundFX.heal();
-        updateHUD(true);
-        host.showToast('☕ 토모요의 따뜻한 홍차로 HP·MP가 완전 회복되었습니다!');
-      },
       renderGrid(grid) {
         COSTUMES.forEach((cos) => {
           const unlocked = Rules.isCostumeUnlocked(cos, {
@@ -739,7 +875,9 @@ export function createChapter(host, DATA) {
             bossCleared: eriolDefeated,
             unlockedCostumes: story.unlockedCostumes
           });
+          const reformed = story.reformedCostumes.has(cos.id);
           const equipped = story.costumeId === cos.id;
+          const passiveTxt = Rules.getCostumePassiveLabel(cos, reformed);
           const card = document.createElement('div');
           card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${
             equipped
@@ -751,10 +889,13 @@ export function createChapter(host, DATA) {
           card.innerHTML = `
             <div>
               <div class="flex items-center justify-between gap-2 mb-1">
-                <span class="font-story font-bold text-sm text-yellow-200">${Locale.t(cos.name)}</span>
-                <span class="w-4 h-4 rounded-full border border-white/70" style="background:${cos.dressColor}"></span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-story font-bold text-sm text-yellow-200 truncate">${Locale.t(cos.name)}</span>
+                  ${reformed ? '<span class="shrink-0 px-1.5 py-0.5 rounded-full bg-amber-400/25 border border-yellow-300 text-[9px] font-bold text-yellow-200">★리폼</span>' : ''}
+                </div>
+                <span class="w-4 h-4 shrink-0 rounded-full border border-white/70" style="background:${cos.dressColor}"></span>
               </div>
-              <div class="text-xs font-bold text-emerald-300 mb-1">✦ ${Locale.t(cos.passive)}</div>
+              <div class="text-xs font-bold ${reformed ? 'text-yellow-200' : 'text-emerald-300'} mb-1">✦ ${Locale.t(passiveTxt)}</div>
               <p class="text-[11px] font-story text-pink-100/90 leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : `🔒 해금 조건: ${cos.unlockHint}`)}</p>
             </div>
             <button ${!unlocked || equipped ? 'disabled' : ''} data-cos="${cos.id}" class="w-full py-2 rounded-xl text-xs font-story font-bold transition ${
@@ -775,7 +916,8 @@ export function createChapter(host, DATA) {
             autoSave('의상 변경');
             updateHUD(true);
             openWardrobe(true);
-            host.showToast(`🎀 [${getCostumeObj().name}] 착용 완료! 패시브 효과가 적용됩니다.`);
+            const curCos = getCostumeObj();
+            host.showToast(`🎀 [${curCos.name}]${isCostumeReformed() ? ' ★별빛 리폼' : ''} 착용 완료!`);
           });
         });
       }
@@ -783,15 +925,48 @@ export function createChapter(host, DATA) {
   }
 
   // --------------------------------------------------------------------------
-  // 7. 실시간 ★변환 · 마일스톤 · 사건 돌파 · 최종 결전 · NPC 대화
+  // 7. 의상 신규 해금 vs ★별빛 리폼 분기 · 마일스톤 · 사건 돌파 · NPC 대화
   // --------------------------------------------------------------------------
+  /** 이미 보유한 1부 의상은 '★별빛 리폼(패시브 강화)'으로, 미보유 의상은 신규 해금으로 분기 */
+  function grantOrReformCostume(cosId, contextLabel = '') {
+    const cos = COSTUMES.find((c) => c.id === cosId);
+    if (!cos) return null;
+
+    const alreadyOwned = story.unlockedCostumes.has(cosId);
+    if (alreadyOwned) {
+      if (story.reformedCostumes.has(cosId)) return null;
+      story.reformedCostumes.add(cosId);
+      const upgraded = Rules.getCostumePassiveLabel(cos, true);
+      return {
+        speaker: '토모요',
+        role: 'COSTUME DESIGNER',
+        avatar: 'tomoyo',
+        mood: 'happy',
+        text: `${contextLabel ? `${contextLabel} ` : ''}이미 소중히 간직하고 계신 [${cos.name}]에 황금 별실을 더해 ★별빛 리폼으로 강화해 드렸어요! (${upgraded})`
+      };
+    }
+
+    story.unlockedCostumes.add(cosId);
+    return {
+      speaker: '토모요',
+      role: 'COSTUME DESIGNER',
+      avatar: 'tomoyo',
+      mood: 'happy',
+      text: `${contextLabel ? `${contextLabel} ` : ''}새 마법 의상 [${cos.name}]을(를) 완성해 두었답니다! 필요하실 때 제게 말씀해 주세요!`
+    };
+  }
+
   function collectPendingMilestones() {
     const out = [];
     const ms = DATA?.dialogues?.milestones || {};
     if (sakuraCards.size >= 5 && !story.seenMilestones.has('m5') && ms.m5) {
       story.seenMilestones.add('m5');
       showChapterOnce('PART II · ACT II', '보이지 않는 시선');
-      out.push(...toArr(ms.m5));
+      // m5의 중복 의상 해금 문구를 제거하고 보유 여부에 따라 ★별빛 리폼 또는 신규 해금 대사로 교체
+      const filteredM5 = toArr(ms.m5).filter((ln) => !String(ln?.text || '').includes('의상실에'));
+      const royalLine = grantOrReformCostume('star_royal', '벌써 다섯 장이나 사쿠라 카드로 깨워내셨군요!');
+      if (royalLine) out.push(royalLine);
+      out.push(...filteredM5);
     }
     if (sakuraCards.size >= 10 && !story.seenMilestones.has('m10') && ms.m10) {
       story.seenMilestones.add('m10');
@@ -812,6 +987,10 @@ export function createChapter(host, DATA) {
     if (!sakuraCards.has(c.id)) {
       sakuraCards.add(c.id);
       if (!story.convertedOrder.includes(c.id)) story.convertedOrder.push(c.id);
+      if (c.id === 'thunder' && !story.reformedCostumes.has('cat_thunder')) {
+        if (story.unlockedCostumes.has('cat_thunder')) story.reformedCostumes.add('cat_thunder');
+        else story.unlockedCostumes.add('cat_thunder');
+      }
       recalcPower(true);
       updateHUD(true);
       updateFieldBar();
@@ -821,6 +1000,10 @@ export function createChapter(host, DATA) {
   }
 
   function finishIncidentClear(inc) {
+    // 의상 보유 여부 판정 후 사건 완료 기록
+    const rewardCosId = INCIDENT_COSTUME_REWARD[inc.id];
+    const costumeLine = rewardCosId ? grantOrReformCostume(rewardCosId) : null;
+
     clearedIncidents.add(inc.id);
     encCd = 1.2;
     recalcPower(true);
@@ -828,10 +1011,18 @@ export function createChapter(host, DATA) {
     updateFieldBar();
     autoSave(`${inc.kr} 돌파`);
 
-    const lines = toArr(inc.clear).slice();
-    if (inc.id === 'inc_spinel') {
-      lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '스피넬 썬과의 대결이 정말 박진감 넘쳤어요! 의상실에 [🃏 피에로 매직 슈트]를 준비해 두었답니다!' });
-    }
+    // 기존 JSON의 중복 의상 해금 멘트만 정제하고 동적 해금/★리폼 멘트로 교체
+    const rawClear = toArr(inc.clear).map((ln) => {
+      if (!ln || typeof ln.text !== 'string') return ln;
+      const cleaned = ln.text
+        .replace(/의상실에[^!.]*(준비해 두었답니다|해금되었답니다|준비해 줬대)[!.]?/g, '')
+        .replace(/토모요도\s*$/g, '')
+        .trim();
+      return cleaned ? { ...ln, text: naturalizeMeta(cleaned) } : null;
+    }).filter(Boolean);
+
+    const lines = rawClear.slice();
+    if (costumeLine) lines.push(costumeLine);
     lines.push(...collectPendingMilestones());
     if (isFinalUnlocked() && !story.seenMilestones.has('final_ready') && BOSS_ERIOL) {
       story.seenMilestones.add('final_ready');
@@ -902,6 +1093,7 @@ export function createChapter(host, DATA) {
     player.hp = player.maxHp;
     player.mp = player.maxMp;
     encCd = 2.0;
+    placeTomoyoNearPlayer();
     host.resize();
     updateHUD(true);
     updateFieldBar();
@@ -916,28 +1108,29 @@ export function createChapter(host, DATA) {
       SoundFX.heal();
       host.showToast('☕ 토모요의 홍차로 HP·MP가 완전 회복되었습니다!');
 
-      const p1Note = part1Link.linked && CARDS[part1Link.firstCard]
-        ? `1부에서 처음으로 [${cardName(CARDS[part1Link.firstCard])}]를 봉인하시던 날이 엊그제 같은데, 벌써 별의 지팡이 주인이 되셨네요! `
+      const firstCardNote = part1Link.linked && CARDS[part1Link.firstCard]
+        ? `처음으로 [${cardName(CARDS[part1Link.firstCard])}]를 봉인하시던 날이 엊그제 같은데, 벌써 별의 지팡이 주인이 되셨네요! `
         : '';
       let openWardrobeAfter = false;
+      const curCos = getCostumeObj();
 
       vn.start([
-        { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: `${p1Note}별의 지팡이와 새 마법 의상이 정말 눈부셔요! 홍차로 기운을 차리세요.` },
+        { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: `${firstCardNote}별의 지팡이와 새 마법 의상이 정말 눈부셔요! 보온병에 담아 온 따뜻한 홍차로 기운을 차리세요.` },
         {
           speaker: '토모요',
           role: 'COSTUME DESIGNER',
           avatar: 'tomoyo',
           mood: 'happy',
-          text: `현재 착용 중인 [${getCostumeObj().name}] 외에 사건을 돌파할 때마다 새 배틀 의상이 열려요. 의상실을 열어 보실래요?`,
+          text: `현재 착용 중인 [${curCos.name}]${isCostumeReformed() ? ' (★별빛 리폼)' : ''} 외에도 사건을 돌파할 때마다 기존 의상을 별빛 리폼하거나 새 의상을 준비해 드려요. 의상실을 열어 보실래요?`,
           choices: [
             {
               label: '🎀 응! 마법 의상실 열어줘!',
               effect: () => { openWardrobeAfter = true; },
-              reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 의상마다 특별한 마법 효과가 깃들어 있답니다!' }]
+              reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 별빛 리폼된 의상은 효과가 한층 더 강해졌답니다!' }]
             },
             {
               label: '고마워 토모요! 홍차만 마시고 바로 출발할게!',
-              reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '오늘의 활약도 완벽하게 촬영해 둘게요!' }]
+              reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '오늘의 활약도 카메라에 완벽하게 담아 둘게요!' }]
             }
           ]
         }
@@ -980,7 +1173,7 @@ export function createChapter(host, DATA) {
     } else if (npc.id === 'syaoran') {
       const msg = eriolDefeated
         ? '크로우 리드의 환생까지 이겨내다니... 역시 넌 최고의 마법사야, 사쿠라.'
-        : `현재 친밀도 ${story.syaoranTrust}! 배틀 중 [⚡샤오랑 원호]로 결계와 반사막을 깨뜨릴 수 있으니 언제든 불러! 사건 전투 중에 크로우 카드를 직접 [★별빛 변환]하는 것도 잊지 마!`;
+        : `현재 친밀도 ${story.syaoranTrust}/10! 배틀 중 [⚡샤오랑 원호]로 결계와 반사막을 깨뜨릴 수 있으니 언제든 불러! 사건 전투 중엔 [🃏 카드 해방]의 3키 별빛 공명으로 카드를 실시간 각성시키는 것도 잊지 마!`;
       vn.start([{ speaker: '샤오랑', role: 'ALLY', avatar: 'syaoran', mood: 'happy', text: msg }]);
     } else if (npc.id === 'eriol') {
       // 에리오르 신비감 유지: 최종 결전 전까지는 카드·마법 정체를 숨기는 정중하고 묘한 전학생 톤
@@ -1023,6 +1216,7 @@ export function createChapter(host, DATA) {
       player.y = sy;
       kero.x = sx - 26;
       kero.y = sy - 18;
+      placeTomoyoNearPlayer();
       anomaly.mirrorTrail = [];
       host.resize();
       SoundFX.encounter();
@@ -1035,12 +1229,38 @@ export function createChapter(host, DATA) {
 
   function checkNearby() {
     nearbyTarget = null;
-    let best = 88;
+    let bestScore = 96;
     const cur = getMap();
 
     for (const p of toArr(cur.portals)) {
       const d = Math.hypot(player.x - p.x, player.y - p.y);
-      if (d < 64 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; }
+      if (d < 64 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'portal', obj: p }; }
+    }
+    for (const inc of INCIDENTS) {
+      if (!isIncidentActive(inc) || inc.map !== currentMapId) continue;
+      const pos = getIncidentPos(inc);
+      const d = Math.hypot(player.x - pos.x, player.y - pos.y);
+      if (d < 100 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'incident', obj: { ...inc, isIncident: true, x: pos.x, y: pos.y } }; }
+    }
+    for (const id of CARD_ORDER) {
+      if (!isCardActiveOnMap(id)) continue;
+      const c = CARDS[id];
+      if (!c || c.map !== currentMapId) continue;
+      const pos = getCardPos(c);
+      const d = Math.hypot(player.x - pos.x, player.y - pos.y);
+      if (d < 88 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'card', obj: { ...c, x: pos.x, y: pos.y } }; }
+    }
+    if (isFinalUnlocked() && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map) {
+      const d = Math.hypot(player.x - BOSS_ERIOL.x, player.y - BOSS_ERIOL.y);
+      if (d < 102 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'boss', obj: BOSS_ERIOL }; }
+    }
+    for (const n of NPCS) {
+      if (!isNpcVisible(n)) continue;
+      const np = getNpcPos(n);
+      const d = Math.hypot(player.x - np.x, player.y - np.y);
+      // 동행 중인 토모요는 카드·사건·포털과 겹칠 때 방해되지 않도록 우선순위 소폭 완화
+      const score = n.id === 'tomoyo' ? d + 18 : d;
+      if (d < 88 && score < bestScore) { bestScore = score; nearbyTarget = { type: 'npc', obj: { ...n, x: np.x, y: np.y } }; }
     }
     for (const n of NPCS) {
       if (!isNpcVisible(n)) continue;
@@ -1098,20 +1318,20 @@ export function createChapter(host, DATA) {
       talkNPC(t.obj);
     } else if (t.type === 'incident') {
       const inc = t.obj;
-      vn.start(toArr(inc.intro), () => battle.start({ ...inc, isIncident: true }));
+      vn.start(toArr(inc.intro), () => battle.start(getScaledBattleTarget({ ...inc, isIncident: true })));
     } else if (t.type === 'card') {
       const c = t.obj;
       const intro = [
         { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'normal', text: `${c.zone}... ${c.flavor}` },
         { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'serious', text: c.awakeningLine || `[${cardName(c)}]여, 내 별빛으로 다시 깨어나 줘!` }
       ];
-      vn.start(intro, () => battle.start(c));
+      vn.start(intro, () => battle.start(getScaledBattleTarget(c)));
     } else if (t.type === 'boss') {
       const intro = toArr(DATA.dialogues?.eriolIntro).slice();
       if (story.syaoranTrust >= 2 && DATA.dialogues?.syaoranFinalCheer) {
         intro.unshift(...toArr(DATA.dialogues.syaoranFinalCheer));
       }
-      vn.start(intro, () => battle.start(BOSS_ERIOL));
+      vn.start(intro, () => battle.start(getScaledBattleTarget(BOSS_ERIOL)));
     }
   }
 
@@ -1173,13 +1393,37 @@ export function createChapter(host, DATA) {
     }
 
     const flying = buffs.fly > 0 || buffs.flyLand;
-    const cosBonuses = Rules.getCostumeBonuses(story.costumeId);
+    const cosBonuses = Rules.getCostumeBonuses(story.costumeId, isCostumeReformed());
     let spdMod = 1;
+    let pushX = 0;
+    let pushY = 0;
 
     // 제1사건 국지성 폭우 둔화 (개구리 우비 또는 윈디로 면역)
     const rainInc = INCIDENTS.find((x) => x.id === 'inc_rain');
     if (rainInc && isIncidentActive(rainInc) && currentMapId === rainInc.map && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
       if (Math.hypot(player.x - rainInc.x, player.y - rainInc.y) < 115) spdMod *= 0.68;
+    }
+
+    // 제2부 별빛 공명 지점 필드 이상 현상 상호작용 보완 (1부와 일관된 체험)
+    if (isCardActiveOnMap('wood') && CARDS.wood?.map === currentMapId && !flying && buffs.wind <= 0) {
+      if (Math.hypot(player.x - CARDS.wood.x, player.y - CARDS.wood.y) < 105) spdMod *= 0.55;
+    }
+    if (isCardActiveOnMap('earthy') && CARDS.earthy?.map === currentMapId && !flying) {
+      if (Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y) < 115) spdMod *= 0.65;
+    }
+    if (isCardActiveOnMap('watery') && CARDS.watery?.map === currentMapId && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
+      const dw = Math.hypot(player.x - CARDS.watery.x, player.y - CARDS.watery.y);
+      if (dw < 115 && dw > 36) {
+        pushX += ((player.x - CARDS.watery.x) / dw) * 52;
+        pushY += ((player.y - CARDS.watery.y) / dw) * 52;
+      }
+    }
+    if (isCardActiveOnMap('shield') && CARDS.shield?.map === currentMapId && !flying && buffs.wind <= 0) {
+      const ds = Math.hypot(player.x - CARDS.shield.x, player.y - CARDS.shield.y);
+      if (ds < 92 && ds > 42) {
+        pushX += ((player.x - CARDS.shield.x) / ds) * 42;
+        pushY += ((player.y - CARDS.shield.y) / ds) * 42;
+      }
     }
 
     if (isCardActiveOnMap('jump') && CARDS.jump?.map === currentMapId) {
@@ -1235,17 +1479,21 @@ export function createChapter(host, DATA) {
       const sp = getMoveSpeed() * spdMod;
       dx /= len;
       dy /= len;
-      const nx = player.x + dx * sp * dt;
-      const ny = player.y + dy * sp * dt;
+      const nx = player.x + (dx * sp + pushX) * dt;
+      const ny = player.y + (dy * sp + pushY) * dt;
       if (!world.isColliding(getMap(), currentMapId, nx, player.y, moveCol)) player.x = nx;
       if (!world.isColliding(getMap(), currentMapId, player.x, ny, moveCol)) player.y = ny;
       player.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
       player.walk += dt * 11;
+    } else if (pushX || pushY) {
+      if (!world.isColliding(getMap(), currentMapId, player.x + pushX * dt, player.y, moveCol)) player.x += pushX * dt;
+      if (!world.isColliding(getMap(), currentMapId, player.x, player.y + pushY * dt, moveCol)) player.y += pushY * dt;
     }
 
     kero.x += (player.x - (player.dir === 'right' ? 28 : -28) - kero.x) * Math.min(1, dt * 4.5);
     kero.y += (player.y - 22 - kero.y) * Math.min(1, dt * 4.5);
     kero.bob += dt * 4.5;
+    updateTomoyoFollow(dt);
     world.updateCamera(dt, getMap(), player);
     checkNearby();
     updateHUD();
@@ -1286,6 +1534,9 @@ export function createChapter(host, DATA) {
       .filter((inc) => isIncidentActive(inc) && inc.map === currentMapId)
       .map((inc) => ({ ...inc, pos: getIncidentPos(inc) }));
     const visibleNpcs = NPCS.filter(isNpcVisible).map((n) => {
+      if (n.id === 'tomoyo') {
+        return { ...n, x: tomoyoPos.x, y: tomoyoPos.y };
+      }
       if (n.id === 'yukito') {
         return { ...n, alpha: getYukitoAlpha(), sleepy: !eriolDefeated && sakuraCards.size < 14 };
       }
@@ -1299,6 +1550,17 @@ export function createChapter(host, DATA) {
     const clockCircle = currentMapId === 'town' && BOSS_ERIOL
       ? { x: BOSS_ERIOL.x, y: BOSS_ERIOL.y, ready: !!finalReady }
       : null;
+
+    let earthyShake = 0;
+    if (isCardActiveOnMap('earthy') && CARDS.earthy?.map === currentMapId) {
+      const d = Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y);
+      if (d < 190) earthyShake = (1 - d / 190) * 3.0;
+    }
+    const shadowNearPlayer = !!(
+      isCardActiveOnMap('shadow') &&
+      CARDS.shadow?.map === currentMapId &&
+      Math.hypot(player.x - CARDS.shadow.x, player.y - CARDS.shadow.y) < 220
+    );
 
     world.render(now, {
       part: 2,
@@ -1318,6 +1580,8 @@ export function createChapter(host, DATA) {
       nextObjective: getNextObjective(),
       portalCounts: countTargetsInMap,
       flags: {
+        earthyShake,
+        shadowNearPlayer,
         isSakuraFly: sakuraCards.has('fly'),
         penguinChasing: currentMapId === 'town' && !memoryMode.active && !clearedIncidents.has('inc_penguin'),
         wateryActive: currentMapId === 'town' && !memoryMode.active && !clearedIncidents.has('inc_spinel'),
@@ -1347,7 +1611,8 @@ export function createChapter(host, DATA) {
     story.seenMilestones = new Set();
     story.metEriol = false;
     story.costumeId = 'sakura_dress';
-    story.unlockedCostumes = new Set(['sakura_dress']);
+    story.unlockedCostumes = new Set(['sakura_dress', 'star_opening']);
+    story.reformedCostumes = new Set();
 
     Object.assign(part1Link, {
       linked: false, firstCard: '', lastCard: '', syaoranTrust: 0, yueDefeated: false, hadMirror: false
@@ -1364,6 +1629,7 @@ export function createChapter(host, DATA) {
     pendingTarget = null;
     kero.x = 355;
     kero.y = 445;
+    placeTomoyoNearPlayer();
 
     Object.assign(buffs, {
       fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, glowAcc: 0,
@@ -1375,20 +1641,29 @@ export function createChapter(host, DATA) {
     updateHUD(true);
     showChapterOnce('PART II · STARLIGHT', '별의 지팡이와 다섯 개의 사건');
 
-    const openLines = toArr(DATA.dialogues?.opening).slice();
+    const openLines = toArr(DATA.dialogues?.opening).map((ln) => (
+      ln && typeof ln.text === 'string' ? { ...ln, text: naturalizeMeta(ln.text) } : ln
+    ));
     if (part1Link.linked && CARDS[part1Link.firstCard]) {
       openLines.push({
         speaker: '사쿠라',
         role: 'STAR MASTER',
         avatar: 'sakura',
         mood: 'happy',
-        text: `1부에서 제일 먼저 봉인했던 [${cardName(CARDS[part1Link.firstCard])}]부터 마지막 [${cardName(CARDS[part1Link.lastCard])}]까지... 소중한 추억이 담긴 카드와 유키토 오빠를 꼭 지켜낼게! (✦ 1부 계승 보너스: 최대 MP +20 · 해금 의상 유지)`
+        text: `지난 학기에 제일 먼저 봉인했던 [${cardName(CARDS[part1Link.firstCard])}]부터 마지막 [${cardName(CARDS[part1Link.lastCard])}]까지... 소중한 추억이 담긴 카드와 유키토 오빠를 꼭 지켜낼게!`
       });
     }
+    openLines.push({
+      speaker: '토모요',
+      role: 'COSTUME DESIGNER',
+      avatar: 'tomoyo',
+      mood: 'happy',
+      text: '별의 지팡이 각성을 축하하며 새 의상 [⭐ 별빛 오프닝 드레스]를 준비해 두었어요! 이번에도 사쿠라 곁을 따라다니며 촬영과 홍차를 챙겨 드릴게요!'
+    });
     vn.start(openLines, () => {
       encCd = 1.2;
       if (fromInterlude) {
-        host.showToast('⭐ 제2부 [별빛의 토모에다]가 시작되었습니다! (자동 저장 완료)');
+        host.showToast('⭐ 별빛의 새 학기가 시작되었습니다! 동행 중인 토모요에게 새 의상을 확인해 보세요!');
       }
       autoSave('제2부 모험 시작');
     });
@@ -1404,6 +1679,7 @@ export function createChapter(host, DATA) {
       getOwnedCards: () => new Set(CARD_ORDER),
       getSakuraCards: () => sakuraCards,
       getCostumeId: () => story.costumeId,
+      isCostumeReformed: () => isCostumeReformed(),
       getSyaoranTrust: () => story.syaoranTrust,
       getFieldBuffs: () => buffs,
       onHUDUpdate: () => updateHUD(true),
@@ -1430,8 +1706,14 @@ export function createChapter(host, DATA) {
       updateFieldBar();
     },
     onTrustDelta(delta) {
-      story.syaoranTrust = Math.max(0, story.syaoranTrust + delta);
+      story.syaoranTrust = Rules.clampTrust(story.syaoranTrust + delta, 2);
       updateHUD(true);
+    },
+    onCostumeBadgeClick() {
+      const cos = getCostumeObj();
+      const reformed = isCostumeReformed();
+      const passive = Rules.getCostumePassiveLabel(cos, reformed);
+      host.showToast(`🎀 현재 착용: ${cos.name}${reformed ? ' ★리폼' : ''} (${passive}) · 의상 교체와 홍차 회복은 동행 중인 토모요에게!`);
     },
     onLocaleChange() {
       if (!$('bookModal')?.classList.contains('hidden')) openBook(true);
@@ -1455,7 +1737,13 @@ export function createChapter(host, DATA) {
           if (Math.hypot(wx - p.x, wy - p.y) < 44) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
         }
         for (const n of NPCS) {
-          if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 48) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
+          if (!isNpcVisible(n)) continue;
+          const np = getNpcPos(n);
+          if (Math.hypot(wx - np.x, wy - np.y) < 48) {
+            pendingTarget = { type: 'npc', obj: { ...n, x: np.x, y: np.y } };
+            player.targetPos = { x: np.x, y: np.y };
+            return;
+          }
         }
         for (const inc of INCIDENTS) {
           if (isIncidentActive(inc) && inc.map === currentMapId) {
