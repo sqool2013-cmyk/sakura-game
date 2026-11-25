@@ -125,6 +125,132 @@ export function createChapter(host, DATA) {
   };
 
   // --------------------------------------------------------------------------
+  // 3. 핵심 헬퍼 · 성장 곡선 · 원작 동일체 가시성 · 길잡이 탐색
+  // --------------------------------------------------------------------------
+  const getMap = () => MAPS[currentMapId] || MAPS.town;
+
+  const isCardActiveOnMap = (id) => (
+    memoryMode.active ? (memoryMode.cardId === id) : (id !== 'windy' && !ownedCards.has(id))
+  );
+
+  const getUnsealed = () => CARD_ORDER.filter(isCardActiveOnMap).map((id) => CARDS[id]);
+
+  const getCardPos = (c) => (
+    c.id === 'jump'
+      ? { x: anomaly.jumpX, y: anomaly.jumpY }
+      : c.id === 'glow'
+      ? { x: anomaly.glowX, y: anomaly.glowY }
+      : { x: c.x, y: c.y }
+  );
+
+  function countUnsealedInMap(mid) {
+    if (currentMapId === 'town' && MAP_GROUPS[mid]) {
+      const grp = MAP_GROUPS[mid];
+      return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && grp.includes(CARDS[id]?.map)).length;
+    }
+    return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === mid).length;
+  }
+
+  /** 시계탑에 유에가 강림해 있는 동안 유키토(청명) 숨김 (원작 동일체 고증) */
+  function isNpcVisible(n) {
+    if (n.map !== currentMapId) return false;
+    const yueSummoned = ownedCards.size === CARD_ORDER.length && !yueDefeated && !memoryMode.active;
+    if (n.id === 'yukito' && yueSummoned) return false;
+    return true;
+  }
+
+  const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0];
+
+  function resetAnomalyState() {
+    anomaly.jumpX = CARDS.jump?.x || 365;
+    anomaly.jumpY = CARDS.jump?.y || 830;
+    anomaly.jumpHop = 0;
+    anomaly.jumpBind = 0;
+    anomaly.glowX = CARDS.glow?.x || 790;
+    anomaly.glowY = CARDS.glow?.y || 530;
+    anomaly.mirrorTrail = [];
+    anomaly.illusionDecoys.forEach((d) => { d.popped = false; });
+  }
+
+  function recalcPower(healBonus = false) {
+    const prevMaxHp = player.maxHp;
+    const prevMaxMp = player.maxMp;
+    const stats = Rules.calcStats({
+      part: 1,
+      progressCount: Math.max(0, ownedCards.size - 1),
+      total: CARD_ORDER.length || 19,
+      costumeId: story.costumeId,
+      progCfg: DATA?.progression
+    });
+    player.lv = stats.lv;
+    player.maxHp = stats.maxHp;
+    player.maxMp = stats.maxMp;
+    player.mult = stats.mult;
+    if (healBonus) {
+      if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
+      if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
+    }
+    player.hp = clamp(player.hp, 1, player.maxHp);
+    player.mp = clamp(player.mp, 0, player.maxMp);
+  }
+
+  function getMoveSpeed() {
+    let s = 215 + (ownedCards.has('fly') ? 28 : 0) + (ownedCards.has('jump') ? 20 : 0);
+    s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
+    if (buffs.fly > 0 || buffs.flyLand) s *= 1.55;
+    return s;
+  }
+
+  function getZoneName() {
+    if (currentMapId !== 'town') return getMap()?.name || '황혼의 토모에다';
+    for (const z of ZONES) {
+      if (player.x >= z.x && player.x <= z.x + z.w && player.y >= z.y && player.y <= z.y + z.h) {
+        return z.name;
+      }
+    }
+    return '황혼의 토모에다';
+  }
+
+  function getNextObjective() {
+    const rem = getUnsealed();
+    if (rem.length > 0) {
+      const here = rem.filter((c) => c.map === currentMapId);
+      if (here.length > 0) {
+        let best = here[0];
+        let bestD = Infinity;
+        for (const c of here) {
+          const p = getCardPos(c);
+          const d = Math.hypot(p.x - player.x, p.y - player.y);
+          if (d < bestD) { bestD = d; best = { ...c, x: p.x, y: p.y }; }
+        }
+        return best;
+      }
+      const tc = rem[0];
+      const portals = toArr(getMap()?.portals);
+      const direct = portals.find((p) => p.targetMap === tc.map)
+        || portals.find((p) => MAP_GROUPS[p.targetMap]?.includes(tc.map))
+        || portals.find((p) => p.targetMap === 'town')
+        || portals[0];
+      return direct ? { isPortal: true, x: direct.x, y: direct.y, zone: tc.zone, targetCard: tc } : tc;
+    }
+    if (!yueDefeated && !memoryMode.active && BOSS_YUE) {
+      if (currentMapId !== 'town') {
+        const portals = toArr(getMap()?.portals);
+        const p = portals.find((x) => x.targetMap === 'town') || portals[0];
+        return p ? { isPortal: true, isBoss: true, x: p.x, y: p.y, zone: BOSS_YUE.zone, targetCard: BOSS_YUE } : BOSS_YUE;
+      }
+      return BOSS_YUE;
+    }
+    return null;
+  }
+
+  function showChapterOnce(sub, title) {
+    if (shownActs.has(sub)) return;
+    shownActs.add(sub);
+    host.showChapterBanner(sub, title);
+  }
+
+  // --------------------------------------------------------------------------
   // 4. 저장 페이로드 구성 · 공유 계승 상태 · 슬롯 메타 · 자동 저장
   // --------------------------------------------------------------------------
   function getUnlockedCostumeList() {
@@ -1183,7 +1309,6 @@ export function createChapter(host, DATA) {
       onDefeat: handleDefeat,
       onFlee: () => { encCd = 2.0; host.showToast('잠시 물러나 재정비합니다.'); }
     },
-    start({ saved } = {}) {
     start({ saved, shared } = {}) {
       if (saved && saved.ownedCards) {
         applySavePayload(saved, shared);
