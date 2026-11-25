@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>카드캡터: 토모에다 3부작 — 황혼 · 별빛 · 꿈결</title>
+  <title>카드캡터: 토모에다 — 황혼에서 별빛으로</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +53,7 @@
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100dvh; overflow: hidden;
       background: var(--bg-body); color: #fdf4ff; font-family: 'Noto Sans KR', sans-serif;
-      transition: background 0.35s ease;
+      transition: background 0.4s ease;
     }
     .font-magic { font-family: 'Cinzel', serif; }
     .font-story { font-family: 'Gowun Batang', serif; }
@@ -81,12 +81,19 @@
     .manifest-stage { background: var(--stage-glow); border: 1.5px solid var(--accent-border); box-shadow: 0 0 36px rgba(168, 85, 247, 0.42); }
     .battle-bg { background: var(--battle-bg); }
     .chant-backdrop { background-color: #0b041a; background-image: var(--chant-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-    .lobby-backdrop {
+    .title-backdrop {
       background:
-        radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.24), transparent 45%),
-        radial-gradient(circle at 82% 24%, rgba(236, 72, 153, 0.22), transparent 45%),
-        radial-gradient(circle at 50% 88%, rgba(56, 189, 248, 0.16), transparent 50%),
-        linear-gradient(180deg, #16092f 0%, #210d42 52%, #0e0621 100%);
+        radial-gradient(circle at 18% 22%, rgba(250, 204, 21, 0.16), transparent 42%),
+        radial-gradient(circle at 82% 24%, rgba(236, 72, 153, 0.22), transparent 46%),
+        radial-gradient(circle at 50% 88%, rgba(56, 189, 248, 0.15), transparent 50%),
+        linear-gradient(180deg, #16092f 0%, #240e47 52%, #0e0621 100%);
+    }
+    .interlude-backdrop {
+      background:
+        radial-gradient(circle at 50% 42%, rgba(131, 24, 67, 0.52), rgba(15, 6, 34, 0.98) 72%),
+        #0b041a;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     .ending-backdrop { background: linear-gradient(180deg, rgba(24, 9, 48, 0.96) 0%, rgba(44, 14, 72, 0.96) 50%, rgba(12, 4, 28, 0.98) 100%); backdrop-filter: blur(10px); }
     .modal-backdrop { background: rgba(6, 2, 18, 0.85); backdrop-filter: blur(8px); }
@@ -96,12 +103,12 @@
 <body data-theme="part1" class="flex flex-col h-[100dvh] w-screen overflow-hidden">
 
   <!-- =========================================================================
-   * 상단 공용 HUD (챕터 플레이 중 표시)
+   * 상단 공용 HUD (게임 진행 중 표시)
    * =======================================================================-->
   <header id="appHeader" class="hidden shrink-0 z-30 theme-header px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-lg">
     <div class="flex flex-col min-w-0">
       <div class="flex items-center gap-1.5">
-        <button id="btnBackLobby" title="3부작 챕터 선택 로비로 돌아가기" class="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-pink-100 transition">🏠 로비</button>
+        <button id="btnBackTitle" title="타이틀 화면으로 돌아가기" class="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-pink-100 transition">🏠 타이틀</button>
         <span id="hudHeroName" class="font-story font-bold text-pink-200 text-sm sm:text-base">사쿠라</span>
         <span id="hudMagicLv" class="px-1.5 py-0.5 rounded-full bg-yellow-400/20 border border-yellow-400/60 text-yellow-200 text-[11px] font-bold">마력 Lv.1</span>
         <span id="hudTrustBadge" class="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-[10px] font-bold">⚡친밀 0</span>
@@ -122,7 +129,7 @@
     </div>
 
     <div class="hidden lg:flex flex-col items-center text-center px-2 max-w-md">
-      <span id="hudActLabel" class="font-magic text-[10px] tracking-[0.2em] text-yellow-300/90">TRILOGY · PART I</span>
+      <span id="hudActLabel" class="font-magic text-[10px] tracking-[0.2em] text-yellow-300/90">ACT I · THE CLOW CARD</span>
       <span id="hudQuest" class="text-xs font-story text-pink-100 truncate max-w-md">황혼의 토모에다 곳곳의 크로우 카드를 찾아 봉인하라</span>
     </div>
 
@@ -133,7 +140,7 @@
         <span id="hudCardCount" class="px-1.5 rounded bg-black/40 text-yellow-300">1/19</span>
       </button>
       <button id="btnOpenWardrobe" class="px-2 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-pink-300/55 text-pink-100 text-xs font-bold transition" title="마법 의상실">🎀<span class="hidden sm:inline ml-1">의상</span></button>
-      <button id="btnOpenSave" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[125px] truncate">👤 로그인</button>
+      <button id="btnOpenSave" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[130px] truncate">💾 저장 · 계정</button>
       <button id="btnKeroHint" class="px-2 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/35 border border-pink-400/50 text-pink-100 text-xs font-bold transition" title="케로 힌트">🐾</button>
       <button id="btnSoundToggle" class="px-2 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/50 text-indigo-100 text-xs font-bold transition" title="배경음 토글">🎵</button>
     </div>
@@ -160,7 +167,7 @@
       </div>
     </div>
 
-    <div id="toastBox" class="absolute top-3 left-1/2 -translate-x-1/2 z-[75] pointer-events-none opacity-0 transition-opacity duration-300 max-w-[92%]">
+    <div id="toastBox" class="absolute top-3 left-1/2 -translate-x-1/2 z-[80] pointer-events-none opacity-0 transition-opacity duration-300 max-w-[92%]">
       <div id="toastText" class="px-4 py-2 rounded-2xl bg-[#1c0b36]/95 border border-yellow-300/70 text-yellow-100 text-xs sm:text-sm font-story shadow-xl text-center"></div>
     </div>
 
@@ -302,118 +309,84 @@
     </div>
 
     <!-- =======================================================================
-     * 3부작 통합 로비 & 챕터 선택 타이틀 화면
+     * 단일 대작 타이틀 화면 (런처 없는 순수 연속 RPG 진입)
      * =====================================================================-->
-    <div id="lobbyOverlay" class="absolute inset-0 z-[45] lobby-backdrop overflow-y-auto flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6">
-      <div class="w-full max-w-5xl my-auto flex flex-col gap-4">
-        <!-- 로비 상단 유틸 바 -->
-        <div class="flex flex-wrap items-center justify-between gap-2 bg-black/35 border border-white/15 rounded-2xl px-4 py-2.5">
-          <div class="flex items-center gap-2">
-            <span class="font-magic text-[11px] tracking-[0.25em] text-yellow-300">CARDCAPTOR TRILOGY</span>
-            <span id="lobbyVersionBadge" class="px-2 py-0.5 rounded-full bg-purple-900/70 border border-yellow-400/40 text-[10px] font-mono text-yellow-200 font-bold">v.0.3.0</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="btnLocaleLobby" class="px-3 py-1 rounded-xl bg-rose-500/25 hover:bg-rose-500/40 border border-pink-300/60 text-pink-100 text-xs font-bold transition">🌸 사쿠라 (원작명) ⇄</button>
-            <button id="btnLobbyAuth" class="px-3 py-1 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-300/65 text-emerald-100 text-xs font-bold transition">👤 통합 계정 로그인</button>
-          </div>
+    <div id="titleOverlay" class="absolute inset-0 z-[45] title-backdrop overflow-y-auto flex items-center justify-center p-4">
+      <div class="max-w-lg w-full glass rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden my-auto">
+        <div class="absolute -top-20 -right-20 w-56 h-56 rounded-full border border-yellow-400/20 animate-spin-slow pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-56 h-56 rounded-full border border-pink-400/15 animate-spin-slow pointer-events-none"></div>
+
+        <!-- 상단 명칭 전환 & 계정 로그인 바 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4 relative z-10">
+          <button id="btnLocaleTitle" class="px-3 py-1 rounded-full bg-rose-500/25 hover:bg-rose-500/40 border border-pink-300/60 text-pink-100 text-xs font-bold transition">🌸 사쿠라 (원작명) ⇄</button>
+          <button id="btnTitleAuth" class="px-3 py-1 rounded-full bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-300/65 text-emerald-100 text-xs font-bold transition">👤 계정 로그인</button>
         </div>
 
-        <!-- 로비 메인 헤더 -->
-        <div class="text-center px-2">
-          <h1 id="lobbyMainTitle" class="font-story text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-sky-200">카드캡터: 토모에다 3부작</h1>
-          <p id="lobbySubDesc" class="font-story text-xs sm:text-sm text-pink-100/85 mt-1.5">
-            하나의 계정으로 이어지는 <b>황혼(제1부) · 별빛(제2부) · 꿈결(제3부)</b>의 마법 이야기
-          </p>
-          <div id="bootStatus" class="mt-2 inline-block px-3.5 py-1 rounded-full bg-black/45 border border-yellow-400/30 text-xs font-story text-amber-200">
-            ☁ 공용 게임 엔진과 고퀄리티 아트를 불러오는 중...
+        <p class="font-magic text-[11px] tracking-[0.34em] text-yellow-300/90 mb-1.5 relative z-10">COMPLETE MAGIC CHRONICLE</p>
+        <h1 id="titleMainHeading" class="font-story text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-sky-200 mb-3 relative z-10">카드캡터: 토모에다</h1>
+        <p id="titleSubDesc" class="font-story text-xs sm:text-sm text-pink-100/90 leading-relaxed mb-4 relative z-10">
+          지하 서재에서 열린 붉은 책의 봉인에서 시작해,<br/>
+          황혼의 <b>크로우 카드</b>와 별빛의 <b>사쿠라 카드</b>로 이어지는 하나의 마법 이야기.
+        </p>
+
+        <!-- 최근 세이브 프리뷰 배지 (저장 기록이 있을 때만 표시) -->
+        <div id="titleLatestCard" class="hidden mb-3.5 rounded-2xl bg-black/40 border border-pink-300/45 px-3.5 py-2.5 text-left text-xs font-story relative z-10">
+          <div class="flex items-center justify-between gap-2 mb-0.5">
+            <span id="titleLatestArc" class="font-bold text-yellow-200"></span>
+            <span id="titleLatestTime" class="text-[10px] font-mono text-purple-200/80"></span>
           </div>
+          <div id="titleLatestInfo" class="text-pink-100/90 truncate"></div>
         </div>
 
-        <!-- 3부작 챕터 선택 카드 그리드 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          <!-- 제1부: 황혼의 토모에다 -->
-          <article class="rounded-3xl p-5 flex flex-col justify-between gap-3.5 bg-gradient-to-b from-[#2b1252]/95 to-[#16082e]/95 border-2 border-yellow-400/60 shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full border border-yellow-300/20 pointer-events-none"></div>
-            <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="font-magic text-[10px] tracking-[0.22em] text-yellow-300 font-bold">PART I · CLOW ARC</span>
-                <span id="p1ProgressBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/40 text-[10px] font-bold text-amber-200">미시작</span>
-              </div>
-              <h2 id="p1CardTitle" class="font-story text-xl font-bold text-yellow-100 mb-1.5">황혼의 토모에다</h2>
-              <p id="p1CardDesc" class="font-story text-xs text-pink-100/85 leading-relaxed">
-                지하 서재에서 흩어진 열아홉 장의 크로우 카드. 10개 층별 구역을 탐험하며 카드를 봉인하고 달의 심판자 유에에게 맞서세요.
-              </p>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button id="btnP1Continue" disabled class="hidden w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-pink-500 hover:brightness-110 disabled:opacity-45 border border-yellow-200 text-white font-story font-bold text-sm shadow-lg transition">⚡ 제1부 이어하기</button>
-              <button id="btnP1New" disabled class="w-full py-2.5 rounded-2xl bg-purple-700/75 hover:bg-purple-600/85 disabled:opacity-45 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm transition">🌟 제1부 새 모험 시작</button>
-            </div>
-          </article>
+        <div id="bootStatus" class="text-xs font-story text-amber-200 mb-3.5 relative z-10">☁ 공용 게임 엔진과 고퀄리티 아트를 불러오는 중...</div>
 
-          <!-- 제2부: 별빛의 토모에다 -->
-          <article class="rounded-3xl p-5 flex flex-col justify-between gap-3.5 bg-gradient-to-b from-[#45114b]/95 to-[#1d072e]/95 border-2 border-pink-300/70 shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full border border-pink-300/20 pointer-events-none"></div>
-            <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span id="p2ArcTag" class="font-magic text-[10px] tracking-[0.22em] text-pink-200 font-bold">PART II · SAKURA ARC</span>
-                <span id="p2ProgressBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-pink-300/45 text-[10px] font-bold text-pink-200">미시작</span>
-              </div>
-              <h2 id="p2CardTitle" class="font-story text-xl font-bold text-pink-100 mb-1.5">별빛의 토모에다</h2>
-              <p id="p2CardDesc" class="font-story text-xs text-pink-100/85 leading-relaxed">
-                사라질 위기에 놓인 카드와 유키토. 정체 모를 기묘한 사건 속에서 전투 중 실시간 ★ 사쿠라 카드 변환으로 별빛을 깨우세요!
-              </p>
-              <div id="p2LinkHint" class="hidden mt-2 px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-300/45 text-[11px] font-story text-emerald-200">
-                🔗 제1부 기록 자동 연동 준비 완료 (최대 MP +20)
-              </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button id="btnP2Continue" disabled class="hidden w-full py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 hover:brightness-110 disabled:opacity-45 border border-yellow-200 text-white font-story font-bold text-sm shadow-lg transition">⚡ 제2부 이어하기</button>
-              <button id="btnP2New" disabled class="w-full py-2.5 rounded-2xl bg-fuchsia-800/75 hover:bg-fuchsia-700/85 disabled:opacity-45 border border-pink-300/65 text-pink-100 font-story font-bold text-sm transition">⭐ 제2부 새 모험 시작</button>
-            </div>
-          </article>
-
-          <!-- 제3부: 꿈결의 토모에다 (예정) -->
-          <article class="rounded-3xl p-5 flex flex-col justify-between gap-3.5 bg-gradient-to-b from-[#13294d]/90 to-[#0a1529]/95 border-2 border-sky-300/45 shadow-2xl relative overflow-hidden opacity-90">
-            <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full border border-sky-300/20 pointer-events-none"></div>
-            <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="font-magic text-[10px] tracking-[0.22em] text-sky-200 font-bold">PART III · CLEAR ARC</span>
-                <span class="px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-300/50 text-[10px] font-bold text-sky-200">COMING SOON</span>
-              </div>
-              <h2 id="p3CardTitle" class="font-story text-xl font-bold text-sky-100 mb-1.5">꿈결의 토모에다</h2>
-              <p id="p3CardDesc" class="font-story text-xs text-sky-100/80 leading-relaxed">
-                중학생이 된 사쿠라와 어느 날 투명해진 카드들. 꿈의 지팡이와 새로운 친구 아키호·카이토, 그리고 투명한 클리어 카드의 비밀이 곧 열립니다.
-              </p>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button disabled class="w-full py-2.5 rounded-2xl bg-slate-800/75 border border-sky-300/30 text-sky-200/70 font-story font-bold text-sm cursor-not-allowed">🔮 제3부 개발 예정 (v.0.4.0)</button>
-            </div>
-          </article>
+        <!-- 메인 액션 버튼 -->
+        <div class="flex flex-col gap-2.5 relative z-10">
+          <button id="btnContinueLatest" disabled class="hidden w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 hover:brightness-110 disabled:opacity-45 border-2 border-yellow-200 text-white font-story font-bold text-base shadow-2xl transition">⚡ 모험 이어하기 (X)</button>
+          <button id="btnStartNew" disabled class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-700 via-pink-600 to-rose-500 hover:brightness-110 disabled:opacity-45 border-2 border-yellow-300/85 text-white font-story font-bold text-base shadow-xl transition">🌟 새 모험 시작하기</button>
+          <button id="btnTitleSlots" disabled class="w-full py-2.5 rounded-2xl bg-black/45 hover:bg-purple-950/80 disabled:opacity-45 border border-yellow-300/45 text-yellow-100 font-story font-bold text-xs transition">💾 저장 슬롯 불러오기 · 관리 (자동 1 + 수동 6)</button>
         </div>
 
-        <!-- 로비 하단 조작 가이드 -->
-        <div class="bg-black/35 border border-white/10 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] text-indigo-100/85">
-          <span>• <b>이동</b>: 방향키 / WASD / 맵 클릭·드래그</span>
-          <span>• <b>확인·조사·실행</b>: <b class="text-yellow-300">X</b> / Enter</span>
-          <span>• <b>취소·닫기·스킵</b>: <b class="text-yellow-300">Z</b> / Esc</span>
-          <span>• <b>필드 카드</b>: <b class="text-pink-300">1 ~ 6</b></span>
+        <!-- 조작 안내 & 버전 표기 -->
+        <div class="mt-4 bg-black/30 rounded-2xl p-2.5 text-left text-[11px] text-indigo-100/90 space-y-0.5 border border-white/10 relative z-10">
+          <div>• <b>이동</b>: 방향키 / WASD / 맵 클릭·드래그 · <b>확인·조사</b>: <b class="text-yellow-300">X</b></div>
+          <div>• <b>취소·닫기·스킵</b>: <b class="text-yellow-300">Z</b> · <b>필드 카드</b>: <b class="text-pink-300">1 ~ 6</b></div>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75 relative z-10">
+          <span>SEAMLESS TRILOGY EDITION</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.1.0</span>
         </div>
       </div>
     </div>
 
     <!-- =======================================================================
-     * 공용 엔딩 화면 (1부 클리어 시 2부 직결 버튼 제공!)
+     * 막간 시네마틱 전환 오버레이 (제1부 완 -> 제2부 자연 직결)
+     * =====================================================================-->
+    <div id="interludeOverlay" class="hidden absolute inset-0 z-[55] interlude-backdrop flex flex-col items-center justify-center p-6 text-center">
+      <div class="relative flex items-center justify-center mb-6">
+        <div class="w-40 h-40 sm:w-48 sm:h-48 rounded-full border-2 border-dashed border-pink-300/65 animate-spin-slow"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span id="interludeIcon" class="text-5xl sm:text-6xl animate-float">⭐</span>
+        </div>
+      </div>
+      <p id="interludeSub" class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">ACT I COMPLETE · INTERLUDE</p>
+      <h2 id="interludeTitle" class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">황혼이 지나고, 별빛의 새 학기</h2>
+      <p id="interludeBody" class="font-story text-sm sm:text-base text-pink-100/90 max-w-xl leading-relaxed mb-7"></p>
+      <button id="btnInterludeNext" class="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 hover:brightness-110 border-2 border-yellow-200 text-white font-story font-bold text-sm sm:text-base shadow-2xl transition">⭐ 다음 이야기로 계속하기 (X)</button>
+    </div>
+
+    <!-- =======================================================================
+     * 완결 엔딩 화면 (현재 공개된 최종 장 완료 시)
      * =====================================================================-->
     <div id="endingBox" class="hidden absolute inset-0 z-[45] ending-backdrop flex items-center justify-center p-4">
       <div class="max-w-xl w-full glass rounded-3xl p-6 sm:p-8 text-center">
-        <p id="endingSub" class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">CHAPTER CLEAR</p>
-        <h2 id="endingHeading" class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">새로운 카드의 주인</h2>
+        <p id="endingSub" class="font-magic text-xs tracking-[0.35em] text-yellow-300 mb-2">CHRONICLE COMPLETE</p>
+        <h2 id="endingHeading" class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">별의 주인과 열아홉 장의 카드</h2>
         <p id="endingSummary" class="font-story text-sm text-pink-100/90 leading-relaxed mb-6"></p>
         <div class="flex flex-wrap gap-2.5 justify-center">
-          <button id="btnEndingNextPart" class="hidden px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 border-2 border-yellow-200 text-white font-story font-bold text-sm shadow-xl">⭐ 제2부로 이어서 출발!</button>
           <button id="btnContinueExplore" class="px-5 py-3 rounded-2xl bg-indigo-600/85 hover:bg-indigo-500 border border-indigo-300/60 text-white font-story font-bold text-sm">평화로운 마을 둘러보기</button>
-          <button id="btnEndingLobby" class="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm">🏠 3부작 로비로</button>
-          <button id="btnRestartAll" class="px-4 py-3 rounded-2xl bg-black/50 hover:bg-slate-800 border border-white/20 text-slate-200 font-story text-xs font-bold">이 챕터 처음부터</button>
+          <button id="btnEndingSave" class="px-5 py-3 rounded-2xl bg-emerald-600/80 hover:bg-emerald-500 border border-emerald-300/60 text-white font-story font-bold text-sm">💾 완결 기록 저장</button>
+          <button id="btnEndingTitle" class="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm">🏠 타이틀로</button>
         </div>
       </div>
     </div>
@@ -436,14 +409,14 @@
   </div>
 
   <!-- =========================================================================
-   * 공용 마법 의상실 모달 (8벌 의상 + 원클릭 홍차 회복)
+   * 공용 마법 의상실 모달 (방향키 선택 + X 착용 완벽 지원 · 맵 이동 차단!)
    * =======================================================================-->
   <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
     <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
       <div class="flex items-center justify-between border-b border-pink-300/35 pb-3 gap-2">
         <div>
           <h2 id="wardrobeTitle" class="font-story text-lg font-bold text-pink-200">🎀 토모요의 마법 의상실</h2>
-          <p class="text-xs text-yellow-100/85 font-story">의상을 갈아입으면 맵 위 외형과 전략 패시브가 즉시 적용됩니다! · 닫기(Z)</p>
+          <p class="text-xs text-yellow-100/85 font-story">방향키로 의상을 고르고 <b>X</b> 또는 클릭으로 갈아입으세요 · 닫기(Z)</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <button id="btnWardrobeHeal" class="px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-yellow-300/65 text-yellow-100 text-xs font-story font-bold transition">☕ 홍차 회복</button>
@@ -455,67 +428,87 @@
   </div>
 
   <!-- =========================================================================
-   * 3부작 통합 계정 로그인 & 대시보드 모달
+   * 멀티 세이브 슬롯(자동 1 + 수동 6) & 계정 통합 모달
    * =======================================================================-->
   <div id="saveModal" class="fixed inset-0 modal-backdrop z-[65] hidden items-center justify-center p-3 sm:p-5">
-    <div class="w-full max-w-md glass rounded-3xl p-5 sm:p-6 flex flex-col gap-3.5">
-      <div class="flex items-center justify-between border-b border-yellow-400/30 pb-3">
+    <div class="w-full max-w-xl max-h-[90dvh] glass rounded-3xl p-5 sm:p-6 flex flex-col gap-3 overflow-hidden">
+      <div class="flex items-center justify-between border-b border-yellow-400/30 pb-3 gap-2">
         <div>
-          <h2 id="authModalTitle" class="font-magic text-base sm:text-lg font-bold text-emerald-300 tracking-wider">TRILOGY ACCOUNT</h2>
-          <p id="authModalSub" class="text-[11px] text-pink-100/85 font-story">한 번 로그인하면 1부 · 2부 · 3부 기록이 모두 자동 저장 및 연동됩니다.</p>
+          <h2 class="font-magic text-base sm:text-lg font-bold text-emerald-300 tracking-wider">SAVE ARCHIVE &amp; ACCOUNT</h2>
+          <p id="saveModalSub" class="text-[11px] text-pink-100/85 font-story">자동 저장 1슬롯 + 수동 저장 6슬롯으로 각 장의 소중한 순간을 나눠 기록하세요.</p>
         </div>
         <button id="btnCloseSave" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-yellow-200 font-bold">✕</button>
       </div>
 
-      <!-- 로그인 전 화면 -->
-      <div id="authLoginView" class="flex flex-col gap-3">
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <label for="savePlayerId" class="block text-yellow-200 font-bold mb-1">아이디 (한글·영문 자유)</label>
-            <input id="savePlayerId" type="text" maxlength="24" placeholder="예: 체리좋아 / my_id" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-yellow-400/45 text-white text-sm focus:outline-none focus:border-pink-400 select-text" />
-          </div>
-          <div>
-            <label for="saveSecret" class="block text-pink-200 font-bold mb-1">비밀번호 (4~16자)</label>
-            <input id="saveSecret" type="password" maxlength="16" placeholder="자유 암호 / 기존 PIN" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-pink-400/45 text-white text-sm focus:outline-none focus:border-yellow-300 select-text" />
-          </div>
-        </div>
-        <button id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 border border-emerald-300/75 text-white font-story font-bold text-sm shadow-lg">🔓 로그인 / 새 계정 만들기</button>
-        <button id="btnGuestClose" class="w-full py-2 rounded-xl bg-slate-800/75 hover:bg-slate-700/80 border border-slate-500/50 text-slate-200 font-story text-xs">게스트로 계속하기 (브라우저 임시 저장)</button>
+      <!-- 상단 탭 전환 (세이브 슬롯 / 계정 로그인) -->
+      <div class="grid grid-cols-2 gap-2">
+        <button id="tabSlots" class="py-2 rounded-xl text-xs font-story font-bold border transition bg-emerald-600/35 border-emerald-300 text-emerald-100">💾 세이브 슬롯 (7개)</button>
+        <button id="tabAccount" class="py-2 rounded-xl text-xs font-story font-bold border transition bg-black/35 border-white/15 text-slate-300 hover:bg-white/10">👤 클라우드 계정</button>
       </div>
 
-      <!-- 로그인 후 통합 대시보드 화면 -->
-      <div id="authDashView" class="hidden flex flex-col gap-3">
-        <div class="rounded-2xl bg-emerald-950/55 border border-emerald-400/50 p-3.5 flex items-center justify-between gap-2">
-          <div>
-            <div class="flex items-center gap-1.5">
-              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span id="dashUserId" class="font-bold text-sm text-emerald-100"></span>
+      <!-- 탭 1: 멀티 세이브 슬롯 목록 -->
+      <div id="panelSlots" class="flex-1 min-h-0 flex flex-col gap-2.5 overflow-hidden">
+        <div id="slotStorageHint" class="rounded-xl bg-black/35 border border-white/10 px-3 py-1.5 text-[11px] font-story text-cyan-100 flex items-center justify-between gap-2">
+          <span>저장 위치: 브라우저 임시 슬롯 (게스트)</span>
+          <button id="btnQuickLoginTab" class="text-emerald-300 underline font-bold">클라우드 연동</button>
+        </div>
+        <div id="saveSlotsList" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+      </div>
+
+      <!-- 탭 2: 클라우드 계정 로그인 / 대시보드 -->
+      <div id="panelAccount" class="hidden flex-1 overflow-y-auto flex flex-col gap-3 pr-1">
+        <!-- 로그인 전 -->
+        <div id="authLoginView" class="flex flex-col gap-3">
+          <p class="text-xs font-story text-pink-100/90 leading-relaxed">
+            아이디와 비밀번호로 로그인하면 <b>자동 저장 1슬롯 + 수동 저장 6슬롯</b> 전체가 클라우드에 안전하게 보관되어 다른 기기에서도 이어할 수 있습니다.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div>
+              <label for="savePlayerId" class="block text-yellow-200 font-bold mb-1">아이디 (한글·영문 자유)</label>
+              <input id="savePlayerId" type="text" maxlength="24" placeholder="예: 체리좋아 / my_id" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-yellow-400/45 text-white text-sm focus:outline-none focus:border-pink-400 select-text" />
             </div>
-            <div class="text-[11px] text-emerald-200/85 font-story mt-0.5">☁ 1·2·3부 통합 자동 저장 활성화됨</div>
+            <div>
+              <label for="saveSecret" class="block text-pink-200 font-bold mb-1">비밀번호 (4~16자)</label>
+              <input id="saveSecret" type="password" maxlength="16" placeholder="4자 이상 자유 암호" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-pink-400/45 text-white text-sm focus:outline-none focus:border-yellow-300 select-text" />
+            </div>
           </div>
-          <span class="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-300/50 text-[10px] font-bold text-emerald-100">ONLINE</span>
+          <button id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 border border-emerald-300/75 text-white font-story font-bold text-sm shadow-lg">🔓 로그인 / 새 계정 만들기</button>
         </div>
-        <div id="savePreviewInfo" class="rounded-2xl bg-black/40 border border-purple-400/30 p-3 text-xs font-story text-pink-100 leading-relaxed space-y-1"></div>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="btnCloudSave" class="py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 disabled:opacity-40 border border-emerald-300/70 text-white font-story font-bold text-sm">💾 현재 챕터 저장</button>
-          <button id="btnAuthLogout" class="py-2.5 rounded-xl bg-slate-700/85 hover:bg-slate-600 border border-slate-400/55 text-slate-100 font-story font-bold text-sm">🚪 로그아웃</button>
+
+        <!-- 로그인 후 -->
+        <div id="authDashView" class="hidden flex flex-col gap-3">
+          <div class="rounded-2xl bg-emerald-950/55 border border-emerald-400/50 p-3.5 flex items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="dashUserId" class="font-bold text-sm text-emerald-100"></span>
+              </div>
+              <div class="text-[11px] text-emerald-200/85 font-story mt-0.5">☁ 단일 통합 경로 멀티 세이브 활성화됨</div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-300/50 text-[10px] font-bold text-emerald-100">ONLINE</span>
+          </div>
+          <div id="dashSlotSummary" class="rounded-2xl bg-black/40 border border-purple-400/30 p-3 text-xs font-story text-pink-100 leading-relaxed"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnGoSlotsFromDash" class="py-2.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 border border-emerald-300/70 text-white font-story font-bold text-sm">💾 슬롯 관리로</button>
+            <button id="btnAuthLogout" class="py-2.5 rounded-xl bg-slate-700/85 hover:bg-slate-600 border border-slate-400/55 text-slate-100 font-story font-bold text-sm">🚪 로그아웃</button>
+          </div>
+          <button id="btnAccountDelete" class="py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/45 text-rose-200 font-story text-xs font-bold">🗑 이 계정의 모든 저장 슬롯 삭제</button>
         </div>
-        <button id="btnCloudDelete" class="hidden py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/45 text-rose-200 font-story text-xs font-bold">🗑 현재 챕터 저장 데이터 초기화</button>
       </div>
 
-      <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">기존 1·2부 아이디와 비밀번호 그대로 로그인할 수 있습니다.</div>
-      <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
-        <span>SAKURA TRILOGY CLOUD</span>
-        <span id="modalVersionBadge">v.0.3.0</span>
+      <div id="saveStatusMsg" class="shrink-0 min-h-[2.2rem] rounded-xl bg-black/45 border border-white/10 px-3 py-1.5 text-xs font-story text-amber-100 flex items-center justify-center text-center">원하는 슬롯을 선택해 저장하거나 불러오세요. · 닫기(Esc)</div>
+      <div class="shrink-0 flex items-center justify-between text-[10px] font-mono text-purple-300/70">
+        <span>SAKURA CHRONICLE · MULTI-SLOT</span>
+        <span id="modalVersionBadge">v.0.1.0</span>
       </div>
     </div>
   </div>
 
   <!-- =========================================================================
-   * 3부작 통합 호스트 & 챕터 라우터 스크립트
+   * 통합 단일 스토리 호스트 & 멀티 세이브 컨트롤러
    * =======================================================================-->
   <script type="module">
-    const APP_VER = 'v.0.3.0';
+    const APP_VER = 'v.0.1.0';
     let ENGINE_BASE = '';
 
     /** 공용 엔진 3종 로드 (core.js는 쿼리 없이 로드해 모든 모듈이 단일 인스턴스 공유) */
@@ -546,7 +539,7 @@
       throw lastErr || new Error('공용 엔진(core.js, world.js, battle.js) 로드 실패');
     }
 
-    async function bootTrilogy() {
+    async function bootChronicle() {
       const bootEl = document.getElementById('bootStatus');
       let engines;
       try {
@@ -558,23 +551,51 @@
       }
 
       const {
-        SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
+        SAVE_SLOTS, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
         createWorldEngine, createVNEngine, createBattleEngine
       } = engines;
       const { $ } = Utils;
 
-      $('lobbyVersionBadge').textContent = APP_VER;
+      $('titleVersionBadge').textContent = APP_VER;
       $('modalVersionBadge').textContent = APP_VER;
 
-      // 1. 통합 상태: 세션 · 활성 챕터 · 입력 키 상태 · 공용 엔진 1회 생성
-      const session = { id: '', secret: '', parts: { 1: null, 2: null, 3: null } };
+      // -----------------------------------------------------------------------
+      // 1. 통합 캠페인 상태 · 세션 · 입력 키 · 공용 엔진 1회 생성
+      // -----------------------------------------------------------------------
+      const session = { id: '', secret: '', slots: {} };
       const keys = { up: false, down: false, left: false, right: false };
       const chapterCache = {};
+
+      // 캠페인 공유 히스토리 (1부 -> 2부 -> 3부 연속 계승)
+      let campaign = createFreshCampaign();
       let activeChapter = null;
-      let deleteConfirmArmed = false;
       let toastId = null;
       let wardrobeHealHandler = null;
-      let endingNextPart = null;
+      let wardrobeIdx = 0;
+      let pendingInterlude = null;
+      let armedDeleteSlot = '';
+      let armedDeleteAccount = false;
+
+      function createFreshCampaign() {
+        return {
+          version: 5,
+          appVersion: APP_VER,
+          currentAct: 1,
+          shared: {
+            costumeId: 'sakura_dress',
+            unlockedCostumes: ['sakura_dress'],
+            syaoranTrust: 0,
+            part1Cleared: false,
+            part2Cleared: false,
+            firstSealedCard: '',
+            lastSealedCard: '',
+            hadMirror: false
+          },
+          act1: null,
+          act2: null,
+          act3: null
+        };
+      }
 
       const world = createWorldEngine($('worldCanvas'));
       const vn = createVNEngine({
@@ -582,7 +603,6 @@
         onTrustDelta: (d) => activeChapter?.onTrustDelta?.(d)
       });
 
-      // 단일 배틀 엔진 (모든 훅을 현재 활성 챕터로 동적 위임 → 이벤트 중복 ZERO)
       const battle = createBattleEngine({
         get part() { return activeChapter?.part || 1; },
         getData: () => activeChapter?.battleHooks?.getData?.(),
@@ -602,7 +622,99 @@
         onFlee: () => activeChapter?.battleHooks?.onFlee?.()
       });
 
-      // 2. 공용 UI · 테마 · 토스트 · 모달 유틸리티
+      // -----------------------------------------------------------------------
+      // 2. 입력 차단 & 모달 상태 판별 (의상실/도감/세이브 중 맵 이동 원천 차단!)
+      // -----------------------------------------------------------------------
+      function resetMoveKeys() {
+        keys.up = keys.down = keys.left = keys.right = false;
+        activeChapter?.clearTargetPos?.();
+      }
+
+      function isAnyModalOpen() {
+        const ids = ['saveModal', 'wardrobeModal', 'bookModal', 'interludeOverlay', 'endingBox', 'titleOverlay'];
+        return ids.some((id) => {
+          const el = $(id);
+          return el && !el.classList.contains('hidden');
+        });
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. 멀티 세이브 슬롯 관리 (클라우드 계정 우선, 미로그인 시 게스트 로컬 슬롯)
+      // -----------------------------------------------------------------------
+      function getActiveSlots() {
+        return session.id ? (session.slots || {}) : Cloud.getLocalSlots();
+      }
+
+      function getArcBadge(act) {
+        if (act === 2) return { text: '제2부 · 별빛', cls: 'bg-pink-500/30 border-pink-300/60 text-pink-100' };
+        if (act === 3) return { text: '제3부 · 꿈결', cls: 'bg-sky-500/30 border-sky-300/60 text-sky-100' };
+        return { text: '제1부 · 황혼', cls: 'bg-amber-500/25 border-yellow-300/55 text-yellow-200' };
+      }
+
+      function buildCurrentSnapshot() {
+        if (!activeChapter) return null;
+        const part = activeChapter.part;
+        const chPayload = activeChapter.getSavePayload();
+        const sharedPatch = activeChapter.getSharedState ? activeChapter.getSharedState() : {};
+        const mergedUnlocked = Array.from(new Set([
+          ...(campaign.shared.unlockedCostumes || ['sakura_dress']),
+          ...(sharedPatch.unlockedCostumes || [])
+        ]));
+
+        campaign.currentAct = part;
+        campaign.shared = {
+          ...campaign.shared,
+          ...sharedPatch,
+          unlockedCostumes: mergedUnlocked
+        };
+        campaign[`act${part}`] = chPayload;
+
+        const meta = activeChapter.getSlotMeta ? activeChapter.getSlotMeta() : { zoneName: '', summary: '' };
+        return {
+          version: 5,
+          appVersion: APP_VER,
+          currentAct: part,
+          zoneName: meta.zoneName || '',
+          summary: meta.summary || '',
+          savedAt: Date.now(),
+          shared: { ...campaign.shared },
+          act1: campaign.act1,
+          act2: campaign.act2,
+          act3: campaign.act3
+        };
+      }
+
+      async function writeSlot(slotKey, reason = '', silent = false) {
+        const snap = buildCurrentSnapshot();
+        if (!snap) return null;
+
+        if (session.id) {
+          try {
+            const rec = await Cloud.saveSlot(session.id, session.secret, slotKey, snap);
+            session.slots[slotKey] = rec;
+            refreshTitleView();
+            if (!silent) showToast(`☁ ${slotKey === 'auto' ? '자동 저장' : `${slotKey.replace('slot', '슬롯 ')} 저장`} 완료${reason ? ` (${reason})` : ''}`);
+            return rec;
+          } catch (err) {
+            if (!silent) showToast(`⚠ 클라우드 저장 실패: ${err.message}`);
+            throw err;
+          }
+        } else {
+          const rec = Cloud.saveLocalSlot(slotKey, snap);
+          refreshTitleView();
+          if (!silent && slotKey !== 'auto') showToast(`💾 ${slotKey.replace('slot', '슬롯 ')} 저장 완료 (브라우저 임시)`);
+          return rec;
+        }
+      }
+
+      function autoSave(reason = '') {
+        if (!activeChapter) return;
+        writeSlot('auto', reason, !session.id).catch(() => {});
+      }
+
+      // -----------------------------------------------------------------------
+      // 4. 공용 UI · 테마 · 토스트 · 타이틀 갱신
+      // -----------------------------------------------------------------------
       function showToast(msg) {
         $('toastText').textContent = Locale.t(msg);
         $('toastBox').style.opacity = '1';
@@ -635,74 +747,39 @@
         battle.resize(r.w, r.h, r.dpr);
       }
 
-      function getPartSave(part) {
-        if (session.id && session.parts[part]) return session.parts[part];
-        return SafeStore.getJSON(`sakura_part${part}_autosave`, null);
-      }
-
-      function saveChapter(part, payload, reason = '') {
-        SafeStore.setJSON(`sakura_part${part}_autosave`, payload);
-        if (session.id) {
-          session.parts[part] = { ...payload, updatedAt: Date.now() };
-          Cloud.save(part, session.id, session.secret, payload)
-            .then(() => showToast(`☁ 자동 저장 완료${reason ? ` (${reason})` : ''}`))
-            .catch(() => {});
-        }
-        refreshLobbyCards();
-      }
-
-      function summarizePart(part, rec) {
-        if (!rec) return { exists: false, badge: '미시작', detail: '기록 없음' };
-        if (part === 1) {
-          const cnt = Utils.toArr(rec.ownedCards).length || 1;
-          const clear = !!rec.yueDefeated;
-          return {
-            exists: true,
-            badge: clear ? '🏆 CLEAR · 19/19' : `진행 중 · ${cnt}/19`,
-            detail: `봉인 ${cnt}/19${clear ? ' · 유에 격파' : ''}`
-          };
-        }
-        if (part === 2) {
-          const cnt = Utils.toArr(rec.sakuraCards).length;
-          const inc = Utils.toArr(rec.clearedIncidents).length;
-          const clear = !!rec.eriolDefeated;
-          return {
-            exists: true,
-            badge: clear ? '🏆 CLEAR · ★19/19' : `★ ${cnt}/19 · 사건 ${inc}/5`,
-            detail: `★ 각성 ${cnt}/19 · 사건 ${inc}/5${clear ? ' · 최종장 완료' : ''}`
-          };
-        }
-        return { exists: false, badge: 'COMING SOON', detail: '개발 예정' };
-      }
-
       function syncAuthButtons() {
         const hudBtn = $('btnOpenSave');
-        const lobBtn = $('btnLobbyAuth');
+        const titleBtn = $('btnTitleAuth');
         if (session.id) {
           hudBtn.textContent = `🟢 ${session.id}`;
-          hudBtn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/45 border border-emerald-300 text-emerald-100 text-xs font-bold transition max-w-[125px] truncate';
-          lobBtn.textContent = `🟢 ${session.id} · 계정`;
-          lobBtn.className = 'px-3 py-1 rounded-xl bg-emerald-500/35 hover:bg-emerald-500/50 border border-emerald-300 text-emerald-100 text-xs font-bold transition';
+          hudBtn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/45 border border-emerald-300 text-emerald-100 text-xs font-bold transition max-w-[130px] truncate';
+          titleBtn.textContent = `🟢 ${session.id} · 계정`;
+          titleBtn.className = 'px-3 py-1 rounded-full bg-emerald-500/35 hover:bg-emerald-500/50 border border-emerald-300 text-emerald-100 text-xs font-bold transition';
         } else {
-          hudBtn.textContent = '👤 로그인';
-          hudBtn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[115px] truncate';
-          lobBtn.textContent = '👤 통합 계정 로그인';
-          lobBtn.className = 'px-3 py-1 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-300/65 text-emerald-100 text-xs font-bold transition';
+          hudBtn.textContent = '💾 저장 · 계정';
+          hudBtn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[130px] truncate';
+          titleBtn.textContent = '👤 계정 로그인';
+          titleBtn.className = 'px-3 py-1 rounded-full bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-300/65 text-emerald-100 text-xs font-bold transition';
         }
       }
 
-      function refreshLobbyCards() {
-        const p1 = summarizePart(1, getPartSave(1));
-        const p2 = summarizePart(2, getPartSave(2));
-
-        $('p1ProgressBadge').textContent = p1.badge;
-        $('btnP1Continue').classList.toggle('hidden', !p1.exists);
-        $('btnP1New').textContent = p1.exists ? '🔄 제1부 처음부터 다시' : '🌟 제1부 모험 시작';
-
-        $('p2ProgressBadge').textContent = p2.badge;
-        $('btnP2Continue').classList.toggle('hidden', !p2.exists);
-        $('btnP2New').textContent = p2.exists ? '🔄 제2부 처음부터 다시' : '⭐ 제2부 모험 시작';
-        $('p2LinkHint').classList.toggle('hidden', !p1.exists);
+      function refreshTitleView() {
+        syncAuthButtons();
+        const latest = Cloud.getLatestSlot(getActiveSlots());
+        const btnCont = $('btnContinueLatest');
+        const card = $('titleLatestCard');
+        if (latest) {
+          const arc = getArcBadge(latest.currentAct || 1);
+          const slotLabel = latest.slotKey === 'auto' ? '자동 저장' : `슬롯 ${latest.slotKey.replace('slot', '')}`;
+          $('titleLatestArc').textContent = `${arc.text} · ${slotLabel}`;
+          $('titleLatestTime').textContent = Utils.formatTime(latest.savedAt);
+          $('titleLatestInfo').textContent = Locale.t(`${latest.zoneName || '토모에다'} — ${latest.summary || '진행 중'}`);
+          card.classList.remove('hidden');
+          btnCont.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+          btnCont.classList.add('hidden');
+        }
       }
 
       function syncLocaleUI() {
@@ -710,29 +787,29 @@
         document.title = Locale.t(
           part === 1 ? '카드캡터: 황혼의 토모에다 — 제1부 크로우 카드 편'
             : part === 2 ? '카드캡터: 별빛의 토모에다 — 제2부 사쿠라 카드 편'
-            : '카드캡터: 토모에다 3부작 — 황혼 · 별빛 · 꿈결'
+            : '카드캡터: 토모에다 — 황혼에서 별빛으로'
         );
-        $('btnLocaleLobby').textContent = `${Locale.label()} ⇄`;
+        $('btnLocaleTitle').textContent = `${Locale.label()} ⇄`;
         $('btnLocaleHud').textContent = Locale.shortLabel();
         $('hudHeroName').textContent = Locale.t('사쿠라');
-        $('lobbyMainTitle').textContent = Locale.t(Locale.isKr() ? '카드캡터 체리: 우수 마을 3부작' : '카드캡터: 토모에다 3부작');
-        $('p1CardTitle').textContent = Locale.t('황혼의 토모에다');
-        $('p2CardTitle').textContent = Locale.t('별빛의 토모에다');
-        $('p3CardTitle').textContent = Locale.t('꿈결의 토모에다');
-        $('p2ArcTag').textContent = Locale.t('PART II · SAKURA ARC');
-        $('p2CardDesc').textContent = Locale.t('사라질 위기에 놓인 카드와 유키토. 정체 모를 기묘한 사건 속에서 전투 중 실시간 ★ 사쿠라 카드 변환으로 별빛을 깨우세요!');
-        $('p3CardDesc').textContent = Locale.t('중학생이 된 사쿠라와 어느 날 투명해진 카드들. 꿈의 지팡이와 새로운 친구 아키호·카이토, 그리고 투명한 클리어 카드의 비밀이 곧 열립니다.');
+        $('titleMainHeading').textContent = Locale.t(Locale.isKr() ? '카드캡터 체리: 우수 마을' : '카드캡터: 토모에다');
+        $('titleSubDesc').innerHTML = Locale.t('지하 서재에서 열린 붉은 책의 봉인에서 시작해,<br/>황혼의 <b>크로우 카드</b>와 별빛의 <b>사쿠라 카드</b>로 이어지는 하나의 마법 이야기.');
         $('wardrobeTitle').textContent = Locale.t('🎀 토모요의 마법 의상실');
         if (part) setTheme(part);
 
+        refreshTitleView();
+        if (!$('saveModal').classList.contains('hidden')) renderSlotsList();
         vn.refreshLocale();
         if (battle.isActive()) battle.updateUI();
         activeChapter?.onLocaleChange?.();
       }
       Locale.onChange(syncLocaleUI);
 
-      // 3. 공용 모달 컨트롤러 (도감 · 의상실 · 통합 계정 대시보드 · 엔딩)
+      // -----------------------------------------------------------------------
+      // 5. 도감 · 의상실(방향키+X 선택 지원!) · 막간 전환 · 엔딩 모달
+      // -----------------------------------------------------------------------
       function openBookModal({ title, sub, renderGrid, silent = false }) {
+        resetMoveKeys();
         $('bookModalTitle').textContent = Locale.t(title || 'THE CLOW BOOK');
         $('bookSubDesc').textContent = Locale.t(sub || '');
         const grid = $('bookGrid');
@@ -745,111 +822,418 @@
         const m = $('bookModal');
         if (m.classList.contains('hidden')) return false;
         m.classList.replace('flex', 'hidden');
+        resetMoveKeys();
         return true;
       }
 
+      /** 의상실 포커스 하이라이트 동기화 (키보드 방향키 / 마우스 호버 공용) */
+      function syncWardrobeFocus() {
+        const grid = $('wardrobeGrid');
+        if (!grid) return;
+        const cards = Array.from(grid.children);
+        if (!cards.length) return;
+        wardrobeIdx = Utils.clamp(wardrobeIdx, 0, cards.length - 1);
+        cards.forEach((el, idx) => {
+          const focused = idx === wardrobeIdx;
+          el.classList.toggle('ring-2', focused);
+          el.classList.toggle('ring-yellow-300', focused);
+          el.classList.toggle('scale-[1.01]', focused);
+          if (focused) el.scrollIntoView({ block: 'nearest' });
+        });
+      }
+
       function openWardrobeModal({ title, renderGrid, onHeal, silent = false }) {
+        resetMoveKeys();
         if (title) $('wardrobeTitle').textContent = Locale.t(title);
         wardrobeHealHandler = typeof onHeal === 'function' ? onHeal : null;
         const grid = $('wardrobeGrid');
         grid.innerHTML = '';
         if (typeof renderGrid === 'function') renderGrid(grid);
+
+        const cards = Array.from(grid.children);
+        if (!silent) {
+          // 최초 오픈 시 현재 착용 중인 의상 카드로 초기 포커스 맞춤
+          const eqIdx = cards.findIndex((el) => el.textContent.includes('현재 착용 중'));
+          wardrobeIdx = eqIdx >= 0 ? eqIdx : 0;
+        }
+        cards.forEach((el, idx) => {
+          el.addEventListener('mouseenter', () => {
+            wardrobeIdx = idx;
+            syncWardrobeFocus();
+          });
+        });
+
         $('wardrobeModal').classList.replace('hidden', 'flex');
+        syncWardrobeFocus();
         if (!silent) SoundFX.click();
       }
+
       function closeWardrobeModal() {
         const m = $('wardrobeModal');
         if (m.classList.contains('hidden')) return false;
         m.classList.replace('flex', 'hidden');
+        resetMoveKeys();
         return true;
       }
 
-      function showEnding({ sub, title, summaryHtml, nextPart = null, nextPartLabel = '' }) {
-        $('endingSub').textContent = sub || 'CHAPTER CLEAR';
+      function handleWardrobeKey(code) {
+        const grid = $('wardrobeGrid');
+        const cards = grid ? Array.from(grid.children) : [];
+        const len = cards.length;
+        const cols = window.innerWidth >= 640 ? 2 : 1;
+
+        if (code === 'KeyZ' || code === 'Escape') {
+          closeWardrobeModal();
+          SoundFX.click();
+          return;
+        }
+        if (!len) return;
+        if (code === 'ArrowRight' || code === 'KeyD') {
+          wardrobeIdx = (wardrobeIdx + 1) % len;
+          syncWardrobeFocus();
+          SoundFX.click();
+        } else if (code === 'ArrowLeft' || code === 'KeyA') {
+          wardrobeIdx = (wardrobeIdx - 1 + len) % len;
+          syncWardrobeFocus();
+          SoundFX.click();
+        } else if (code === 'ArrowDown' || code === 'KeyS') {
+          wardrobeIdx = Math.min(len - 1, wardrobeIdx + cols);
+          syncWardrobeFocus();
+          SoundFX.click();
+        } else if (code === 'ArrowUp' || code === 'KeyW') {
+          wardrobeIdx = Math.max(0, wardrobeIdx - cols);
+          syncWardrobeFocus();
+          SoundFX.click();
+        } else if (code === 'KeyX' || code === 'Enter' || code === 'Space') {
+          const btn = cards[wardrobeIdx]?.querySelector('button[data-cos]');
+          if (btn && !btn.disabled) {
+            btn.click();
+          } else {
+            SoundFX.click();
+            showToast('이미 착용 중이거나 아직 해금되지 않은 의상입니다.');
+          }
+        }
+      }
+
+      /** 제1부 완결 -> 제2부 막간 시네마틱 전환 (끊김 없는 단일 스토리 연결!) */
+      function transitionToNextAct(nextAct, { sub, title, body, buttonLabel, icon = '⭐', sharedPatch = null, act1Payload = null, act2Payload = null } = {}) {
+        resetMoveKeys();
+        if (act1Payload) campaign.act1 = act1Payload;
+        if (act2Payload) campaign.act2 = act2Payload;
+        if (sharedPatch) {
+          campaign.shared = {
+            ...campaign.shared,
+            ...sharedPatch,
+            unlockedCostumes: Array.from(new Set([
+              ...(campaign.shared.unlockedCostumes || ['sakura_dress']),
+              ...(sharedPatch.unlockedCostumes || [])
+            ]))
+          };
+        }
+
+        pendingInterlude = { nextAct };
+        $('interludeIcon').textContent = icon;
+        $('interludeSub').textContent = sub || `ACT ${nextAct - 1} COMPLETE · INTERLUDE`;
+        $('interludeTitle').textContent = Locale.t(title || '황혼이 지나고, 별빛의 새 학기');
+        $('interludeBody').innerHTML = Locale.t(body || '');
+        $('btnInterludeNext').textContent = Locale.t(buttonLabel || `⭐ 제${nextAct}부로 계속하기 (X)`);
+        $('interludeOverlay').classList.remove('hidden');
+        SoundFX.seal();
+      }
+
+      async function confirmInterlude() {
+        if (!pendingInterlude) return;
+        const { nextAct } = pendingInterlude;
+        pendingInterlude = null;
+        $('interludeOverlay').classList.add('hidden');
+        await launchAct(nextAct, {
+          actPayload: null,
+          shared: { ...campaign.shared },
+          fromInterlude: true
+        });
+      }
+
+      function showEnding({ sub, title, summaryHtml }) {
+        resetMoveKeys();
+        $('endingSub').textContent = sub || 'CHRONICLE COMPLETE';
         $('endingHeading').textContent = Locale.t(title || '');
         $('endingSummary').innerHTML = Locale.t(summaryHtml || '');
-        endingNextPart = nextPart;
-        const nextBtn = $('btnEndingNextPart');
-        if (nextPart && nextPartLabel) {
-          nextBtn.textContent = Locale.t(nextPartLabel);
-          nextBtn.classList.remove('hidden');
-        } else {
-          nextBtn.classList.add('hidden');
-        }
         $('endingBox').classList.remove('hidden');
       }
 
+      // -----------------------------------------------------------------------
+      // 6. 멀티 세이브 슬롯 & 클라우드 계정 모달 컨트롤러
+      // -----------------------------------------------------------------------
       function setSaveMsg(msg, err = false) {
         const el = $('saveStatusMsg');
         el.textContent = Locale.t(msg);
-        el.className = `min-h-[2.4rem] rounded-xl px-3 py-2 text-xs font-story flex items-center justify-center text-center border ${
+        el.className = `shrink-0 min-h-[2.2rem] rounded-xl px-3 py-1.5 text-xs font-story flex items-center justify-center text-center border ${
           err ? 'bg-rose-950/75 border-rose-400/60 text-rose-100' : 'bg-emerald-950/65 border-emerald-400/55 text-emerald-100'
         }`;
       }
 
-      function renderAuthModal() {
+      function switchSaveTab(tab = 'slots') {
+        const isSlots = tab === 'slots';
+        $('panelSlots').classList.toggle('hidden', !isSlots);
+        $('panelAccount').classList.toggle('hidden', isSlots);
+        $('tabSlots').className = isSlots
+          ? 'py-2 rounded-xl text-xs font-story font-bold border transition bg-emerald-600/35 border-emerald-300 text-emerald-100'
+          : 'py-2 rounded-xl text-xs font-story font-bold border transition bg-black/35 border-white/15 text-slate-300 hover:bg-white/10';
+        $('tabAccount').className = !isSlots
+          ? 'py-2 rounded-xl text-xs font-story font-bold border transition bg-emerald-600/35 border-emerald-300 text-emerald-100'
+          : 'py-2 rounded-xl text-xs font-story font-bold border transition bg-black/35 border-white/15 text-slate-300 hover:bg-white/10';
+        if (isSlots) renderSlotsList();
+        else renderAccountPanel();
+      }
+
+      function renderAccountPanel() {
         syncAuthButtons();
-        deleteConfirmArmed = false;
+        armedDeleteAccount = false;
         const loggedIn = !!session.id;
         $('authLoginView').classList.toggle('hidden', loggedIn);
         $('authDashView').classList.toggle('hidden', !loggedIn);
-        $('authModalTitle').textContent = loggedIn ? 'TRILOGY ACCOUNT DASHBOARD' : 'TRILOGY ACCOUNT LOGIN';
-        $('authModalSub').textContent = loggedIn
-          ? '로그인한 계정에 1부 · 2부 · 3부 기록이 모두 자동 저장됩니다.'
-          : '기존 1부·2부 아이디 그대로 로그인하면 모든 기록이 통합 연동됩니다.';
-
         if (loggedIn) {
           $('dashUserId').textContent = session.id;
-          const p1 = summarizePart(1, getPartSave(1));
-          const p2 = summarizePart(2, getPartSave(2));
-          $('savePreviewInfo').innerHTML = Locale.t(
-            `<div><b>🌙 제1부 (황혼):</b> ${p1.detail}</div>` +
-            `<div><b>⭐ 제2부 (별빛):</b> ${p2.detail}</div>` +
-            `<div><b>🔮 제3부 (꿈결):</b> 추후 공개 예정</div>`
+          const used = SAVE_SLOTS.filter((s) => !!session.slots[s.key]).length;
+          const latest = Cloud.getLatestSlot(session.slots);
+          $('dashSlotSummary').innerHTML = Locale.t(
+            `<div><b>사용 중인 슬롯:</b> ${used} / ${SAVE_SLOTS.length}개</div>` +
+            `<div><b>최근 기록:</b> ${latest ? `${getArcBadge(latest.currentAct).text} · ${latest.summary || '진행 중'} (${Utils.formatTime(latest.savedAt)})` : '아직 저장된 기록이 없습니다.'}</div>`
           );
-          const inChapter = !!activeChapter;
-          $('btnCloudSave').disabled = !inChapter;
-          $('btnCloudSave').textContent = inChapter ? `💾 제${activeChapter.part}부 수동 저장` : '💾 챕터 진입 후 저장';
-          $('btnCloudDelete').classList.toggle('hidden', !inChapter);
-          $('btnCloudDelete').textContent = inChapter ? `🗑 제${activeChapter.part}부 저장 데이터 초기화` : '';
+          $('btnAccountDelete').textContent = '🗑 이 계정의 모든 저장 슬롯 삭제';
         }
       }
 
-      function openAuthModal() {
-        renderAuthModal();
+      function renderSlotsList() {
+        const list = $('saveSlotsList');
+        const slots = getActiveSlots();
+        const inGame = !!activeChapter;
+
+        $('slotStorageHint').innerHTML = session.id
+          ? `<span class="text-emerald-200">☁ 클라우드 계정 <b>[${session.id}]</b> 연결됨</span><span class="text-[10px] text-emerald-300 font-bold">자동 동기화 ON</span>`
+          : `<span>저장 위치: 브라우저 임시 슬롯 (게스트)</span><button id="btnQuickLoginTab" class="text-emerald-300 underline font-bold">클라우드 연동</button>`;
+        $('btnQuickLoginTab')?.addEventListener('click', () => switchSaveTab('account'));
+
+        list.innerHTML = '';
+        SAVE_SLOTS.forEach((slotDef) => {
+          const rec = slots[slotDef.key];
+          const row = document.createElement('div');
+          row.className = `rounded-2xl p-3 border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition ${
+            slotDef.isAuto
+              ? 'bg-indigo-950/60 border-cyan-300/45'
+              : rec
+              ? 'bg-purple-950/60 border-yellow-400/40'
+              : 'bg-black/40 border-white/10'
+          }`;
+
+          if (rec) {
+            const arc = getArcBadge(rec.currentAct || 1);
+            const delArmed = armedDeleteSlot === slotDef.key;
+            row.innerHTML = `
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center flex-wrap gap-1.5 mb-0.5">
+                  <span class="font-story font-bold text-xs ${slotDef.isAuto ? 'text-cyan-200' : 'text-yellow-200'}">${slotDef.isAuto ? '⚡ ' : '📁 '}${slotDef.label}</span>
+                  <span class="px-1.5 py-0.5 rounded-full border text-[10px] font-bold ${arc.cls}">${arc.text}</span>
+                  <span class="text-[10px] font-mono text-purple-200/75">${Utils.formatTime(rec.savedAt)}</span>
+                </div>
+                <div class="text-xs font-story text-pink-100 truncate">${Locale.t(rec.zoneName || '토모에다')} · <span class="text-amber-200">${Locale.t(rec.summary || '')}</span></div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${!slotDef.isAuto && inGame ? `<button data-save-slot="${slotDef.key}" class="px-2.5 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 border border-emerald-300/65 text-white text-[11px] font-story font-bold">덮어쓰기</button>` : ''}
+                <button data-load-slot="${slotDef.key}" class="px-2.5 py-1.5 rounded-xl bg-indigo-600/85 hover:bg-indigo-500 border border-indigo-300/65 text-white text-[11px] font-story font-bold">불러오기</button>
+                <button data-del-slot="${slotDef.key}" class="px-2 py-1.5 rounded-xl ${delArmed ? 'bg-rose-600 text-white border-rose-200' : 'bg-rose-950/70 hover:bg-rose-800 text-rose-200 border-rose-400/40'} border text-[11px] font-bold">${delArmed ? '확인' : '🗑'}</button>
+              </div>
+            `;
+          } else {
+            row.innerHTML = `
+              <div class="min-w-0 flex-1">
+                <div class="font-story font-bold text-xs ${slotDef.isAuto ? 'text-cyan-200/80' : 'text-slate-300'}">${slotDef.isAuto ? '⚡ ' : '📁 '}${slotDef.label}</div>
+                <div class="text-[11px] font-story text-slate-400 mt-0.5">${slotDef.isAuto ? '모험 진행 시 자동으로 기록됩니다.' : '비어 있는 슬롯'}</div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${!slotDef.isAuto && inGame
+                  ? `<button data-save-slot="${slotDef.key}" class="px-3 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 border border-emerald-300/65 text-white text-[11px] font-story font-bold">💾 여기 저장</button>`
+                  : `<span class="text-[10px] text-slate-500 font-story px-2">${slotDef.isAuto ? '자동 전용' : '기록 없음'}</span>`}
+              </div>
+            `;
+          }
+          list.appendChild(row);
+        });
+
+        // 슬롯 버튼 핸들러 연결
+        list.querySelectorAll('[data-save-slot]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const sk = btn.dataset.saveSlot;
+            armedDeleteSlot = '';
+            setSaveMsg(`${sk.replace('slot', '슬롯 ')}에 저장하는 중...`);
+            try {
+              await writeSlot(sk, '', true);
+              SoundFX.heal();
+              renderSlotsList();
+              setSaveMsg(`💾 ${sk.replace('slot', '슬롯 ')}에 현재 진행 상태를 저장했습니다!`);
+            } catch (err) {
+              setSaveMsg(`저장 실패: ${err.message}`, true);
+            }
+          });
+        });
+
+        list.querySelectorAll('[data-load-slot]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const sk = btn.dataset.loadSlot;
+            const rec = getActiveSlots()[sk];
+            if (!rec) return;
+            armedDeleteSlot = '';
+            closeSaveModal();
+            await loadFromSnapshot(rec);
+          });
+        });
+
+        list.querySelectorAll('[data-del-slot]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const sk = btn.dataset.delSlot;
+            if (armedDeleteSlot !== sk) {
+              armedDeleteSlot = sk;
+              renderSlotsList();
+              setSaveMsg('삭제하려면 해당 슬롯의 [확인] 버튼을 한 번 더 누르세요.', true);
+              return;
+            }
+            armedDeleteSlot = '';
+            try {
+              if (session.id) {
+                await Cloud.deleteSlot(session.id, session.secret, sk);
+                delete session.slots[sk];
+              } else {
+                Cloud.deleteLocalSlot(sk);
+              }
+              SoundFX.click();
+              refreshTitleView();
+              renderSlotsList();
+              setSaveMsg(`🗑 ${sk === 'auto' ? '자동 저장 슬롯' : sk.replace('slot', '슬롯 ')}을 비웠습니다.`);
+            } catch (err) {
+              setSaveMsg(`삭제 실패: ${err.message}`, true);
+            }
+          });
+        });
+      }
+
+      function openSaveModal(tab = 'slots') {
+        resetMoveKeys();
+        armedDeleteSlot = '';
+        armedDeleteAccount = false;
         $('saveModal').classList.replace('hidden', 'flex');
+        switchSaveTab(tab);
         SoundFX.click();
       }
-      function closeAuthModal() {
+
+      function closeSaveModal() {
         const m = $('saveModal');
         if (m.classList.contains('hidden')) return false;
-        deleteConfirmArmed = false;
+        armedDeleteSlot = '';
+        armedDeleteAccount = false;
         m.classList.replace('flex', 'hidden');
+        resetMoveKeys();
         return true;
       }
 
-      // 4. 챕터 라우터 (로비 <-> 제1부 <-> 제2부 무중단 전환)
+      // -----------------------------------------------------------------------
+      // 7. 챕터 라이프사이클 (단일 스토리 라우터)
+      // -----------------------------------------------------------------------
       function teardownActiveChapter() {
         Timers.clearAll();
         vn.finish(true);
         battle.forceClose();
         closeBookModal();
         closeWardrobeModal();
+        resetMoveKeys();
         if (activeChapter?.destroy) {
           try { activeChapter.destroy(); } catch {}
         }
         activeChapter = null;
-        keys.up = keys.down = keys.left = keys.right = false;
-        ['memoryBanner', 'btnFloatInteract', 'fieldMagicBar', 'endingBox', 'mobilePadLeft', 'mobilePadRight'].forEach((id) => $(id).classList.add('hidden'));
+        ['memoryBanner', 'btnFloatInteract', 'fieldMagicBar', 'endingBox', 'interludeOverlay', 'mobilePadLeft', 'mobilePadRight'].forEach((id) => $(id).classList.add('hidden'));
       }
 
-      function returnToLobby() {
+      function returnToTitle() {
+        if (activeChapter) autoSave('타이틀 복귀');
         teardownActiveChapter();
         $('appHeader').classList.add('hidden');
-        $('lobbyOverlay').classList.remove('hidden');
-        refreshLobbyCards();
+        $('titleOverlay').classList.remove('hidden');
+        refreshTitleView();
         syncLocaleUI();
         SoundFX.click();
+      }
+
+      async function launchAct(actNum, { actPayload = null, shared = null, fromInterlude = false } = {}) {
+        const statusEl = $('bootStatus');
+        try {
+          if (statusEl) statusEl.textContent = `✨ 제${actNum}부 이야기를 준비하는 중...`;
+          ['btnContinueLatest', 'btnStartNew', 'btnTitleSlots'].forEach((id) => { if ($(id)) $(id).disabled = true; });
+
+          const [bundle, mod] = await Promise.all([
+            Cloud.loadBundle(actNum),
+            chapterCache[actNum]
+              ? Promise.resolve(chapterCache[actNum])
+              : import(`${ENGINE_BASE}chapter${actNum}.js?v=${APP_VER}`).then((m) => {
+                  chapterCache[actNum] = m;
+                  return m;
+                })
+          ]);
+
+          teardownActiveChapter();
+          setTheme(actNum);
+          $('titleOverlay').classList.add('hidden');
+          $('appHeader').classList.remove('hidden');
+          $('mobilePadLeft').classList.remove('hidden');
+          $('mobilePadRight').classList.remove('hidden');
+
+          const factory = mod.createChapter || mod.default;
+          if (typeof factory !== 'function') throw new Error(`chapter${actNum}.js에 createChapter 함수가 없습니다.`);
+          activeChapter = factory(host, bundle.data);
+
+          campaign.currentAct = actNum;
+          if (shared) campaign.shared = { ...campaign.shared, ...shared };
+
+          activeChapter.start({
+            saved: actPayload,
+            shared: { ...campaign.shared },
+            fromInterlude
+          });
+
+          SoundFX.startBGM();
+          handleResize();
+          syncAuthButtons();
+          syncLocaleUI();
+        } catch (err) {
+          console.error(err);
+          $('appHeader').classList.add('hidden');
+          $('titleOverlay').classList.remove('hidden');
+          if (statusEl) statusEl.textContent = `⚠ 제${actNum}부 로드 실패: ${err.message}`;
+          showToast(`제${actNum}부 로드 실패: ${err.message}`);
+        } finally {
+          ['btnContinueLatest', 'btnStartNew', 'btnTitleSlots'].forEach((id) => { if ($(id)) $(id).disabled = false; });
+        }
+      }
+
+      async function loadFromSnapshot(snap) {
+        if (!snap || typeof snap !== 'object') return;
+        const act = snap.currentAct === 2 ? 2 : snap.currentAct === 3 ? 3 : 1;
+        campaign = {
+          ...createFreshCampaign(),
+          ...snap,
+          currentAct: act,
+          shared: {
+            ...createFreshCampaign().shared,
+            ...(snap.shared || {})
+          }
+        };
+        const actPayload = campaign[`act${act}`] || null;
+        await launchAct(act, { actPayload, shared: campaign.shared, fromInterlude: false });
+        const slotName = snap.slotKey === 'auto' ? '자동 저장' : (snap.slotKey ? snap.slotKey.replace('slot', '슬롯 ') : '저장 기록');
+        showToast(`⚡ [${slotName}]에서 ${getArcBadge(act).text} 모험을 이어갑니다!`);
+      }
+
+      async function startFreshChronicle() {
+        campaign = createFreshCampaign();
+        await launchAct(1, { actPayload: null, shared: campaign.shared, fromInterlude: false });
       }
 
       const host = {
@@ -859,92 +1243,82 @@
         vn,
         battle,
         keys,
+        isAnyModalOpen,
+        resetMoveKeys,
         getSession: () => session,
-        getPartSave,
-        saveChapter,
+        getCampaign: () => campaign,
+        autoSave,
         setTheme,
         showToast,
         showChapterBanner,
+        transitionToNextAct,
         showEnding,
         openBookModal,
         closeBookModal,
         openWardrobeModal,
         closeWardrobeModal,
-        openAuthModal,
-        closeAuthModal,
-        returnToLobby,
-        launchChapter,
+        openSaveModal,
+        closeSaveModal,
+        returnToTitle,
         resize: handleResize
       };
 
-      async function launchChapter(part, { mode = 'new' } = {}) {
-        const statusEl = $('bootStatus');
-        try {
-          if (statusEl) statusEl.textContent = `✨ 제${part}부 데이터와 챕터 모듈을 불러오는 중...`;
-          ['btnP1Continue', 'btnP1New', 'btnP2Continue', 'btnP2New'].forEach((id) => { if ($(id)) $(id).disabled = true; });
-
-          const [bundle, mod] = await Promise.all([
-            Cloud.loadBundle(part),
-            chapterCache[part]
-              ? Promise.resolve(chapterCache[part])
-              : import(`${ENGINE_BASE}chapter${part}.js?v=${APP_VER}`).then((m) => {
-                  chapterCache[part] = m;
-                  return m;
-                })
-          ]);
-
-          teardownActiveChapter();
-          setTheme(part);
-          $('lobbyOverlay').classList.add('hidden');
-          $('appHeader').classList.remove('hidden');
-          $('mobilePadLeft').classList.remove('hidden');
-          $('mobilePadRight').classList.remove('hidden');
-
-          const factory = mod.createChapter || mod.default;
-          if (typeof factory !== 'function') throw new Error(`chapter${part}.js에 createChapter 함수가 없습니다.`);
-          activeChapter = factory(host, bundle.data);
-
-          const saved = mode === 'continue' ? getPartSave(part) : null;
-          const p1Save = getPartSave(1);
-          activeChapter.start({ saved, part1Save: p1Save });
-
-          SoundFX.startBGM();
-          handleResize();
-          syncAuthButtons();
-          syncLocaleUI();
-        } catch (err) {
-          console.error(err);
-          $('appHeader').classList.add('hidden');
-          $('lobbyOverlay').classList.remove('hidden');
-          if (statusEl) statusEl.textContent = `⚠ 제${part}부 로드 실패: ${err.message} (chapter${part}.js 업로드 여부를 확인해 주세요)`;
-          showToast(`제${part}부 로드 실패: ${err.message}`);
-        } finally {
-          ['btnP1Continue', 'btnP1New', 'btnP2Continue', 'btnP2New'].forEach((id) => { if ($(id)) $(id).disabled = false; });
-        }
-      }
-
-      // 5. 공용 키보드 · 포인터 · 모바일 패드 · 버튼 이벤트 통합 바인딩
+      // -----------------------------------------------------------------------
+      // 8. 키보드 · 포인터 · 모바일 패드 · 버튼 통합 바인딩
+      //    (모달 열림 시 맵 이동 키 입력 완벽 차단 + 의상실 방향키 선택 지원!)
+      // -----------------------------------------------------------------------
       window.addEventListener('resize', handleResize);
-      window.addEventListener('blur', () => { keys.up = keys.down = keys.left = keys.right = false; });
+      window.addEventListener('blur', resetMoveKeys);
 
       window.addEventListener('keydown', (e) => {
         const code = e.code;
-        if (!$('saveModal').classList.contains('hidden')) {
-          if (code === 'Escape') closeAuthModal();
+
+        // 1) 입력창 포커스 중에는 Escape만 처리
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+          if (code === 'Escape') closeSaveModal();
           return;
         }
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) e.preventDefault();
 
-        if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
-        if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
-        if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
-        if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
+        // 2) 모달 / 오버레이 우선 처리 (이 구간에서는 keys.up/down/left/right 절대 켜지 않음!)
+        if (!$('saveModal').classList.contains('hidden')) {
+          if (code === 'Escape' || code === 'KeyZ') closeSaveModal();
+          return;
+        }
+        if (!$('interludeOverlay').classList.contains('hidden')) {
+          if (code === 'KeyX' || code === 'Enter' || code === 'Space') confirmInterlude();
+          return;
+        }
+        if (!$('wardrobeModal').classList.contains('hidden')) {
+          handleWardrobeKey(code);
+          return;
+        }
+        if (!$('bookModal').classList.contains('hidden')) {
+          if (code === 'KeyZ' || code === 'Escape') { closeBookModal(); SoundFX.click(); }
+          return;
+        }
+        if (!$('titleOverlay').classList.contains('hidden')) {
+          if (code === 'KeyX' || code === 'Enter') {
+            if (!$('btnContinueLatest').classList.contains('hidden') && !$('btnContinueLatest').disabled) {
+              $('btnContinueLatest').click();
+            } else if (!$('btnStartNew').disabled) {
+              $('btnStartNew').click();
+            }
+          }
+          return;
+        }
+        if (!$('endingBox').classList.contains('hidden')) {
+          if (code === 'Escape') {
+            $('endingBox').classList.add('hidden');
+            activeChapter?.onContinueAfterEnding?.();
+          }
+          return;
+        }
 
         if (!activeChapter) return;
-        if (!$('bookModal').classList.contains('hidden')) { if (code === 'KeyZ' || code === 'Escape') closeBookModal(); return; }
-        if (!$('wardrobeModal').classList.contains('hidden')) { if (code === 'KeyZ' || code === 'Escape') closeWardrobeModal(); return; }
 
+        // 3) 대화창(VN) 및 배틀 우선 처리
         if (vn.isActive()) {
           if (vn.state.waitChoice) {
             if (code === 'ArrowUp' || code === 'KeyW') vn.moveChoice(-1);
@@ -960,6 +1334,12 @@
           battle.handleKey(code);
           return;
         }
+
+        // 4) 순수 탐험 상태일 때만 이동 키 활성화
+        if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
+        if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
+        if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
+        if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
         activeChapter.onKeyDown?.(code);
       });
 
@@ -972,13 +1352,13 @@
 
       let dragId = null;
       $('worldCanvas').addEventListener('pointerdown', (e) => {
-        if (!activeChapter) return;
+        if (!activeChapter || isAnyModalOpen()) return;
         dragId = e.pointerId;
         const r = $('worldCanvas').getBoundingClientRect();
         activeChapter.onCanvasPointer?.(e.clientX - r.left, e.clientY - r.top, true);
       });
       window.addEventListener('pointermove', (e) => {
-        if (!activeChapter || dragId !== e.pointerId) return;
+        if (!activeChapter || dragId !== e.pointerId || isAnyModalOpen()) return;
         const r = $('worldCanvas').getBoundingClientRect();
         activeChapter.onCanvasPointer?.(e.clientX - r.left, e.clientY - r.top, false);
       });
@@ -987,33 +1367,46 @@
 
       document.querySelectorAll('.pad-btn').forEach((b) => {
         const d = b.dataset.dir;
-        b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); keys[d] = true; });
+        b.addEventListener('pointerdown', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (!isAnyModalOpen()) keys[d] = true;
+        });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, () => { keys[d] = false; }));
       });
       $('btnMobileX').addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        if (isAnyModalOpen()) return;
         if (vn.isActive()) vn.advance();
         else if (battle.isChantActive()) battle.completeChantStep(false);
         else if (battle.isTiming()) battle.execSeal();
         else activeChapter?.onInteract?.();
       });
       $('btnMobileZ').onclick = () => {
-        if (closeAuthModal() || closeBookModal() || closeWardrobeModal()) return;
+        if (closeSaveModal() || closeBookModal() || closeWardrobeModal()) return;
         if (vn.isActive()) vn.finish(false);
         else if (battle.isChantActive()) battle.completeChantStep(true);
         else if (battle.isTiming()) battle.cancelSeal();
       };
 
-      // 로비 & HUD & 모달 버튼 이벤트
-      $('btnLocaleLobby').onclick = () => { SoundFX.click(); Locale.toggle(); };
+      // 타이틀 & HUD & 모달 버튼 이벤트
+      $('btnLocaleTitle').onclick = () => { SoundFX.click(); Locale.toggle(); };
       $('btnLocaleHud').onclick = (e) => { e.currentTarget.blur(); SoundFX.click(); Locale.toggle(); showToast(`명칭 전환: ${Locale.label()}`); };
-      $('btnLobbyAuth').onclick = () => openAuthModal();
-      $('btnOpenSave').onclick = (e) => { e.currentTarget.blur(); openAuthModal(); };
-      $('btnCloseSave').onclick = closeAuthModal;
-      $('btnGuestClose').onclick = closeAuthModal;
-      $('saveModal').onclick = (e) => { if (e.target.id === 'saveModal') closeAuthModal(); };
+      $('btnTitleAuth').onclick = () => openSaveModal('account');
+      $('btnTitleSlots').onclick = () => openSaveModal('slots');
+      $('btnOpenSave').onclick = (e) => { e.currentTarget.blur(); openSaveModal('slots'); };
+      $('btnCloseSave').onclick = closeSaveModal;
+      $('saveModal').onclick = (e) => { if (e.target.id === 'saveModal') closeSaveModal(); };
+      $('tabSlots').onclick = () => { SoundFX.click(); switchSaveTab('slots'); };
+      $('tabAccount').onclick = () => { SoundFX.click(); switchSaveTab('account'); };
+      $('btnGoSlotsFromDash').onclick = () => { SoundFX.click(); switchSaveTab('slots'); };
 
-      $('btnBackLobby').onclick = (e) => { e.currentTarget.blur(); returnToLobby(); };
+      $('btnContinueLatest').onclick = () => {
+        const latest = Cloud.getLatestSlot(getActiveSlots());
+        if (latest) loadFromSnapshot(latest);
+      };
+      $('btnStartNew').onclick = () => startFreshChronicle();
+      $('btnBackTitle').onclick = (e) => { e.currentTarget.blur(); returnToTitle(); };
+
       $('btnOpenBook').onclick = (e) => { e.currentTarget.blur(); activeChapter?.openBook?.(); };
       $('btnCloseBook').onclick = closeBookModal;
       $('bookModal').onclick = (e) => { if (e.target.id === 'bookModal') closeBookModal(); };
@@ -1026,59 +1419,36 @@
       $('btnKeroHint').onclick = (e) => { e.currentTarget.blur(); activeChapter?.onKeroHint?.(); };
       $('btnSoundToggle').onclick = (e) => { e.currentTarget.blur(); e.currentTarget.textContent = SoundFX.toggle() ? '🎵' : '🔇'; };
 
-      $('btnP1Continue').onclick = () => launchChapter(1, { mode: 'continue' });
-      $('btnP1New').onclick = () => launchChapter(1, { mode: 'new' });
-      $('btnP2Continue').onclick = () => launchChapter(2, { mode: 'continue' });
-      $('btnP2New').onclick = () => launchChapter(2, { mode: 'new' });
-
-      $('btnEndingNextPart').onclick = () => {
-        if (!endingNextPart) return;
-        const target = endingNextPart;
-        $('endingBox').classList.add('hidden');
-        launchChapter(target, { mode: getPartSave(target) ? 'continue' : 'new' });
-      };
+      $('btnInterludeNext').onclick = confirmInterlude;
       $('btnContinueExplore').onclick = () => {
         $('endingBox').classList.add('hidden');
         activeChapter?.onContinueAfterEnding?.();
       };
-      $('btnEndingLobby').onclick = returnToLobby;
-      $('btnRestartAll').onclick = () => {
-        if (!activeChapter) return;
-        const p = activeChapter.part;
-        $('endingBox').classList.add('hidden');
-        launchChapter(p, { mode: 'new' });
-      };
+      $('btnEndingSave').onclick = () => openSaveModal('slots');
+      $('btnEndingTitle').onclick = returnToTitle;
 
-      // 통합 계정 로그인 / 수동 저장 / 로그아웃 / 2단계 안전 초기화
+      // 클라우드 계정 로그인 / 로그아웃 / 전체 삭제
       $('btnAuthSubmit').onclick = async () => {
-        setSaveMsg('3부작 통합 계정 확인 중...');
+        setSaveMsg('계정 확인 및 세이브 슬롯 불러오는 중...');
         try {
-          const res = await Cloud.loginTrilogy($('savePlayerId').value, $('saveSecret').value);
+          const res = await Cloud.loginAccount($('savePlayerId').value, $('saveSecret').value);
           session.id = res.id;
           session.secret = res.secret;
-          session.parts = res.parts;
+          session.slots = res.slots || {};
           SoundFX.seal();
-          refreshLobbyCards();
-          renderAuthModal();
+          refreshTitleView();
+          renderAccountPanel();
 
-          if (activeChapter) {
-            const p = activeChapter.part;
-            if (session.parts[p]) {
-              activeChapter.applyCloudSave?.(session.parts[p], session.parts[1]);
-              closeAuthModal();
-              showToast(`🟢 [${res.id}] 로그인 완료! 제${p}부 저장 기록을 불러왔습니다.`);
-            } else {
-              const curPayload = activeChapter.getSavePayload?.();
-              if (curPayload) await Cloud.save(p, res.id, res.secret, curPayload);
-              session.parts[p] = curPayload;
-              setSaveMsg(`✨ [${res.id}] 로그인 완료! 현재 진행도를 클라우드에 연결했습니다.`);
+          const used = SAVE_SLOTS.filter((s) => !!session.slots[s.key]).length;
+          if (res.status === 'registered') {
+            if (activeChapter) {
+              await writeSlot('auto', '계정 연결', true);
             }
+            setSaveMsg(`✨ 새 계정 [${res.id}] 생성 및 로그인 완료! 자동·수동 7슬롯을 사용할 수 있습니다.`);
           } else {
-            const hasAny = !!(res.parts[1] || res.parts[2]);
-            setSaveMsg(hasAny
-              ? `🟢 [${res.id}] 로그인 완료! 로비에서 이어할 챕터를 선택하세요.`
-              : `✨ 새 통합 계정 [${res.id}] 생성 완료! 1부·2부 진행도가 자동 저장됩니다.`);
+            setSaveMsg(`🟢 [${res.id}] 로그인 완료! (${used}개의 저장 슬롯을 불러왔습니다)`);
           }
+          switchSaveTab('slots');
         } catch (err) {
           setSaveMsg(`로그인 실패: ${err.message}`, true);
         }
@@ -1088,57 +1458,44 @@
         const oldId = session.id;
         session.id = '';
         session.secret = '';
-        session.parts = { 1: null, 2: null, 3: null };
+        session.slots = {};
         $('savePlayerId').value = '';
         $('saveSecret').value = '';
         SoundFX.click();
-        refreshLobbyCards();
-        renderAuthModal();
+        refreshTitleView();
+        renderAccountPanel();
         setSaveMsg(`[${oldId}] 계정에서 로그아웃되었습니다.`);
       };
 
-      $('btnCloudSave').onclick = async () => {
-        if (!session.id || !activeChapter) return;
-        setSaveMsg(`제${activeChapter.part}부 기록을 저장 중...`);
-        try {
-          const payload = activeChapter.getSavePayload();
-          await Cloud.save(activeChapter.part, session.id, session.secret, payload);
-          session.parts[activeChapter.part] = { ...payload, updatedAt: Date.now() };
-          SafeStore.setJSON(`sakura_part${activeChapter.part}_autosave`, payload);
-          SoundFX.heal();
-          refreshLobbyCards();
-          renderAuthModal();
-          setSaveMsg(`💾 [${session.id}] 제${activeChapter.part}부 수동 저장 완료!`);
-        } catch (err) {
-          setSaveMsg(`저장 실패: ${err.message}`, true);
-        }
-      };
-
-      $('btnCloudDelete').onclick = async () => {
-        if (!session.id || !activeChapter) return;
-        const p = activeChapter.part;
-        if (!deleteConfirmArmed) {
-          deleteConfirmArmed = true;
-          $('btnCloudDelete').textContent = `⚠ 정말 삭제하시겠습니까? 한 번 더 누르면 제${p}부가 초기화됩니다`;
-          setSaveMsg(`주의: 제${p}부 저장 데이터만 삭제됩니다. 진행하려면 버튼을 한 번 더 누르세요.`, true);
+      $('btnAccountDelete').onclick = async () => {
+        if (!session.id) return;
+        if (!armedDeleteAccount) {
+          armedDeleteAccount = true;
+          $('btnAccountDelete').textContent = '⚠ 정말 삭제할까요? 한 번 더 누르면 모든 슬롯이 삭제됩니다';
+          setSaveMsg('주의: 이 계정의 7개 세이브 슬롯 전체가 삭제됩니다. 진행하려면 다시 누르세요.', true);
           return;
         }
-        deleteConfirmArmed = false;
-        setSaveMsg(`제${p}부 데이터 초기화 중...`);
+        armedDeleteAccount = false;
+        setSaveMsg('계정 데이터 삭제 중...');
         try {
-          await Cloud.del(p, session.id, session.secret);
-          SafeStore.remove(`sakura_part${p}_autosave`);
-          session.parts[p] = null;
+          const cid = await Cloud.deleteAccount(session.id, session.secret);
+          session.id = '';
+          session.secret = '';
+          session.slots = {};
+          $('savePlayerId').value = '';
+          $('saveSecret').value = '';
           SoundFX.click();
-          closeAuthModal();
-          returnToLobby();
-          showToast(`🗑 제${p}부 저장 데이터를 초기화했습니다.`);
+          refreshTitleView();
+          renderAccountPanel();
+          setSaveMsg(`🗑 [${cid}] 계정의 모든 저장 슬롯을 삭제했습니다.`);
         } catch (err) {
-          setSaveMsg(`초기화 실패: ${err.message}`, true);
+          setSaveMsg(`삭제 실패: ${err.message}`, true);
         }
       };
 
-      // 6. 메인 애니메이션 루프
+      // -----------------------------------------------------------------------
+      // 9. 메인 애니메이션 루프 & 초기 공용 아트 프리로드
+      // -----------------------------------------------------------------------
       let lastT = performance.now();
       function loop(now) {
         const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
@@ -1149,14 +1506,12 @@
         requestAnimationFrame(loop);
       }
 
-      // 7. 초기 공용 아트 프리로드 & 로비 활성화
       try {
         $('bootStatus').textContent = '☁ 고퀄리티 공용 아트(인물·건물·카드)를 불러오는 중...';
         await Cloud.ensureSharedArt(true, false);
-        $('bootStatus').textContent = `✨ 공용 엔진 & 고퀄리티 아트 준비 완료! (${APP_VER}) — 챕터를 선택하세요`;
-        ['btnP1Continue', 'btnP1New', 'btnP2Continue', 'btnP2New'].forEach((id) => { $(id).disabled = false; });
-        refreshLobbyCards();
-        syncAuthButtons();
+        $('bootStatus').textContent = `✨ 모든 준비가 완료되었습니다! (${APP_VER})`;
+        ['btnContinueLatest', 'btnStartNew', 'btnTitleSlots'].forEach((id) => { if ($(id)) $(id).disabled = false; });
+        refreshTitleView();
         syncLocaleUI();
         handleResize();
       } catch (err) {
@@ -1166,7 +1521,7 @@
       requestAnimationFrame(loop);
     }
 
-    bootTrilogy();
+    bootChronicle();
   </script>
 </body>
 </html>
