@@ -97,6 +97,15 @@ export function createChapter(host, DATA) {
     inc_ruby: 'eclipse_cape'
   };
 
+  const MAP_GROUPS = {
+    house: ['house', 'house_f1', 'house_b1', 'house_f2'],
+    house_f1: ['house_f1', 'house_b1', 'house_f2'],
+    school: ['school', 'school_f1', 'school_f2', 'school_hall'],
+    school_f1: ['school_f1', 'school_f2', 'school_hall'],
+    shrine: ['shrine', 'shrine_gate', 'shrine_main', 'shrine_cave'],
+    shrine_gate: ['shrine_gate', 'shrine_main', 'shrine_cave']
+  };
+
   // --------------------------------------------------------------------------
   // 2. 제2부 상태 변수
   // --------------------------------------------------------------------------
@@ -270,6 +279,14 @@ export function createChapter(host, DATA) {
     if (n.id === 'eriol' && isFinalUnlocked()) return false;
     return true;
   }
+
+  /** 유키토(청명) 반투명도 계산 (0.38 -> 1.0, 변환 진행도에 비례해 선명해짐!) */
+  function getYukitoAlpha() {
+    if (eriolDefeated) return 1.0;
+    const ratio = clamp(sakuraCards.size / Math.max(1, CARD_ORDER.length), 0, 1);
+    return Number((0.38 + ratio * 0.62).toFixed(2));
+  }
+
   /** 단일 캠페인 공유 상태(1부 해금 의상 · 리폼 의상 · 친밀도 · 추억) 계승 반영 */
   function applySharedState(shared) {
     if (!shared || typeof shared !== 'object') return;
@@ -342,56 +359,6 @@ export function createChapter(host, DATA) {
     anomaly.penguinY = 850;
     anomaly.mirrorTrail = [];
     anomaly.illusionDecoys.forEach((d) => { d.popped = false; });
-  }
-
-  /** 단일 캠페인 공유 상태(1부 해금 의상 · 친밀도 · 추억) 계승 반영 */
-  function applySharedState(shared) {
-    if (!shared || typeof shared !== 'object') return;
-    toArr(shared.unlockedCostumes).forEach((cid) => story.unlockedCostumes.add(cid));
-    if (shared.costumeId && COSTUMES.some((c) => c.id === shared.costumeId)) {
-      story.costumeId = shared.costumeId;
-    }
-    const trust = Number(shared.syaoranTrust) || 0;
-    if (trust > story.syaoranTrust) story.syaoranTrust = trust;
-
-    if (shared.part1Cleared || shared.firstSealedCard || shared.hadMirror) {
-      part1Link.linked = true;
-      part1Link.firstCard = shared.firstSealedCard || part1Link.firstCard || 'fly';
-      part1Link.lastCard = shared.lastSealedCard || part1Link.lastCard || 'light';
-      part1Link.syaoranTrust = Math.max(part1Link.syaoranTrust, trust);
-      part1Link.yueDefeated = !!shared.part1Cleared || part1Link.yueDefeated;
-      part1Link.hadMirror = !!shared.hadMirror || part1Link.hadMirror;
-    }
-  }
-
-  function recalcPower(healBonus = false) {
-    const prevMaxHp = player.maxHp;
-    const prevMaxMp = player.maxMp;
-    const stats = Rules.calcStats({
-      part: 2,
-      progressCount: sakuraCards.size,
-      total: CARD_ORDER.length || 19,
-      costumeId: story.costumeId,
-      part1Linked: part1Link.linked,
-      progCfg: DATA?.progression
-    });
-    player.lv = stats.lv;
-    player.maxHp = stats.maxHp;
-    player.maxMp = stats.maxMp;
-    player.mult = stats.mult;
-    if (healBonus) {
-      if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
-      if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
-    }
-    player.hp = clamp(player.hp, 1, player.maxHp);
-    player.mp = clamp(player.mp, 0, player.maxMp);
-  }
-
-  function getMoveSpeed() {
-    let s = 245 + (sakuraCards.has('jump') ? 22 : 0);
-    s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
-    if (buffs.fly > 0 || buffs.flyLand) s *= (sakuraCards.has('fly') ? 1.7 : 1.55);
-    return s;
   }
 
   function getZoneName() {
@@ -591,6 +558,7 @@ export function createChapter(host, DATA) {
     kero.x = player.x - 28;
     kero.y = player.y - 20;
     placeTomoyoNearPlayer();
+    Object.assign(buffs, {
       fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, glowAcc: 0,
       wind: 0, shield: !!saved.shield, snackBuff: false, cocoaBuff: false
     });
@@ -1261,29 +1229,6 @@ export function createChapter(host, DATA) {
       // 동행 중인 토모요는 카드·사건·포털과 겹칠 때 방해되지 않도록 우선순위 소폭 완화
       const score = n.id === 'tomoyo' ? d + 18 : d;
       if (d < 88 && score < bestScore) { bestScore = score; nearbyTarget = { type: 'npc', obj: { ...n, x: np.x, y: np.y } }; }
-    }
-    for (const n of NPCS) {
-      if (!isNpcVisible(n)) continue;
-      const d = Math.hypot(player.x - n.x, player.y - n.y);
-      if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; }
-    }
-    for (const inc of INCIDENTS) {
-      if (!isIncidentActive(inc) || inc.map !== currentMapId) continue;
-      const pos = getIncidentPos(inc);
-      const d = Math.hypot(player.x - pos.x, player.y - pos.y);
-      if (d < best + 12) { best = d; nearbyTarget = { type: 'incident', obj: { ...inc, isIncident: true, x: pos.x, y: pos.y } }; }
-    }
-    for (const id of CARD_ORDER) {
-      if (!isCardActiveOnMap(id)) continue;
-      const c = CARDS[id];
-      if (!c || c.map !== currentMapId) continue;
-      const pos = getCardPos(c);
-      const d = Math.hypot(player.x - pos.x, player.y - pos.y);
-      if (d < best) { best = d; nearbyTarget = { type: 'card', obj: { ...c, x: pos.x, y: pos.y } }; }
-    }
-    if (isFinalUnlocked() && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map) {
-      const d = Math.hypot(player.x - BOSS_ERIOL.x, player.y - BOSS_ERIOL.y);
-      if (d < best + 14) { best = d; nearbyTarget = { type: 'boss', obj: BOSS_ERIOL }; }
     }
 
     const btn = $('btnFloatInteract');
