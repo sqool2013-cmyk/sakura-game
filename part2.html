@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>카드캡터: 별빛의 토모에다 — 제2부 사쿠라 카드 편</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100dvh; overflow: hidden; background: #170829; color: #fdf4ff; font-family: 'Noto Sans KR', sans-serif; }
+    .font-magic { font-family: 'Cinzel', serif; }
+    .font-story { font-family: 'Gowun Batang', serif; }
+    .viewport-stage { position: relative; flex: 1 1 auto; width: 100%; min-height: 0; overflow: hidden; background: #1c0b33; }
+    #worldCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+    #battleVfxCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+    @keyframes floatSlow { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes shakeHit { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 50% { transform: translateX(7px); } 75% { transform: translateX(-4px); } }
+    @keyframes cardFlipIn { 0% { transform: scale(0.55) rotateY(90deg); opacity: 0.2; } 100% { transform: scale(1) rotateY(0deg); opacity: 1; } }
+    .animate-float { animation: floatSlow 3.2s ease-in-out infinite; }
+    .animate-spin-slow { animation: spinSlow 24s linear infinite; }
+    .shake-hit { animation: shakeHit 0.34s ease-in-out; }
+    .card-flip-in { animation: cardFlipIn 0.72s ease-out forwards; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15,7,36,0.5); }
+    ::-webkit-scrollbar-thumb { background: rgba(244,114,182,0.55); border-radius: 999px; }
+    ruby.card-ruby { ruby-position: over; line-height: 1.85; }
+    ruby.card-ruby rt { font-size: 0.62em; color: #fbcfe8; font-weight: 600; }
+    .glass { background: linear-gradient(180deg, rgba(36,12,56,0.95), rgba(16,6,32,0.98)); border: 1.5px solid rgba(249,168,212,0.58); box-shadow: 0 12px 35px rgba(0,0,0,0.74); }
+    .clow-frame { background: linear-gradient(160deg, #43182b 0%, #240c1f 55%, #3d182d 100%); border: 2px solid #eab308; box-shadow: 0 12px 32px rgba(0,0,0,0.78), inset 0 0 16px rgba(250,204,21,0.26); }
+    .sakura-frame { background: linear-gradient(160deg, #831843 0%, #4a0828 55%, #701a4a 100%); border: 2px solid #fbcfe8; box-shadow: 0 12px 34px rgba(244,114,182,0.5), inset 0 0 18px rgba(254,240,138,0.28); }
+    .manifest-stage { background: radial-gradient(circle at 50% 45%, rgba(219,39,119,0.38), rgba(18,6,36,0.86) 72%); border: 1.5px solid rgba(251,207,232,0.62); box-shadow: 0 0 38px rgba(244,114,182,0.45); }
+    .chant-backdrop { background-color: #140522; background-image: radial-gradient(circle at 50% 42%, rgba(74,14,68,0.98), rgba(14,4,26,0.99) 74%); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .title-backdrop { background: linear-gradient(180deg, rgba(34,10,56,0.93) 0%, rgba(52,14,74,0.89) 50%, rgba(15,5,30,0.96) 100%); backdrop-filter: blur(4px); }
+    .ending-backdrop { background: linear-gradient(180deg, rgba(36,10,56,0.96) 0%, rgba(62,16,74,0.96) 50%, rgba(16,5,30,0.98) 100%); backdrop-filter: blur(10px); }
+    .modal-backdrop { background: rgba(8,3,20,0.85); backdrop-filter: blur(8px); }
+    #sealCursor { left: 0; top: 0; bottom: 0; width: 10px; will-change: transform; transform: translate3d(0,0,0); }
+  </style>
+</head>
+<body class="flex flex-col h-[100dvh] w-screen overflow-hidden">
+
+  <!-- 상단 HUD -->
+  <header class="shrink-0 z-30 bg-gradient-to-r from-[#280d42] via-[#3a1254] to-[#280d42] border-b border-pink-300/45 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+    <div class="flex flex-col min-w-0">
+      <div class="flex items-center gap-1.5">
+        <span id="hudHeroName" class="font-story font-bold text-pink-200 text-sm sm:text-base">사쿠라</span>
+        <span id="hudMagicLv" class="px-1.5 py-0.5 rounded-full bg-pink-500/25 border border-pink-300/70 text-yellow-200 text-[11px] font-bold">★ 별마력 Lv.1</span>
+        <span id="hudTrustBadge" class="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-[10px] font-bold">⚡친밀 2</span>
+        <span id="hudZone" class="hidden md:inline-block text-xs text-pink-100/90 font-story truncate max-w-[170px]">별빛의 토모에다</span>
+      </div>
+      <div class="flex items-center gap-2 mt-1">
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] font-bold text-rose-300 w-5">HP</span>
+          <div class="w-20 sm:w-24 h-2.5 bg-black/60 rounded-full overflow-hidden border border-rose-400/45"><div id="hudHpBar" class="h-full bg-gradient-to-r from-rose-500 to-pink-400 transition-all duration-300" style="width:100%"></div></div>
+          <span id="hudHpNum" class="text-[10px] text-rose-100 font-mono">105/105</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] font-bold text-sky-300 w-5">MP</span>
+          <div class="w-20 sm:w-24 h-2.5 bg-black/60 rounded-full overflow-hidden border border-sky-400/45"><div id="hudMpBar" class="h-full bg-gradient-to-r from-fuchsia-400 via-pink-400 to-yellow-300 transition-all duration-300" style="width:100%"></div></div>
+          <span id="hudMpNum" class="text-[10px] text-sky-100 font-mono">135/135</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hidden lg:flex flex-col items-center text-center px-2 max-w-md">
+      <span id="hudActLabel" class="font-magic text-[10px] tracking-[0.2em] text-pink-200/90">PART II · THE SAKURA CARD ARC</span>
+      <span id="hudQuest" class="text-xs font-story text-yellow-100 truncate max-w-md">기묘한 사건을 돌파하며 크로우 카드를 사쿠라 카드로 변환하라</span>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <button id="btnLocaleHud" title="원작명(사쿠라) / 국내 번안명(체리) 전환" class="px-2 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 border border-rose-300/55 text-rose-100 text-xs font-bold transition">🌸 사쿠라</button>
+      <button id="btnOpenBook" class="px-2.5 py-1.5 rounded-xl bg-pink-500/25 hover:bg-pink-500/40 border border-pink-300/65 text-pink-100 text-xs font-bold flex items-center gap-1 transition">
+        <span>🌸</span><span id="hudBookLabel" class="hidden sm:inline">사쿠라 북</span>
+        <span id="hudCardCount" class="px-1.5 rounded bg-black/40 text-yellow-200">★ 0/19</span>
+      </button>
+      <button id="btnOpenWardrobe" class="px-2 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-pink-300/55 text-pink-100 text-xs font-bold transition" title="마법 의상실">🎀<span class="hidden sm:inline ml-1">의상</span></button>
+      <button id="btnOpenSave" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[115px] truncate">👤 로그인</button>
+      <button id="btnKeroHint" class="px-2 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-yellow-400/50 text-yellow-100 text-xs font-bold transition">🐾</button>
+      <button id="btnSoundToggle" class="px-2 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/50 text-indigo-100 text-xs font-bold transition">🎵</button>
+    </div>
+  </header>
+
+  <!-- 메인 뷰포트 -->
+  <main class="viewport-stage" id="viewportStage">
+    <canvas id="worldCanvas"></canvas>
+    <div id="mapFade" class="absolute inset-0 bg-[#0b0418] opacity-0 pointer-events-none transition-opacity duration-200 z-20"></div>
+
+    <!-- 기억 돌아보기 배너 -->
+    <div id="memoryBanner" class="hidden absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-fuchsia-950/90 border border-pink-300/80 shadow-xl">
+      <span id="memoryBannerText" class="text-xs font-story text-pink-100 font-bold">✨ 별빛 기억 회상 중</span>
+      <button id="btnExitMemory" class="px-2.5 py-1 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold">↩ 현재 마을로 돌아가기</button>
+    </div>
+
+    <!-- 챕터 배너 & 토스트 -->
+    <div id="chapterBanner" class="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none opacity-0 transition-opacity duration-500">
+      <div class="px-6 py-2.5 rounded-full bg-black/80 border border-pink-300/75 text-center shadow-2xl">
+        <div id="chapterSub" class="font-magic text-[10px] tracking-[0.28em] text-yellow-300">PART II</div>
+        <div id="chapterTitle" class="font-story text-sm sm:text-base font-bold text-pink-100">별빛의 토모에다</div>
+      </div>
+    </div>
+
+    <div id="toastBox" class="absolute top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 transition-opacity duration-300 max-w-[92%]">
+      <div id="toastText" class="px-4 py-2 rounded-2xl bg-[#240a3d]/95 border border-pink-300/70 text-yellow-100 text-xs sm:text-sm font-story shadow-xl text-center"></div>
+    </div>
+
+    <!-- 상호작용 버튼 & 필드 마법 퀵바 -->
+    <button id="btnFloatInteract" class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 z-[25] px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-600 border-2 border-yellow-200 text-white font-story font-bold text-sm shadow-2xl animate-bounce">조사하기 (X)</button>
+
+    <div id="fieldMagicBar" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 rounded-2xl bg-[#1b0830]/90 border border-pink-300/50 flex items-center gap-1.5 shadow-2xl max-w-[94vw] overflow-x-auto">
+      <span class="hidden sm:inline text-[10px] font-magic text-pink-200/85 px-1 shrink-0">STAR</span>
+      <div id="fieldMagicSlots" class="flex items-center gap-1.5"></div>
+    </div>
+
+    <!-- 모바일 조작 패드 -->
+    <div class="md:hidden absolute bottom-16 left-3 z-20 grid grid-cols-3 gap-1 w-28 h-28 opacity-80">
+      <div></div><button data-dir="up" class="pad-btn rounded-xl bg-black/60 border border-pink-300/45 text-pink-200 font-bold">▲</button><div></div>
+      <button data-dir="left" class="pad-btn rounded-xl bg-black/60 border border-pink-300/45 text-pink-200 font-bold">◀</button><div></div><button data-dir="right" class="pad-btn rounded-xl bg-black/60 border border-pink-300/45 text-pink-200 font-bold">▶</button>
+      <div></div><button data-dir="down" class="pad-btn rounded-xl bg-black/60 border border-pink-300/45 text-pink-200 font-bold">▼</button><div></div>
+    </div>
+    <div class="md:hidden absolute bottom-16 right-3 z-20 flex flex-col gap-2 opacity-85">
+      <button id="btnMobileX" class="w-12 h-12 rounded-full bg-pink-600/85 border-2 border-yellow-200 text-white font-bold text-sm shadow-lg">X</button>
+      <button id="btnMobileZ" class="w-12 h-12 rounded-full bg-slate-800/85 border border-slate-400 text-slate-200 font-bold text-sm shadow-lg">Z</button>
+    </div>
+
+    <!-- 비주얼 노벨 대화창 -->
+    <div id="vnOverlay" class="hidden absolute inset-0 z-[35] flex flex-col justify-end p-3 sm:p-5 bg-gradient-to-t from-black/70 via-transparent to-transparent">
+      <div id="vnChoices" class="hidden max-w-2xl w-full mx-auto mb-3 flex flex-col gap-2"></div>
+      <div class="max-w-3xl w-full mx-auto glass rounded-3xl p-3.5 sm:p-5 flex items-center gap-3.5 sm:gap-5 cursor-pointer">
+        <div id="vnPortrait" class="shrink-0 w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-purple-950/90 border-2 border-pink-300/75 overflow-hidden flex items-center justify-center shadow-inner"></div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2">
+              <span id="vnSpeaker" class="font-story font-bold text-base sm:text-lg text-yellow-200">사쿠라</span>
+              <span id="vnRole" class="font-magic text-[10px] tracking-widest px-2 py-0.5 rounded-full bg-pink-500/25 border border-pink-300/50 text-pink-100">STAR MASTER</span>
+            </div>
+            <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+              <button id="btnAutoVN" class="px-2 py-0.5 rounded-lg text-[11px] font-bold border border-slate-500 bg-slate-800/70 text-slate-300">AUTO OFF</button>
+              <button id="btnSkipVN" class="px-2 py-0.5 rounded-lg text-[11px] font-bold border border-slate-400/50 bg-slate-700/50 hover:bg-slate-600/60 text-slate-200">SKIP (Z)</button>
+            </div>
+          </div>
+          <p id="vnText" class="font-story text-sm sm:text-base leading-relaxed text-pink-50 min-h-[3.2rem]"></p>
+          <div class="flex justify-end mt-1"><span class="text-[11px] text-pink-200/85 animate-pulse">계속: X / 클릭 · 건너뛰기: Z</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 전략 배틀 & 실시간 ★사쿠라 카드 변환 오버레이 -->
+    <div id="battleOverlay" class="hidden absolute inset-0 z-40 bg-gradient-to-b from-[#1a072e] via-[#2b0c46] to-[#0d041a] flex flex-col overflow-hidden">
+      <canvas id="battleVfxCanvas"></canvas>
+      <div class="relative z-10 px-4 pt-5 pb-2.5 border-b border-pink-300/35 bg-black/35 flex items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center flex-wrap gap-2">
+            <span id="battleEnemyName" class="font-story font-bold text-base sm:text-lg text-pink-100"></span>
+            <span id="battleEnemyTag" class="text-[10px] font-bold px-2 py-0.5 rounded-full"></span>
+            <span id="battlePhaseBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/35 border border-pink-200 text-pink-100">PHASE 1</span>
+          </div>
+          <p id="battleWeakHint" class="text-[11px] sm:text-xs text-amber-200/90 font-story mt-0.5"></p>
+        </div>
+        <button id="btnBattleFlee" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-400/50 text-slate-200 text-xs font-bold">물러나기</button>
+      </div>
+
+      <div class="relative z-10 flex-1 flex flex-col items-center justify-center p-3 gap-2.5 min-h-0 overflow-y-auto">
+        <div id="battleIntentBanner" class="px-3.5 py-1.5 rounded-full bg-black/60 border border-pink-300/55 text-xs font-story text-pink-100 shadow-lg text-center max-w-xl"></div>
+        <div class="flex flex-col items-center">
+          <div id="battleStatusBadges" class="flex flex-wrap justify-center gap-1.5 mb-2 min-h-[22px]"></div>
+          <div id="battleEnemyVisual" class="w-44 h-48 sm:w-56 sm:h-60 rounded-3xl manifest-stage p-2 flex flex-col items-center justify-center animate-float"></div>
+          <div class="w-60 sm:w-72 mt-2.5">
+            <div class="flex justify-between text-xs mb-1"><span class="text-pink-200 font-story">시련 저항력</span><span id="battleEnemyHpText" class="font-mono text-yellow-200">100 / 100</span></div>
+            <div class="h-3 bg-black/70 rounded-full overflow-hidden border border-pink-300/55"><div id="battleEnemyHpBar" class="h-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-400 transition-all duration-300" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="w-full max-w-2xl px-4 py-2 rounded-2xl bg-black/50 border border-pink-300/35 text-center">
+          <p id="battleLog" class="font-story text-xs sm:text-sm text-pink-50 leading-relaxed"></p>
+        </div>
+
+        <!-- 무딜레이 별빛 변환 / 돌파 타이밍 게이지 -->
+        <div id="sealTimingBox" class="hidden w-full max-w-md glass rounded-2xl p-3.5 text-center">
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span id="sealGaugeTitle" class="font-magic text-pink-200 tracking-widest">STAR TRANSFORMATION CIRCLE</span>
+            <span id="sealGaugeMeta" class="font-story text-yellow-200 font-bold"></span>
+          </div>
+          <p id="sealGaugeDesc" class="font-story text-xs text-pink-100 mb-2">빛나는 별빛 구역에 맞춰 <b>X</b> 또는 <b>실행</b>을 누르세요 (취소: Z)</p>
+          <div id="sealTrack" class="relative h-6 bg-black/75 rounded-full border border-pink-300/75 overflow-hidden mb-3">
+            <div id="sealSweetZone" class="absolute top-0 bottom-0 bg-gradient-to-r from-pink-400/45 via-yellow-200/90 to-pink-400/45 border-x-2 border-yellow-100"></div>
+            <div id="sealCursor" class="absolute bg-pink-400 shadow-[0_0_12px_#f472b6] rounded-full"></div>
+          </div>
+          <div class="flex justify-center gap-2">
+            <button id="btnExecuteSeal" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-400 text-white font-bold text-sm shadow-lg active:scale-95">★ 실행! (X)</button>
+            <button id="btnCancelSeal" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 font-bold text-sm">취소 (Z)</button>
+          </div>
+        </div>
+
+        <!-- 카드 선택 패널 (실시간 ★변환 해방 + 일반 사용 지원) -->
+        <div id="battleCardPicker" class="hidden w-full max-w-3xl glass rounded-2xl p-3 max-h-60 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <span id="battlePickerTitle" class="font-story text-xs sm:text-sm font-bold text-pink-200">카드 선택 (X: ★변환·해방 / C: 일반 / Z: 닫기)</span>
+            <button id="btnClosePicker" class="text-xs px-2 py-0.5 rounded bg-white/10 text-pink-200">닫기</button>
+          </div>
+          <div id="battleCardGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- 하단 커맨드 -->
+      <div class="relative z-10 px-3 sm:px-5 py-3 border-t border-pink-300/35 bg-[#150626]/95">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <div class="flex items-center flex-wrap gap-2 w-full sm:w-auto justify-center">
+            <div id="battleSakuraBuffs" class="flex flex-wrap gap-1"></div>
+            <div class="text-xs font-mono flex items-center gap-3">
+              <span class="text-rose-300">HP <b id="battleSakuraHp">105/105</b></span>
+              <span class="text-sky-300">MP <b id="battleSakuraMp">135/135</b></span>
+            </div>
+          </div>
+          <div class="flex flex-wrap justify-center gap-1.5 w-full sm:w-auto">
+            <button id="btnCmdWand" class="px-3 py-2 rounded-xl bg-pink-600/85 hover:bg-pink-500 border border-pink-200/70 text-white text-xs font-bold">⭐ 별의 지팡이<span class="block text-[10px] font-normal text-pink-100">MP 0 일격</span></button>
+            <button id="btnCmdCard" class="px-3 py-2 rounded-xl bg-fuchsia-700/85 hover:bg-fuchsia-600 border border-fuchsia-300/65 text-white text-xs font-bold">🃏 카드 해방<span class="block text-[10px] font-normal text-fuchsia-100">★실시간 변환</span></button>
+            <button id="btnCmdFocus" class="px-3 py-2 rounded-xl bg-sky-700/85 hover:bg-sky-600 border border-sky-300/60 text-white text-xs font-bold">🛡 방어·호흡<span class="block text-[10px] font-normal text-sky-100">피해65%↓+MP</span></button>
+            <button id="btnCmdSyaoran" class="hidden px-3 py-2 rounded-xl bg-emerald-600/85 hover:bg-emerald-500 border border-emerald-300 text-white text-xs font-bold disabled:opacity-40">⚡ 샤오랑 원호<span class="block text-[10px] font-normal text-emerald-100">결계파괴·뇌제</span></button>
+            <button id="btnCmdSeal" class="px-3 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-amber-500 hover:brightness-110 border border-yellow-200 text-white text-xs font-bold disabled:opacity-40"><span id="btnSealMain">★ 사건 돌파!</span><span id="btnSealSub" class="block text-[10px] font-normal text-yellow-100">저항력 50%↓</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 주문 영창 시네마틱 -->
+      <div id="chantOverlay" class="hidden absolute inset-0 z-[60] chant-backdrop flex flex-col items-center justify-center p-5 text-center cursor-pointer">
+        <div class="relative flex items-center justify-center mb-4">
+          <div class="w-56 h-56 sm:w-64 sm:h-64 rounded-full border-2 border-dashed border-pink-300/75 animate-spin-slow absolute pointer-events-none"></div>
+          <div id="chantCardVisual" class="w-36 h-52 sm:w-44 sm:h-64 rounded-2xl sakura-frame p-2 relative z-10 flex items-center justify-center"></div>
+        </div>
+        <p id="chantSubLabel" class="font-magic text-[11px] tracking-[0.3em] text-pink-200 mb-2">STAR RELEASE · BECOME MY SAKURA CARD</p>
+        <p id="chantText" class="font-story text-sm sm:text-lg text-pink-50 max-w-xl leading-relaxed min-h-[3.5rem] mb-2"></p>
+        <p id="chantSubQuote" class="font-story text-xs sm:text-sm text-yellow-200/95 max-w-lg min-h-[1.6rem] mb-5"></p>
+        <div class="flex items-center gap-3">
+          <button id="btnChantDone" class="hidden px-6 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-400 border-2 border-yellow-200 text-white font-story font-bold text-sm shadow-xl">사쿠라 카드 거두기 (X / 클릭)</button>
+          <button id="btnChantSkip" class="px-4 py-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700 border border-slate-400/50 text-slate-200 text-xs font-bold">연출 건너뛰기 (Z)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 타이틀 화면 -->
+    <div id="titleBox" class="absolute inset-0 z-[45] title-backdrop flex items-center justify-center p-4">
+      <div class="max-w-lg w-full glass rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden">
+        <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full border border-pink-300/25 animate-spin-slow pointer-events-none"></div>
+        <div class="flex justify-center mb-3">
+          <button id="btnLocaleTitle" class="px-3.5 py-1 rounded-full bg-rose-500/25 hover:bg-rose-500/40 border border-pink-300/60 text-pink-100 text-xs font-bold transition">명칭 모드: 🌸 사쿠라 (원작명) ⇄ 전환</button>
+        </div>
+        <p id="titlePartBadge" class="font-magic text-xs tracking-[0.32em] text-pink-200/90 mb-1.5">PART II · THE SAKURA CARD ARC</p>
+        <h1 id="titleMainHeading" class="font-story text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-yellow-200 to-fuchsia-200 mb-3">카드캡터: 별빛의 토모에다</h1>
+        <p id="titleSubDesc" class="font-story text-xs sm:text-sm text-pink-100/90 leading-relaxed mb-4">
+          크로우의 마력이 옅어지며 사라질 위기에 놓인 카드와 유키토.<br/>
+          정체 모를 기묘한 사건 속에서, 전투 중 실시간 <b>★ 사쿠라 카드 변환</b>으로 별빛을 깨우세요!
+        </p>
+        <div class="bg-black/35 rounded-2xl p-3 mb-4 text-left text-xs text-pink-100 space-y-1 border border-pink-300/30">
+          <div>• <b>이동</b>: 방향키 / WASD / 맵 클릭·드래그 · <b>확인·조사</b>: <span class="text-yellow-200 font-bold">X</span></div>
+          <div>• <b>취소·닫기·스킵</b>: <span class="text-yellow-200 font-bold">Z</span> · <b>필드 카드</b>: <span class="text-pink-300 font-bold">1 ~ 6</span></div>
+          <div>• <b>제2부 핵심</b>: 사건 보스전 중 <b>[🃏 카드 해방]</b>으로 크로우 카드를 실시간 각성!</div>
+        </div>
+        <div id="bootStatus" class="text-xs font-story text-amber-200 mb-3">☁ Firebase에서 제2부 하이브리드 데이터와 고퀄리티 아트를 불러오는 중...</div>
+        <button id="btnStartGame" disabled class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 disabled:opacity-45 border-2 border-yellow-200 text-white font-story font-bold text-base shadow-2xl transition">⭐ 별의 지팡이 깨우기 (X)</button>
+        <div class="grid grid-cols-2 gap-2 mt-2.5">
+          <button id="btnLocalContinue" class="hidden py-2.5 rounded-2xl bg-fuchsia-700/50 hover:bg-fuchsia-600/65 border border-pink-300/60 text-pink-100 font-story font-bold text-xs">⚡ 최근 제2부 이어하기</button>
+          <button id="btnTitleLoad" class="col-span-2 py-2.5 rounded-2xl bg-emerald-600/30 hover:bg-emerald-500/45 border border-emerald-300/60 text-emerald-100 font-story font-bold text-xs">👤 계정 로그인 / 1부 연동</button>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-pink-200/75">
+          <span>PART II · HYBRID ARC</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-pink-300/45 text-yellow-200 font-bold">v.0.1.0-b</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 제2부 그랜드 피날레 엔딩 화면 -->
+    <div id="endingBox" class="hidden absolute inset-0 z-[45] ending-backdrop flex items-center justify-center p-4">
+      <div class="max-w-xl w-full glass rounded-3xl p-6 sm:p-8 text-center">
+        <p class="font-magic text-xs tracking-[0.35em] text-yellow-200 mb-2">PART II CLEAR · MASTER OF THE STAR</p>
+        <h2 id="endingHeading" class="font-story text-2xl sm:text-3xl font-bold text-pink-100 mb-3">별의 주인과 열아홉 장의 사쿠라 카드</h2>
+        <p id="endingSummary" class="font-story text-sm text-pink-100/90 leading-relaxed mb-6"></p>
+        <div class="flex flex-wrap gap-2.5 justify-center">
+          <button id="btnContinueExplore" class="px-5 py-3 rounded-2xl bg-fuchsia-600/85 hover:bg-fuchsia-500 border border-pink-200/70 text-white font-story font-bold text-sm">별빛 마을 둘러보기</button>
+          <button id="btnRestartAll" class="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-yellow-300/60 text-yellow-100 font-story font-bold text-sm">제2부 처음부터 다시하기</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 사쿠라/체리 북 모달 (기억 돌아보기 지원) -->
+  <div id="bookModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-5xl max-h-[88dvh] bg-gradient-to-b from-[#3d1145] to-[#160626] border-2 border-pink-300/80 rounded-3xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-pink-300/35 bg-black/30">
+        <div>
+          <h2 id="bookModalTitle" class="font-magic text-lg sm:text-xl font-bold text-pink-200 tracking-wider">THE SAKURA BOOK</h2>
+          <p id="bookSubDesc" class="text-xs text-yellow-100 font-story">사쿠라 카드로 각성한 카드는 [✨ 기억 돌아보기]로 공명 시련을 다시 체험할 수 있습니다 · 닫기(Z)</p>
+        </div>
+        <button id="btnCloseBook" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
+      </div>
+      <div id="bookGrid" class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- 마법 의상실 모달 (8벌 + 원클릭 홍차 회복) -->
+  <div id="wardrobeModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-2xl glass rounded-3xl p-5 flex flex-col gap-3 max-h-[86dvh] overflow-hidden">
+      <div class="flex items-center justify-between border-b border-pink-300/35 pb-3 gap-2">
+        <div>
+          <h2 id="wardrobeTitle" class="font-story text-lg font-bold text-pink-200">🎀 토모요의 마법 의상실</h2>
+          <p class="text-xs text-yellow-100/85 font-story">의상을 갈아입으면 맵 위 외형과 전략 패시브가 즉시 적용됩니다! · 닫기(Z)</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btnWardrobeHeal" class="px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-yellow-300/65 text-yellow-100 text-xs font-story font-bold transition">☕ 홍차 회복</button>
+          <button id="btnCloseWardrobe" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
+        </div>
+      </div>
+      <div id="wardrobeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- 계정 로그인 & 대시보드 모달 (1부 기록 자동 연동 포함) -->
+  <div id="saveModal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-3 sm:p-5">
+    <div class="w-full max-w-md glass rounded-3xl p-5 sm:p-6 flex flex-col gap-3.5">
+      <div class="flex items-center justify-between border-b border-pink-300/35 pb-3">
+        <div>
+          <h2 id="authModalTitle" class="font-magic text-base sm:text-lg font-bold text-emerald-300 tracking-wider">ACCOUNT LOGIN · PART II</h2>
+          <p id="authModalSub" class="text-[11px] text-pink-100/85 font-story">1부와 같은 아이디로 로그인하면 제1부 기록이 자동 연동됩니다.</p>
+        </div>
+        <button id="btnCloseSave" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-200 font-bold">✕</button>
+      </div>
+
+      <!-- 로그인 전 화면 -->
+      <div id="authLoginView" class="flex flex-col gap-3">
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label for="savePlayerId" class="block text-yellow-200 font-bold mb-1">아이디 (한글·영문 자유)</label>
+            <input id="savePlayerId" type="text" maxlength="24" placeholder="1부와 같은 ID 추천" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-yellow-300/45 text-white text-sm focus:outline-none focus:border-pink-400 select-text" />
+          </div>
+          <div>
+            <label for="saveSecret" class="block text-pink-200 font-bold mb-1">비밀번호 (4~16자)</label>
+            <input id="saveSecret" type="password" maxlength="16" placeholder="자유 암호 / 기존 PIN" class="w-full px-3 py-2 rounded-xl bg-black/55 border border-pink-300/45 text-white text-sm focus:outline-none focus:border-yellow-200 select-text" />
+          </div>
+        </div>
+        <button id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 border border-emerald-300/75 text-white font-story font-bold text-sm shadow-lg">🔓 로그인 / 새 계정 만들기</button>
+        <button id="btnGuestClose" class="w-full py-2 rounded-xl bg-slate-800/75 hover:bg-slate-700/80 border border-slate-500/50 text-slate-200 font-story text-xs">게스트로 계속하기 (브라우저 임시 저장)</button>
+      </div>
+
+      <!-- 로그인 후 대시보드 화면 -->
+      <div id="authDashView" class="hidden flex flex-col gap-3">
+        <div class="rounded-2xl bg-emerald-950/55 border border-emerald-400/50 p-3.5 flex items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="dashUserId" class="font-bold text-sm text-emerald-100"></span>
+            </div>
+            <div class="text-[11px] text-emerald-200/85 font-story mt-0.5">☁ 클라우드 자동 저장 활성화됨</div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-300/50 text-[10px] font-bold text-emerald-100">ONLINE</span>
+        </div>
+        <div id="savePreviewInfo" class="rounded-2xl bg-black/40 border border-pink-300/30 p-3 text-xs font-story text-pink-100 leading-relaxed"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnCloudSave" class="py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-300/70 text-white font-story font-bold text-sm">💾 수동 저장</button>
+          <button id="btnAuthLogout" class="py-2.5 rounded-xl bg-slate-700/85 hover:bg-slate-600 border border-slate-400/55 text-slate-100 font-story font-bold text-sm">🚪 로그아웃</button>
+        </div>
+        <button id="btnImportPart1" class="py-2 rounded-xl bg-pink-600/35 hover:bg-pink-600/50 border border-pink-300/60 text-pink-100 font-story text-xs font-bold">🔗 이 계정의 제1부 기록 다시 연동하기</button>
+        <button id="btnCloudDelete" class="py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/45 text-rose-200 font-story text-xs font-bold">🗑 제2부 저장 데이터 초기화</button>
+      </div>
+
+      <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
+      <div class="flex items-center justify-between text-[10px] font-mono text-pink-200/70">
+        <span>SAKURA CLOUD ARCHIVE · PART II</span>
+        <span id="modalVersionBadge">v.0.1.0-b</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 제2부 하이브리드 컨트롤러 (core.js + world.js + battle.js 통합) -->
+  <script type="module">
+    async function loadEngines() {
+      const candidates = [];
+      const isHttp = /^https?:$/i.test(window.location.protocol);
+      if (isHttp) {
+        try { candidates.push(new URL('./', window.location.href).href); } catch {}
+      }
+      candidates.push(
+        'https://sqool2013-cmyk.github.io/sakura-game/',
+        'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
+      );
+      let lastErr = null;
+      const cacheBust = '?v=0.1.0-b';
+      for (const base of candidates) {
+        try {
+          // core.js는 world.js/battle.js의 './core.js'와 동일한 단일 인스턴스를 공유하도록 쿼리 없이 로드
+          const [coreMod, worldMod, battleMod] = await Promise.all([
+            import(`${base}core.js`),
+            import(`${base}world.js${cacheBust}`),
+            import(`${base}battle.js${cacheBust}`)
+          ]);
+          return { ...coreMod, ...worldMod, ...battleMod };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error('공용 엔진(core.js, world.js, battle.js)을 불러오지 못했습니다.');
+    }
+
+    async function initApp() {
+      const bootEl = document.getElementById('bootStatus');
+      let engines;
+      try {
+        if (bootEl) bootEl.textContent = '☁ 공용 게임 엔진(core · world · battle)을 불러오는 중...';
+        engines = await loadEngines();
+      } catch (err) {
+        if (bootEl) bootEl.textContent = `⚠ 공용 엔진 로드 실패: ${err.message}`;
+        return;
+      }
+
+      const {
+        SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud,
+        createWorldEngine, createVNEngine, createBattleEngine
+      } = engines;
+
+      const { $, toArr, clamp, cardName, cardRuby } = Utils;
+      const APP_VER = 'v.0.1.0-b';
+      if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
+      if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
+      SoundFX.setTheme(2);
+
+      // 1. 제2부 게임 상태 초기화
+      let DATA = null;
+      let CARDS = {}, CARD_ORDER = [], MAPS = {}, ZONES = [], NPCS = [], INCIDENTS = [], BOSS_ERIOL = null, QUICK_SLOTS = [], COSTUMES = [];
+      let mode = 'title';
+      let sakuraCards = new Set();
+      let clearedIncidents = new Set();
+      let eriolDefeated = false;
+      let shownActs = new Set();
+      let currentMapId = 'town', portalCd = 0, encCd = 0, nearbyTarget = null, pendingTarget = null;
+      let cloudCreds = { id: '', secret: '' };
+      let memoryMode = { active: false, cardId: null, snapshot: null };
+
+      const story = {
+        syaoranTrust: 2,
+        convertedOrder: [],
+        seenMilestones: new Set(),
+        metEriol: false,
+        costumeId: 'sakura_dress'
+      };
+      const part1Link = {
+        linked: false,
+        firstCard: '',
+        lastCard: '',
+        syaoranTrust: 0,
+        yueDefeated: false,
+        hadMirror: false
+      };
+
+      const player = { x: 385, y: 465, dir: 'down', hp: 105, maxHp: 105, mp: 135, maxMp: 135, lv: 1, mult: 1.05, walk: 0, targetPos: null };
+      const kero = { x: 355, y: 445, bob: 0 };
+      const buffs = { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, glowAcc: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false };
+      const anomaly = {
+        jumpX: 515, jumpY: 935, jumpHop: 0, jumpBind: 0,
+        glowX: 790, glowY: 545,
+        penguinX: 355, penguinY: 850,
+        mirrorTrail: [],
+        // 학교 1층 도서실(illusion 위치 225, 225 주변) 가짜 환영 분신
+        illusionDecoys: [
+          { x: 145, y: 205, name: '토모요?', hair: '#3b0764', dress: '#c084fc', popped: false },
+          { x: 315, y: 215, name: '케로?', hair: '#facc15', dress: '#fde047', popped: false }
+        ]
+      };
+
+      const FALLBACK_COSTUMES = [
+        {
+          id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', unlockType: 'default', unlockHint: '기본 지급 의상',
+          dressColor: '#ec4899', accentColor: '#fef08a', hatType: 'beret', hatColor: '#e11d48',
+          passive: '최대 MP +5', tomoyoQuote: '별의 지팡이와 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+        }
+      ];
+
+      const world = createWorldEngine($('worldCanvas'));
+      const vn = createVNEngine({
+        onModeChange: (m) => { mode = m; updateFieldBar(); },
+        onTrustDelta: (delta) => { story.syaoranTrust = Math.max(0, story.syaoranTrust + delta); updateHUD(true); }
+      });
+      const battle = createBattleEngine({
+        part: 2,
+        getData: () => DATA,
+        getCards: () => CARDS,
+        getCardOrder: () => CARD_ORDER,
+        getPlayer: () => player,
+        getOwnedCards: () => new Set(CARD_ORDER),
+        getSakuraCards: () => sakuraCards,
+        getCostumeId: () => story.costumeId,
+        getSyaoranTrust: () => story.syaoranTrust,
+        getFieldBuffs: () => buffs,
+        onHUDUpdate: () => updateHUD(true),
+        onModeChange: (m) => { mode = m; updateFieldBar(); },
+        onLiveCardConverted: handleLiveCardConverted,
+        onVictory: (target) => {
+          if (target.isBoss) finishEriolVictory();
+          else if (target.isIncident) finishIncidentClear(target);
+          else finishResonanceTransform(target);
+        },
+        onDefeat: handleDefeat,
+        onFlee: () => { encCd = 2.0; showToast('잠시 물러나 별의 마력을 재정비합니다.'); }
+      });
+
+      // 2. 핵심 헬퍼 · 10개 맵 그룹 · 최종장 조건 · 성장 곡선
+      const getMap = () => MAPS[currentMapId] || MAPS.town;
+      const getNonFinalIds = () => CARD_ORDER.filter((id) => !CARDS[id]?.finalOnly);
+      const isFinalUnlocked = () => {
+        if (eriolDefeated || memoryMode.active) return false;
+        const allIncCleared = INCIDENTS.every((inc) => clearedIncidents.has(inc.id));
+        const allNonFinalAwakened = getNonFinalIds().every((id) => sakuraCards.has(id));
+        return allIncCleared && allNonFinalAwakened;
+      };
+      const isCardActiveOnMap = (id) => {
+        if (memoryMode.active) return memoryMode.cardId === id;
+        const c = CARDS[id];
+        if (!c || c.finalOnly) return false;
+        return !sakuraCards.has(id);
+      };
+      const isIncidentActive = (inc) => !memoryMode.active && !clearedIncidents.has(inc.id);
+      const getIncidentPos = (inc) => inc.id === 'inc_penguin' ? { x: anomaly.penguinX, y: anomaly.penguinY } : { x: inc.x, y: inc.y };
+      const getCardPos = (c) => c.id === 'jump' ? { x: anomaly.jumpX, y: anomaly.jumpY } : c.id === 'glow' ? { x: anomaly.glowX, y: anomaly.glowY } : { x: c.x, y: c.y };
+
+      const MAP_GROUPS = {
+        house: ['house', 'house_f1', 'house_b1', 'house_f2'],
+        house_f1: ['house_f1', 'house_b1', 'house_f2'],
+        school: ['school', 'school_f1', 'school_f2', 'school_hall'],
+        school_f1: ['school_f1', 'school_f2', 'school_hall'],
+        shrine: ['shrine', 'shrine_gate', 'shrine_main', 'shrine_cave'],
+        shrine_gate: ['shrine_gate', 'shrine_main', 'shrine_cave']
+      };
+
+      function countTargetsInMap(mid) {
+        const targets = (currentMapId === 'town' && MAP_GROUPS[mid]) ? MAP_GROUPS[mid] : [mid];
+        const incCnt = INCIDENTS.filter((inc) => isIncidentActive(inc) && targets.includes(inc.map)).length;
+        const cardCnt = CARD_ORDER.filter((id) => isCardActiveOnMap(id) && targets.includes(CARDS[id]?.map)).length;
+        return incCnt + cardCnt;
+      }
+
+      const getCostumeObj = () => {
+        const list = Array.isArray(COSTUMES) && COSTUMES.length ? COSTUMES : FALLBACK_COSTUMES;
+        return list.find((c) => c.id === story.costumeId) || list[0];
+      };
+
+      function recalcPower(healBonus = false) {
+        const prevMaxHp = player.maxHp;
+        const prevMaxMp = player.maxMp;
+        const stats = Rules.calcStats({
+          part: 2,
+          progressCount: sakuraCards.size,
+          total: CARD_ORDER.length || 19,
+          costumeId: story.costumeId,
+          part1Linked: part1Link.linked,
+          progCfg: DATA?.progression
+        });
+        player.lv = stats.lv;
+        player.maxHp = stats.maxHp;
+        player.maxMp = stats.maxMp;
+        player.mult = stats.mult;
+        if (healBonus) {
+          if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
+          if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
+        }
+        player.hp = clamp(player.hp, 1, player.maxHp);
+        player.mp = clamp(player.mp, 0, player.maxMp);
+      }
+
+      function getMoveSpeed() {
+        let s = 245 + (sakuraCards.has('jump') ? 22 : 0);
+        s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
+        if (buffs.fly > 0 || buffs.flyLand) s *= (sakuraCards.has('fly') ? 1.7 : 1.55);
+        return s;
+      }
+
+      /**
+       * 원작 동일체 고증 방어:
+       * - 마을 맵에는 유키토(청명)만 표시하고 중복 유에 NPC는 숨김 (유에는 대화 이벤트로 변신 등장)
+       * - 최종장 개방 시 학교 앞 에리오르 숨김 (시계탑 보스로 이동)
+       */
+      function isNpcVisible(n) {
+        if (n.map !== currentMapId) return false;
+        if (n.id === 'yue' && NPCS.some((x) => x.id === 'yukito')) return false;
+        if (n.id === 'eriol' && isFinalUnlocked()) return false;
+        return true;
+      }
+
+      /** 유키토(청명) 반투명도 계산 (0.38 -> 1.0, 변환 진행도에 비례해 선명해짐!) */
+      function getYukitoAlpha() {
+        if (eriolDefeated) return 1.0;
+        const ratio = clamp(sakuraCards.size / Math.max(1, CARD_ORDER.length), 0, 1);
+        return Number((0.38 + ratio * 0.62).toFixed(2));
+      }
+
+      function resetAnomalyPositions() {
+        if (CARDS.jump) { anomaly.jumpX = CARDS.jump.x; anomaly.jumpY = CARDS.jump.y; anomaly.jumpBind = 0; }
+        if (CARDS.glow) { anomaly.glowX = CARDS.glow.x; anomaly.glowY = CARDS.glow.y; }
+        anomaly.penguinX = 355;
+        anomaly.penguinY = 850;
+        anomaly.mirrorTrail = [];
+        anomaly.illusionDecoys.forEach((d) => { d.popped = false; });
+      }
+
+      function syncLocaleUI() {
+        document.title = Locale.t('카드캡터: 별빛의 토모에다 — 제2부 사쿠라 카드 편');
+        $('hudHeroName').textContent = Locale.t('사쿠라');
+        $('hudBookLabel').textContent = Locale.t('사쿠라 북');
+        $('btnLocaleHud').textContent = Locale.shortLabel();
+        $('btnLocaleTitle').textContent = `명칭 모드: ${Locale.label()} ⇄ 전환`;
+        $('titlePartBadge').textContent = Locale.t('PART II · THE SAKURA CARD ARC');
+        $('titleMainHeading').textContent = Locale.t('카드캡터: 별빛의 토모에다');
+        $('titleSubDesc').innerHTML = Locale.t('크로우의 마력이 옅어지며 사라질 위기에 놓인 카드와 유키토.<br/>정체 모를 기묘한 사건 속에서, 전투 중 실시간 <b>★ 사쿠라 카드 변환</b>으로 별빛을 깨우세요!');
+        $('wardrobeTitle').textContent = Locale.t('🎀 토모요의 마법 의상실');
+        $('bookModalTitle').textContent = Locale.t('THE SAKURA BOOK');
+        $('endingHeading').textContent = Locale.t('별의 주인과 열아홉 장의 사쿠라 카드');
+        vn.refreshLocale();
+        if (battle.isActive()) battle.updateUI();
+        if (DATA && !$('bookModal').classList.contains('hidden')) openBookModal(true);
+        if (DATA && !$('wardrobeModal').classList.contains('hidden')) openWardrobeModal(true);
+        updateHUD(true);
+        updateFieldBar();
+      }
+      Locale.onChange(syncLocaleUI);
+
+      // 3. 1부 기록 연동 · 저장 · 불러오기 · 자동 저장
+      function applyPart1Record(p1Data) {
+        if (!p1Data || typeof p1Data !== 'object') return false;
+        const st = p1Data.story || p1Data.storyState || {};
+        const order = toArr(st.sealedOrder);
+        const ownedP1 = new Set(toArr(p1Data.ownedCards));
+        part1Link.linked = true;
+        part1Link.firstCard = order[0] || 'fly';
+        part1Link.lastCard = order[order.length - 1] || 'light';
+        part1Link.syaoranTrust = Number(st.syaoranTrust) || 0;
+        part1Link.yueDefeated = !!p1Data.yueDefeated;
+        part1Link.hadMirror = ownedP1.has('mirror') || part1Link.yueDefeated;
+        if (part1Link.syaoranTrust > story.syaoranTrust) {
+          story.syaoranTrust = part1Link.syaoranTrust;
+        }
+        recalcPower(true);
+        return true;
+      }
+
+      function tryLocalPart1Link() {
+        const localP1 = SafeStore.getJSON('sakura_part1_autosave');
+        if (localP1) applyPart1Record(localP1);
+      }
+
+      async function tryCloudPart1Link(id, secret) {
+        if (!id || !secret) return false;
+        try {
+          const p1 = typeof Cloud.loadPart1 === 'function'
+            ? await Cloud.loadPart1(id, secret)
+            : await Cloud.load(1, id, secret);
+          if (p1) return applyPart1Record(p1);
+        } catch {}
+        return false;
+      }
+
+      function buildSavePayload() {
+        const s = memoryMode.active && memoryMode.snapshot ? memoryMode.snapshot : null;
+        return {
+          version: 4, part: 2,
+          eriolDefeated: s ? s.eriolDefeated : eriolDefeated,
+          currentMapId: s ? s.currentMapId : currentMapId,
+          sakuraCards: Array.from(s ? s.sakuraCards : sakuraCards),
+          clearedIncidents: Array.from(s ? s.clearedIncidents : clearedIncidents),
+          shownActs: Array.from(shownActs),
+          story: {
+            syaoranTrust: story.syaoranTrust,
+            convertedOrder: story.convertedOrder.slice(),
+            seenMilestones: Array.from(story.seenMilestones),
+            metEriol: !!story.metEriol,
+            costumeId: story.costumeId
+          },
+          part1Link: { ...part1Link },
+          player: { x: Math.round(s ? s.px : player.x), y: Math.round(s ? s.py : player.y), hp: Math.ceil(player.hp), mp: Math.ceil(player.mp) },
+          shield: !!buffs.shield
+        };
+      }
+
+      function autoSave(reason = '') {
+        if (memoryMode.active) return;
+        const payload = buildSavePayload();
+        SafeStore.setJSON('sakura_part2_autosave', payload);
+        if (cloudCreds.id && cloudCreds.secret) {
+          Cloud.save(2, cloudCreds.id, cloudCreds.secret, payload)
+            .then(() => showToast(`☁ 자동 저장 완료${reason ? ` (${reason})` : ''}`))
+            .catch(() => {});
+        }
+      }
+
+      function applySavePayload(saved) {
+        if (!saved || typeof saved !== 'object') throw new Error('저장 데이터가 올바르지 않습니다.');
+        Timers.clearAll();
+        vn.finish(true);
+        battle.forceClose();
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+
+        sakuraCards = new Set(toArr(saved.sakuraCards));
+        clearedIncidents = new Set(toArr(saved.clearedIncidents));
+        eriolDefeated = !!saved.eriolDefeated;
+        shownActs = new Set(toArr(saved.shownActs));
+        const st = saved.story || {};
+        story.syaoranTrust = Math.max(2, Number(st.syaoranTrust) || 2);
+        story.convertedOrder = toArr(st.convertedOrder);
+        story.seenMilestones = new Set(toArr(st.seenMilestones));
+        story.metEriol = !!st.metEriol;
+        story.costumeId = st.costumeId || 'sakura_dress';
+        if (saved.part1Link && saved.part1Link.linked) Object.assign(part1Link, saved.part1Link);
+
+        currentMapId = MAPS[saved.currentMapId] ? saved.currentMapId : 'town';
+        recalcPower(false);
+        const p = saved.player || {}, cur = getMap();
+        player.x = clamp(Number(p.x) || 385, 40, cur.w - 40);
+        player.y = clamp(Number(p.y) || 465, 40, cur.h - 40);
+        player.hp = clamp(Number(p.hp) || player.maxHp, 1, player.maxHp);
+        player.mp = clamp(Number(p.mp) || player.maxMp, 0, player.maxMp);
+        player.targetPos = null; pendingTarget = null;
+        kero.x = player.x - 28; kero.y = player.y - 20;
+        Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: !!saved.shield, snackBuff: false, cocoaBuff: false });
+        resetAnomalyPositions();
+
+        ['titleBox', 'endingBox'].forEach((id) => $(id).classList.add('hidden'));
+        mode = 'explore';
+        SoundFX.startBGM();
+        handleResize();
+        updateHUD(true);
+        updateFieldBar();
+      }
+
+      // 4. 사쿠라/체리 북 · 기억 돌아보기 · 마법 의상실 (8벌)
+      function enterMemoryMode(cardId) {
+        const c = CARDS[cardId]; if (!c) return;
+        closeBookModal(); Timers.clearAll();
+        if (!memoryMode.active) {
+          memoryMode.snapshot = {
+            currentMapId, px: player.x, py: player.y, hp: player.hp, mp: player.mp,
+            sakuraCards: new Set(sakuraCards), clearedIncidents: new Set(clearedIncidents), eriolDefeated
+          };
+        }
+        memoryMode.active = true; memoryMode.cardId = cardId;
+        resetAnomalyPositions();
+        currentMapId = MAPS[c.map] ? c.map : 'town';
+        const cur = getMap();
+        player.x = clamp(c.x - 90, 60, cur.w - 60);
+        player.y = clamp(c.y + 60, 60, cur.h - 60);
+        kero.x = player.x - 26; kero.y = player.y - 18;
+        player.targetPos = null; pendingTarget = null; encCd = 1.2;
+        $('memoryBannerText').textContent = Locale.t(`✨ [${cardName(c)}] 별빛 각성 기억 회상 중`);
+        $('memoryBanner').classList.remove('hidden');
+        mode = 'explore'; handleResize(); updateHUD(true); updateFieldBar();
+        showToast(`✨ [${cardName(c)}]를 사쿠라 카드로 깨워내던 그날의 기억으로 돌아왔습니다!`);
+      }
+
+      function exitMemoryMode() {
+        if (!memoryMode.active) return;
+        Timers.clearAll(); vn.finish(true); battle.forceClose();
+        const s = memoryMode.snapshot;
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+        if (s) {
+          currentMapId = s.currentMapId; player.x = s.px; player.y = s.py;
+          player.hp = s.hp; player.mp = s.mp; sakuraCards = s.sakuraCards;
+          clearedIncidents = s.clearedIncidents; eriolDefeated = s.eriolDefeated;
+          kero.x = player.x - 26; kero.y = player.y - 18;
+        }
+        mode = 'explore'; handleResize(); updateHUD(true); updateFieldBar();
+        showToast('현재의 별빛 토모에다 마을로 돌아왔습니다.');
+      }
+
+      function openBookModal(silent = false) {
+        if (!DATA) return;
+        const grid = $('bookGrid'); grid.innerHTML = '';
+        $('bookSubDesc').textContent = Locale.t(`사쿠라 카드 각성 진행도: ★ ${sakuraCards.size}/${CARD_ORDER.length} · 각성 완료 카드는 [✨ 기억 돌아보기] 가능 · 닫기(Z)`);
+        CARD_ORDER.forEach((id) => {
+          const c = CARDS[id]; if (!c) return;
+          const isSak = sakuraCards.has(id);
+          const badge = isSak
+            ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-pink-500/35 text-pink-100 border border-pink-300/75">★ ${Locale.isKr() ? '체리' : '사쿠라'}</span>`
+            : c.finalOnly
+            ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/35 text-sky-200 border border-sky-300/50">최종장</span>'
+            : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-400/45">크로우</span>';
+          const mpDisp = isSak ? Math.max(6, c.mpCost - 2) : c.mpCost;
+          const div = document.createElement('div');
+          div.className = `rounded-2xl p-2.5 flex flex-col items-center text-center border transition ${isSak ? 'bg-gradient-to-b from-fuchsia-950/90 to-rose-950/85 border-pink-300/80 shadow-lg' : 'bg-black/45 border-yellow-500/30 opacity-85'}`;
+          div.innerHTML = `
+            <div class="w-24 h-36 mb-2">${Art.getCard(c, isSak)}</div>
+            <div class="flex items-center gap-1 mb-0.5"><span class="font-story font-bold text-sm ${isSak ? 'text-pink-200' : 'text-yellow-200'}">${cardRuby(c)}</span>${badge}</div>
+            <div class="text-[11px] ${isSak ? 'text-yellow-200' : 'text-slate-300'} font-semibold">${Locale.t(c.skillName)} (MP ${mpDisp})${isSak ? ' ★공명' : ''}</div>
+            <p class="text-[10px] text-purple-100/85 font-story mt-1 mb-2 leading-snug flex-1">${Locale.t(isSak ? c.desc : `${DATA.mapAreaLabels?.[c.map] || ''} · ${c.rumor || ''}`)}</p>
+            ${isSak
+              ? `<button data-replay="${id}" class="w-full py-1.5 rounded-xl bg-pink-600/45 hover:bg-pink-500/65 border border-pink-200/70 text-pink-50 text-[11px] font-story font-bold transition">✨ 기억 돌아보기</button>`
+              : `<div class="w-full py-1 rounded-xl bg-black/35 border border-white/10 text-[10px] text-amber-200/85 font-story">${Locale.t(c.finalOnly ? '최종장 동시 각성' : (c.zone || '전투 실시간 ★변환'))}</div>`}`;
+          grid.appendChild(div);
+        });
+        grid.querySelectorAll('[data-replay]').forEach((b) => b.addEventListener('click', () => enterMemoryMode(b.dataset.replay)));
+        $('bookModal').classList.replace('hidden', 'flex');
+        if (!silent) SoundFX.click();
+      }
+      const closeBookModal = () => { const m = $('bookModal'); if (m.classList.contains('hidden')) return false; m.classList.replace('flex', 'hidden'); return true; };
+
+      function openWardrobeModal(silent = false) {
+        if (!DATA) return;
+        const grid = $('wardrobeGrid'); grid.innerHTML = '';
+        const list = Array.isArray(COSTUMES) && COSTUMES.length ? COSTUMES : FALLBACK_COSTUMES;
+        list.forEach((cos) => {
+          const unlocked = Rules.isCostumeUnlocked(cos, {
+            sakuraCards,
+            clearedIncidents,
+            part1Linked: part1Link.linked,
+            bossCleared: eriolDefeated
+          });
+          const equipped = story.costumeId === cos.id;
+          const card = document.createElement('div');
+          card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${equipped ? 'bg-pink-900/45 border-yellow-300 shadow-lg' : unlocked ? 'bg-purple-950/75 border-pink-300/40' : 'bg-black/45 border-white/10 opacity-65'}`;
+          card.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="font-story font-bold text-sm text-yellow-200">${Locale.t(cos.name)}</span>
+                <span class="w-4 h-4 rounded-full border border-white/70" style="background:${cos.dressColor}"></span>
+              </div>
+              <div class="text-xs font-bold text-emerald-300 mb-1">✦ ${Locale.t(cos.passive)}</div>
+              <p class="text-[11px] font-story text-pink-100/90 leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : `🔒 해금 조건: ${cos.unlockHint}`)}</p>
+            </div>
+            <button ${!unlocked || equipped ? 'disabled' : ''} data-cos="${cos.id}" class="w-full py-2 rounded-xl text-xs font-story font-bold transition ${equipped ? 'bg-yellow-400/25 border border-yellow-300 text-yellow-200' : unlocked ? 'bg-pink-600 hover:bg-pink-500 text-white' : 'bg-slate-800 text-slate-400'}">${equipped ? '✨ 현재 착용 중' : unlocked ? '이 의상으로 갈아입기' : '미해금'}</button>`;
+          grid.appendChild(card);
+        });
+        grid.querySelectorAll('[data-cos]').forEach((b) => b.addEventListener('click', () => {
+          story.costumeId = b.dataset.cos;
+          recalcPower(false);
+          SoundFX.heal();
+          autoSave('의상 변경');
+          updateHUD(true);
+          openWardrobeModal(true);
+          showToast(`🎀 [${getCostumeObj().name}] 착용 완료! 패시브 효과가 적용됩니다.`);
+        }));
+        $('wardrobeModal').classList.replace('hidden', 'flex');
+        if (!silent) SoundFX.click();
+      }
+      const closeWardrobeModal = () => { const m = $('wardrobeModal'); if (m.classList.contains('hidden')) return false; m.classList.replace('flex', 'hidden'); return true; };
+
+      // 5. HUD & 필드 퀵바 & 길잡이 목표
+      let lastHudSig = '', toastId = null;
+      function syncAuthButton() {
+        const btn = $('btnOpenSave');
+        if (!btn) return;
+        if (cloudCreds.id) {
+          btn.textContent = `🟢 ${cloudCreds.id}`;
+          btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/45 border border-emerald-300 text-emerald-100 text-xs font-bold transition max-w-[125px] truncate';
+        } else {
+          btn.textContent = '👤 로그인';
+          btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/55 text-emerald-100 text-xs font-bold transition max-w-[115px] truncate';
+        }
+      }
+      function showToast(msg) {
+        $('toastText').textContent = Locale.t(msg);
+        $('toastBox').style.opacity = '1';
+        Timers.clear(toastId);
+        toastId = Timers.after(() => { $('toastBox').style.opacity = '0'; }, 3400);
+      }
+
+      function showChapter(sub, title) {
+        if (shownActs.has(sub)) return;
+        shownActs.add(sub);
+        $('chapterSub').textContent = sub;
+        $('chapterTitle').textContent = Locale.t(title);
+        $('chapterBanner').style.opacity = '1';
+        Timers.after(() => { $('chapterBanner').style.opacity = '0'; }, 2900);
+      }
+
+      function getZoneName() {
+        if (currentMapId !== 'town') return getMap()?.name || '별빛의 토모에다';
+        for (const z of ZONES) if (player.x >= z.x && player.x <= z.x + z.w && player.y >= z.y && player.y <= z.y + z.h) return z.name;
+        return '별빛의 토모에다';
+      }
+
+      function findPortalToward(targetMap) {
+        const portals = toArr(getMap()?.portals);
+        return portals.find((p) => p.targetMap === targetMap)
+          || portals.find((p) => MAP_GROUPS[p.targetMap]?.includes(targetMap))
+          || portals.find((p) => p.targetMap === 'town')
+          || portals[0];
+      }
+
+      function getNextObjective() {
+        if (!DATA) return null;
+        if (memoryMode.active && CARDS[memoryMode.cardId]) {
+          const mc = CARDS[memoryMode.cardId];
+          const pos = getCardPos(mc);
+          return { ...mc, x: pos.x, y: pos.y };
+        }
+        // 1순위: 기묘한 5대 사건
+        const remInc = INCIDENTS.filter(isIncidentActive);
+        if (remInc.length > 0) {
+          const here = remInc.filter((inc) => inc.map === currentMapId);
+          if (here.length > 0) {
+            let best = here[0], bestD = Infinity;
+            for (const inc of here) {
+              const p = getIncidentPos(inc), d = Math.hypot(p.x - player.x, p.y - player.y);
+              if (d < bestD) { bestD = d; best = { ...inc, isIncident: true, x: p.x, y: p.y }; }
+            }
+            return best;
+          }
+          const ti = remInc[0];
+          const pt = findPortalToward(ti.map);
+          return pt ? { isPortal: true, x: pt.x, y: pt.y, zone: ti.zone, targetIncident: ti } : { ...ti, isIncident: true };
+        }
+        // 2순위: 남은 비최종 카드 별빛 공명 지점 (17장 완료까지)
+        const remCards = getNonFinalIds().filter((id) => !sakuraCards.has(id)).map((id) => CARDS[id]);
+        if (remCards.length > 0) {
+          const here = remCards.filter((c) => c.map === currentMapId);
+          if (here.length > 0) {
+            let best = here[0], bestD = Infinity;
+            for (const c of here) {
+              const p = getCardPos(c), d = Math.hypot(p.x - player.x, p.y - player.y);
+              if (d < bestD) { bestD = d; best = { ...c, x: p.x, y: p.y }; }
+            }
+            return best;
+          }
+          const tc = remCards[0];
+          const pt = findPortalToward(tc.map);
+          return pt ? { isPortal: true, x: pt.x, y: pt.y, zone: tc.zone, targetCard: tc } : tc;
+        }
+        // 3순위: 최종장 에리오르 결전
+        if (!eriolDefeated && BOSS_ERIOL) {
+          if (currentMapId !== 'town') {
+            const pt = findPortalToward('town');
+            return pt ? { isPortal: true, isBoss: true, x: pt.x, y: pt.y, zone: BOSS_ERIOL.zone, targetCard: BOSS_ERIOL } : BOSS_ERIOL;
+          }
+          return BOSS_ERIOL;
+        }
+        return null;
+      }
+
+      function updateHUD(force = false) {
+        if (!DATA) return;
+        const zn = getZoneName();
+        const sig = `${Locale.getMode()}|${player.lv}|${Math.ceil(player.hp)}|${player.maxHp}|${Math.ceil(player.mp)}|${player.maxMp}|${sakuraCards.size}|${clearedIncidents.size}|${story.syaoranTrust}|${zn}|${eriolDefeated}|${memoryMode.active}`;
+        if (!force && sig === lastHudSig) return;
+        lastHudSig = sig;
+
+        $('hudMagicLv').textContent = `★ 별마력 Lv.${player.lv}`;
+        $('hudTrustBadge').textContent = `⚡친밀 ${story.syaoranTrust}`;
+        $('hudHpBar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+        $('hudMpBar').style.width = `${Math.max(0, (player.mp / player.maxMp) * 100)}%`;
+        $('hudHpNum').textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
+        $('hudMpNum').textContent = `${Math.ceil(player.mp)}/${player.maxMp}`;
+        $('hudCardCount').textContent = `★ ${sakuraCards.size}/${CARD_ORDER.length}`;
+        $('hudZone').textContent = Locale.t(zn);
+
+        const remInc = INCIDENTS.filter(isIncidentActive).length;
+        const remNonFinal = getNonFinalIds().filter((id) => !sakuraCards.has(id)).length;
+        if (memoryMode.active) {
+          $('hudActLabel').textContent = 'STAR MEMORY REPLAY';
+          $('hudQuest').textContent = Locale.t(`[${cardName(CARDS[memoryMode.cardId])}]의 별빛 각성 시련을 다시 체험 중`);
+        } else if (remInc > 0) {
+          $('hudActLabel').textContent = `PART II · INCIDENTS (${INCIDENTS.length - remInc}/${INCIDENTS.length})`;
+          $('hudQuest').textContent = Locale.t(`토모에다 곳곳의 기묘한 사건 돌파 (남은 사건 ${remInc}곳 · ★변환 ${sakuraCards.size}/19)`);
+        } else if (remNonFinal > 0) {
+          $('hudActLabel').textContent = 'PART II · STAR RESONANCE';
+          $('hudQuest').textContent = Locale.t(`남은 별빛 공명 지점 ${remNonFinal}곳의 카드를 사쿠라 카드로 변환하라`);
+        } else if (!eriolDefeated && BOSS_ERIOL) {
+          $('hudActLabel').textContent = 'FINAL TRIAL · ETERNAL NIGHT';
+          $('hudQuest').textContent = Locale.t(`[${BOSS_ERIOL.zone}]에서 에리오르의 최종 시련에 맞서 다크와 라이트를 깨워라!`);
+        } else {
+          $('hudActLabel').textContent = 'GRAND FINALE · STAR DAWN';
+          $('hudQuest').textContent = Locale.t('열아홉 장의 사쿠라 카드가 영원한 별빛으로 피어났다');
+        }
+      }
+
+      function updateFieldBar() {
+        const bar = $('fieldMagicBar'), slots = $('fieldMagicSlots');
+        if (mode !== 'explore' || !DATA) { bar.classList.add('hidden'); return; }
+        bar.classList.remove('hidden'); slots.innerHTML = '';
+        for (const s of QUICK_SLOTS) {
+          const isSak = sakuraCards.has(s.id);
+          const onCd = s.id === 'glow' && buffs.glowCd > 0 && buffs.glow <= 0;
+          const active = (s.id === 'fly' && (buffs.fly > 0 || buffs.flyLand)) || (s.id === 'light' && buffs.light > 0) || (s.id === 'glow' && buffs.glow > 0) || (s.id === 'windy' && buffs.wind > 0) || (s.id === 'shield' && buffs.shield);
+          const btn = document.createElement('button');
+          btn.disabled = onCd;
+          btn.title = onCd ? `대기 중 (${Math.ceil(buffs.glowCd)}s)` : `${Locale.t(s.desc)} (MP ${s.mp})`;
+          btn.className = `shrink-0 px-2 py-1 rounded-xl border text-[11px] font-story flex items-center gap-1 transition ${onCd ? 'bg-black/40 border-white/10 text-slate-500' : active ? 'bg-pink-500/45 border-yellow-200 text-yellow-100 shadow-[0_0_10px_rgba(244,114,182,0.55)]' : isSak ? 'bg-fuchsia-900/75 hover:bg-fuchsia-800/85 border-pink-300/75 text-pink-100' : 'bg-purple-950/80 hover:bg-purple-800/80 border-yellow-400/40 text-amber-100'}`;
+          btn.innerHTML = `<span class="text-[9px] font-mono text-yellow-200">[${s.key}]</span><span>${s.icon}</span><span class="font-bold">${s.label}${isSak ? '★' : ''}${onCd ? ' ' + Math.ceil(buffs.glowCd) + 's' : ''}</span>`;
+          if (!onCd) btn.addEventListener('click', (e) => { e.stopPropagation(); e.currentTarget.blur(); castFieldCard(s.key); });
+          slots.appendChild(btn);
+        }
+      }
+
+      function castFieldCard(k) {
+        if (mode !== 'explore') return;
+        const s = QUICK_SLOTS.find((x) => x.key === k); if (!s) return;
+        if (s.id === 'glow' && buffs.glowCd > 0) return showToast(`글로우 준비 중 (${Math.ceil(buffs.glowCd)}초 남음)`);
+        if (player.mp < s.mp) return showToast(`MP가 부족합니다! (필요 MP ${s.mp})`);
+        const isSak = sakuraCards.has(s.id);
+        if (s.id === 'fly') {
+          player.mp -= s.mp; buffs.fly = 12; buffs.flyLand = false; SoundFX.magic(); world.burst(player.x, player.y, isSak ? '#f9a8d4' : '#fef08a', 24);
+          showToast(`플라이${isSak ? '★' : ''} 해방! 12초간 건물·호수·장애물 위를 자유롭게 비행합니다!`);
+        } else if (s.id === 'light') {
+          player.mp -= s.mp; buffs.light = 16; SoundFX.heal(); world.burst(player.x, player.y, '#fef08a', 26);
+          if (isCardActiveOnMap('illusion') && CARDS.illusion?.map === currentMapId) anomaly.illusionDecoys.forEach((d) => { d.popped = true; });
+          const next = getNextObjective();
+          if (next) world.guideBeam(player.x, player.y, next.x, next.y, '#fef08a');
+          showToast('라이트 해방! 어둠과 환영을 걷어내고 별빛 길잡이를 쏩니다!');
+        } else if (s.id === 'glow') {
+          if (player.mp >= player.maxMp) return showToast('MP가 이미 가득 차 있습니다!');
+          buffs.glow = 7; buffs.glowCd = 16; buffs.glowAcc = 0; SoundFX.heal(); world.burst(player.x, player.y, '#bef264', 24);
+          showToast('글로우 해방! 7초간 반딧불이가 MP를 서서히 회복합니다!');
+        } else if (s.id === 'flower') {
+          if (player.hp >= player.maxHp) return showToast('체력이 이미 가득 차 있습니다!');
+          player.mp -= s.mp; const amt = isSak ? 58 : 42; const rec = Math.min(player.maxHp - player.hp, amt); player.hp += rec;
+          SoundFX.heal(); world.burst(player.x, player.y, '#f9a8d4', 26);
+          showToast(`플라워${isSak ? '★' : ''} 해방! 벚꽃비가 내려 HP를 ${rec} 회복했습니다!`);
+        } else if (s.id === 'windy') {
+          player.mp -= s.mp; buffs.wind = 11; SoundFX.magic(); world.burst(player.x, player.y, '#7dd3fc', 24);
+          if (currentMapId === 'town' && isCardActiveOnMap('jump') && Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY) < 260) {
+            anomaly.jumpBind = 5.5; showToast('윈디 해방! 도망치던 점프 공명을 5초간 포박했습니다!');
+          } else {
+            showToast('윈디 해방! 폭우·수벽 방해 무효화 & 다음 전투 선제 충격!');
+          }
+        } else if (s.id === 'shield') {
+          if (buffs.shield) return showToast('이미 별빛 결계가 펼쳐져 있습니다!');
+          player.mp -= s.mp; buffs.shield = true; SoundFX.magic(); world.burst(player.x, player.y, '#fbcfe8', 22);
+          showToast('실드 해방! 별빛 결계를 두른 채 다음 전투를 시작합니다!');
+        }
+        updateHUD(true); updateFieldBar();
+      }
+
+      // 6. 전투 중 실시간 ★변환 · 마일스톤 · 사건 돌파 · NPC 대화
+      function collectPendingMilestones() {
+        const out = [];
+        const ms = DATA?.dialogues?.milestones || {};
+        if (sakuraCards.size >= 5 && !story.seenMilestones.has('m5') && ms.m5) {
+          story.seenMilestones.add('m5');
+          showChapter('PART II · ACT II', '보이지 않는 시선');
+          out.push(...toArr(ms.m5));
+        }
+        if (sakuraCards.size >= 10 && !story.seenMilestones.has('m10') && ms.m10) {
+          story.seenMilestones.add('m10');
+          showChapter('PART II · ACT III', '별빛의 공명');
+          out.push(...toArr(ms.m10));
+        }
+        if (getNonFinalIds().every((id) => sakuraCards.has(id)) && !story.seenMilestones.has('m17') && ms.m17) {
+          story.seenMilestones.add('m17');
+          showChapter('FINAL TRIAL · ETERNAL NIGHT', '영원한 어둠과 별빛 여명');
+          out.push(...toArr(ms.m17));
+        }
+        return out;
+      }
+
+      /** 전투 중 실시간 ★사쿠라/체리 카드 각성 성공 시 즉시 반영 */
+      function handleLiveCardConverted(c) {
+        if (!c || memoryMode.active) return;
+        if (!sakuraCards.has(c.id)) {
+          sakuraCards.add(c.id);
+          if (!story.convertedOrder.includes(c.id)) story.convertedOrder.push(c.id);
+          recalcPower(true);
+          updateHUD(true);
+          updateFieldBar();
+          autoSave(`${cardName(c)}★ 각성`);
+          showToast(`★ [${cardName(c)}] 사쿠라 카드로 실시간 각성 완료! (★ ${sakuraCards.size}/19)`);
+        }
+      }
+
+      function finishIncidentClear(inc) {
+        clearedIncidents.add(inc.id);
+        encCd = 1.2;
+        recalcPower(true);
+        updateHUD(true);
+        updateFieldBar();
+        autoSave(`${inc.kr} 돌파`);
+
+        const lines = toArr(inc.clear).slice();
+        if (inc.id === 'inc_spinel') {
+          lines.push({ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '스피넬 썬과의 대결이 정말 박진감 넘쳤어요! 의상실에 [🃏 피에로 매직 슈트]를 준비해 두었답니다!' });
+        }
+        lines.push(...collectPendingMilestones());
+        if (isFinalUnlocked() && !story.seenMilestones.has('final_ready')) {
+          story.seenMilestones.add('final_ready');
+          lines.push({ speaker: '유에', role: 'MOON GUARDIAN', avatar: 'yue', mood: 'serious', text: `모든 사건과 열일곱 장의 별빛이 모였다! 남쪽 [${BOSS_ERIOL.zone}]에서 에리오르의 영원한 어둠이 기다리고 있어!` });
+        }
+        vn.start(lines);
+      }
+
+      function finishResonanceTransform(c) {
+        if (memoryMode.active) {
+          vn.start([{ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'happy', text: `[${cardName(c)}]가 분홍빛 별빛으로 피어나던 순간, 다시 봐도 감동이야! 이제 원래 마을로 돌아갈까?` }], exitMemoryMode);
+          return;
+        }
+        sakuraCards.add(c.id);
+        if (!story.convertedOrder.includes(c.id)) story.convertedOrder.push(c.id);
+        recalcPower(true); encCd = 1.0; updateHUD(true); updateFieldBar();
+        autoSave(`${cardName(c)}★ 변환`);
+
+        const lines = [
+          { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'happy', text: c.postQuote || `[${cardName(c)}]가 사쿠라 카드로 다시 태어났어!` },
+          { speaker: '케로', role: 'GUARDIAN', avatar: 'kero', mood: 'happy', text: `별의 마력이 한층 깊어졌어! (★ 별마력 Lv.${player.lv} · 최대 HP ${player.maxHp} · 최대 MP ${player.maxMp})` }
+        ];
+        lines.push(...collectPendingMilestones());
+        if (isFinalUnlocked() && !story.seenMilestones.has('final_ready')) {
+          story.seenMilestones.add('final_ready');
+          lines.push({ speaker: '유에', role: 'MOON GUARDIAN', avatar: 'yue', mood: 'serious', text: `드디어 모든 준비가 끝났다! 남쪽 [${BOSS_ERIOL.zone}]에서 에리오르와 마지막 결전을 치르자!` });
+        }
+        vn.start(lines);
+      }
+
+      function finishEriolVictory() {
+        sakuraCards.add('dark');
+        sakuraCards.add('light');
+        if (!story.convertedOrder.includes('dark')) story.convertedOrder.push('dark');
+        if (!story.convertedOrder.includes('light')) story.convertedOrder.push('light');
+        eriolDefeated = true;
+        recalcPower(true);
+        updateHUD(true);
+        updateFieldBar();
+        autoSave('에리오르 최종 시련 돌파');
+
+        vn.start(DATA.dialogues.eriolVictory, () => {
+          mode = 'ending'; updateFieldBar();
+          const f = CARDS[story.convertedOrder[0] || 'windy'];
+          $('endingSummary').innerHTML = Locale.t(
+            `사쿠라는 <b>[${cardName(f)}]★</b>부터 마지막 <b>[다크]★ · [라이트]★</b> 동시 각성까지 열아홉 장 모두를 자신의 별빛으로 피워내고, 에리오르·스피넬 썬·루비 문의 최종 시련을 넘어섰습니다!<br/>` +
+            `<span class="text-pink-200 font-bold mt-1.5 inline-block">★ 별마력 Lv.${player.lv} · 최대 HP ${player.maxHp} · ⚡ 샤오랑 친밀도 ${story.syaoranTrust}</span><br/>` +
+            `<span class="text-yellow-200 text-xs mt-1 inline-block">✨ 유키토와 모든 카드가 영원히 선명한 빛을 되찾았습니다! 사쿠라 북에서 언제든 추억을 되돌아볼 수 있습니다.</span>`
+          );
+          $('endingBox').classList.remove('hidden');
+        });
+      }
+
+      function handleDefeat() {
+        if (memoryMode.active) return exitMemoryMode();
+        currentMapId = 'town'; player.x = 415; player.y = 485; kero.x = 385; kero.y = 465;
+        player.hp = player.maxHp; player.mp = player.maxMp; encCd = 2.0;
+        handleResize(); updateHUD(true); updateFieldBar();
+        vn.start(DATA.dialogues.defeat);
+      }
+
+      function talkNPC(npc) {
+        if (npc.id === 'tomoyo') {
+          player.hp = player.maxHp; player.mp = player.maxMp; updateHUD(true); SoundFX.heal();
+          showToast('☕ 토모요의 홍차로 HP·MP가 완전 회복되었습니다!');
+          const p1Note = part1Link.linked && CARDS[part1Link.firstCard]
+            ? `1부에서 처음으로 [${cardName(CARDS[part1Link.firstCard])}]를 봉인하시던 날이 엊그제 같은데, 벌써 별의 지팡이 주인이 되셨네요! `
+            : '';
+          let openWardrobeAfter = false;
+          vn.start([
+            { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: `${p1Note}별의 지팡이와 새 마법 의상이 정말 눈부셔요! 홍차로 기운을 차리세요.` },
+            {
+              speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy',
+              text: `현재 착용 중인 [${getCostumeObj().name}] 외에 사건을 돌파할 때마다 새 배틀 의상이 열려요. 의상실을 열어 보실래요?`,
+              choices: [
+                { label: '🎀 응! 마법 의상실 열어줘!', effect: () => { openWardrobeAfter = true; }, reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 의상마다 특별한 마법 효과가 깃들어 있답니다!' }] },
+                { label: '고마워 토모요! 홍차만 마시고 바로 출발할게!', reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '오늘의 활약도 완벽하게 촬영해 둘게요!' }] }
+              ]
+            }
+          ], () => {
+            if (openWardrobeAfter) openWardrobeModal();
+          });
+        } else if (npc.id === 'touya') {
+          buffs.cocoaBuff = true; SoundFX.heal(); updateHUD(true);
+          showToast('☕ 토우야의 코코아! 다음 전투 공격력 +15% · 치명타 +10%!');
+          const yukitoLine = eriolDefeated
+            ? '유키토 녀석, 요즘 안색이 완전히 좋아졌더라. 네가 고생 좀 했겠군. 자, 코코아 마셔라.'
+            : part1Link.hadMirror
+            ? '요즘 유키토가 자꾸 피곤해 보이는 게 영 신경 쓰여... 아, 그리고 예전에 만났던 네 거울 녀석한테 줄 초록 리본도 사 뒀다. 자, 코코아 마시고 힘내라.'
+            : '어이 괴물, 요즘 유키토가 자꾸 졸려하고 몸이 흐릿해 보이는 것 같지 않냐... 무리하지 말고 이 코코아 마시고 든든하게 움직여라.';
+          vn.start([
+            { speaker: '토우야', role: 'BIG BROTHER', avatar: 'touya', mood: eriolDefeated ? 'happy' : 'worried', text: yukitoLine },
+            { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'happy', text: '응, 오빠! 유키토 오빠도 카드들도 내가 꼭 지켜낼게! 코코아 고마워!' }
+          ]);
+        } else if (npc.id === 'yukito') {
+          buffs.snackBuff = true; SoundFX.heal(); updateHUD(true);
+          showToast('🍙 유키토의 간식! 다음 전투 피해 22% 경감 · 매 턴 MP +3!');
+          const alpha = getYukitoAlpha();
+          const msg = eriolDefeated
+            ? '사쿠라 덕분에 요즘 몸이 정말 가볍고 따뜻해! 직접 만든 주먹밥 많이 먹고 가!'
+            : alpha < 0.65
+            ? '안녕 사쿠라... 후아암, 이상하게 요즘 자꾸 잠이 쏟아지고 손끝이 투명하게 보이는 기분이 들어... 그래도 주먹밥은 맛있게 만들었으니까 꼭 챙겨 먹어!'
+            : '요즘 조금씩 기운이 돌아오는 것 같아! 사쿠라의 별빛이 따뜻하게 전해져 오거든. 간식 먹고 힘내!';
+          vn.start([
+            { speaker: '유키토', role: 'GENTLE FRIEND', avatar: 'yukito', mood: alpha < 0.65 ? 'worried' : 'happy', text: msg },
+            { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: alpha < 0.65 ? 'worried' : 'happy', text: alpha < 0.65 ? '유키토 오빠, 조금만 기다려 주세요! 제가 얼른 모든 카드를 깨워낼게요!' : '다행이에요 유키토 오빠! 간식 정말 잘 먹을게요!' }
+          ]);
+        } else if (npc.id === 'syaoran') {
+          const msg = eriolDefeated
+            ? '크로우 리드의 환생까지 이겨내다니... 역시 넌 최고의 마법사야, 사쿠라.'
+            : `현재 친밀도 ${story.syaoranTrust}! 배틀 중 [⚡샤오랑 원호]로 결계와 반사막을 깨뜨릴 수 있으니 언제든 불러! 사건 전투 중에 크로우 카드를 직접 [★별빛 변환]하는 것도 잊지 마!`;
+          vn.start([{ speaker: '샤오랑', role: 'ALLY', avatar: 'syaoran', mood: 'happy', text: msg }]);
+        } else if (npc.id === 'eriol') {
+          // 에리오르 신비감 유지: 최종 결전 전까지는 카드·마법 정체를 전혀 드러내지 않는 정중하고 묘한 전학생 톤
+          story.metEriol = true;
+          if (eriolDefeated) {
+            vn.start([{ speaker: '에리오르', role: 'FRIEND', avatar: 'eriol', mood: 'happy', text: '이제 토모에다의 별빛은 완전히 당신의 것입니다, 사쿠라 씨. 스피넬과 루비도 안부를 전하더군요.' }]);
+          } else if (clearedIncidents.size === 0) {
+            vn.start([
+              { speaker: '에리오르', role: 'TRANSFER STUDENT', avatar: 'eriol', mood: 'happy', text: '안녕하세요, 사쿠라 씨. 영국에서 전학 온 히이라기자와 에리오르입니다. 토모에다 마을은 별빛이 참 맑고 포근하네요.' },
+              { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'happy', text: '안녕, 에리오르 군! 모르는 길이 있으면 언제든지 나한테 물어봐!' }
+            ]);
+          } else if (clearedIncidents.size < 3) {
+            vn.start([
+              { speaker: '에리오르', role: 'TRANSFER STUDENT', avatar: 'eriol', mood: 'normal', text: '요즘 마을에 조금 신기한 일들이 잦다고 들었어요. 사쿠라 씨는 늘 바쁘신 것 같네요. 무리하지 마시고 가끔은 달콤한 홍차라도 드시며 쉬어 가세요.' },
+              { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'shy', text: '아, 하하... 고마워, 에리오르 군! 별일 아니야!' }
+            ]);
+          } else {
+            vn.start([
+              { speaker: '에리오르', role: 'TRANSFER STUDENT', avatar: 'eriol', mood: 'happy', text: '사쿠라 씨의 눈빛이 처음 만났을 때보다 훨씬 단단해지셨네요. 별이 가장 밝게 빛나는 밤은, 아주 깊은 어둠이 찾아온 직후라고 하더군요. ...후후, 그냥 옛이야기입니다.' },
+              { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'worried', text: '(방금 에리오르 군의 미소... 어쩐지 어디선가 느껴 본 적 있는 포근하고도 묘한 기분이 들어...)' }
+            ]);
+          }
+        }
+      }
+
+      // 7. 탐험 이동 · 충돌 · 상호작용 · 메인 루프
+      const keys = { up: false, down: false, left: false, right: false };
+
+      function handleResize() {
+        const r = world.resize($('viewportStage'), DATA ? getMap() : null, player);
+        battle.resize(r.w, r.h, r.dpr);
+      }
+
+      function transitionMap(mid, sx, sy) {
+        portalCd = 1.0; encCd = 0.8; player.targetPos = null; pendingTarget = null;
+        $('mapFade').style.opacity = '1';
+        Timers.after(() => {
+          currentMapId = mid; player.x = sx; player.y = sy; kero.x = sx - 26; kero.y = sy - 18;
+          anomaly.mirrorTrail = [];
+          handleResize(); SoundFX.encounter(); updateHUD(true);
+          const cnt = countTargetsInMap(mid);
+          showToast(mid === 'town' ? '별빛의 토모에다 마을로 나왔습니다.' : `${getMap().name}에 들어왔습니다.${cnt ? ` (사건·공명 ${cnt}곳)` : ''}`);
+          $('mapFade').style.opacity = '0';
+        }, 170);
+      }
+
+      function checkNearby() {
+        nearbyTarget = null; let best = 88; const cur = getMap();
+        for (const p of toArr(cur.portals)) { const d = Math.hypot(player.x - p.x, player.y - p.y); if (d < 64 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; } }
+        for (const n of NPCS) { if (!isNpcVisible(n)) continue; const d = Math.hypot(player.x - n.x, player.y - n.y); if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; } }
+        for (const inc of INCIDENTS) {
+          if (!isIncidentActive(inc) || inc.map !== currentMapId) continue;
+          const pos = getIncidentPos(inc), d = Math.hypot(player.x - pos.x, player.y - pos.y);
+          if (d < best + 12) { best = d; nearbyTarget = { type: 'incident', obj: { ...inc, isIncident: true, x: pos.x, y: pos.y } }; }
+        }
+        for (const id of CARD_ORDER) {
+          if (!isCardActiveOnMap(id)) continue;
+          const c = CARDS[id]; if (c.map !== currentMapId) continue;
+          const pos = getCardPos(c), d = Math.hypot(player.x - pos.x, player.y - pos.y);
+          if (d < best) { best = d; nearbyTarget = { type: 'card', obj: { ...c, x: pos.x, y: pos.y } }; }
+        }
+        if (isFinalUnlocked() && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map) {
+          const d = Math.hypot(player.x - BOSS_ERIOL.x, player.y - BOSS_ERIOL.y);
+          if (d < best + 14) { best = d; nearbyTarget = { type: 'boss', obj: BOSS_ERIOL }; }
+        }
+        const btn = $('btnFloatInteract');
+        if (nearbyTarget && mode === 'explore') {
+          btn.classList.remove('hidden');
+          btn.textContent = Locale.t(
+            nearbyTarget.type === 'portal' ? `${nearbyTarget.obj.label} (X)`
+              : nearbyTarget.type === 'npc' ? `${Utils.withParticle(Locale.t(nearbyTarget.obj.name), '과/와')} 대화 (X)`
+              : nearbyTarget.type === 'incident' ? `✦ ${nearbyTarget.obj.kr} 조사 (X)`
+              : nearbyTarget.type === 'boss' ? '🌌 에리오르 최종 시련 맞서기 (X)'
+              : `★ ${cardName(nearbyTarget.obj)} 별빛 공명 (X)`
+          );
+        } else btn.classList.add('hidden');
+      }
+
+      function triggerInteract() {
+        if (vn.isActive()) return vn.advance();
+        if (mode !== 'explore' || !nearbyTarget) return;
+        const t = nearbyTarget;
+        if (t.type === 'portal') {
+          if (memoryMode.active) return showToast('기억 회상 중에는 상단 [↩ 현재 마을로 돌아가기]를 이용해 주세요!');
+          transitionMap(t.obj.targetMap, t.obj.spawnX, t.obj.spawnY);
+        } else if (t.type === 'npc') {
+          talkNPC(t.obj);
+        } else if (t.type === 'incident') {
+          const inc = t.obj;
+          vn.start(toArr(inc.intro), () => battle.start({ ...inc, isIncident: true }));
+        } else if (t.type === 'card') {
+          const c = t.obj;
+          const intro = [
+            { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'normal', text: `${c.zone}... ${c.flavor}` },
+            { speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'serious', text: c.awakeningLine || `[${cardName(c)}]여, 내 별빛으로 다시 깨어나 줘!` }
+          ];
+          vn.start(intro, () => battle.start(c));
+        } else if (t.type === 'boss') {
+          const intro = toArr(DATA.dialogues.eriolIntro).slice();
+          if (story.syaoranTrust >= 2 && DATA.dialogues.syaoranFinalCheer) intro.unshift(...toArr(DATA.dialogues.syaoranFinalCheer));
+          vn.start(intro, () => battle.start(BOSS_ERIOL));
+        }
+      }
+
+      function updateExplore(dt) {
+        world.updateAmbience(dt);
+        if (mode !== 'explore') return;
+        if (encCd > 0) encCd = Math.max(0, encCd - dt);
+        if (portalCd > 0) portalCd = Math.max(0, portalCd - dt);
+
+        const prevSig = `${buffs.fly > 0}${buffs.flyLand}${buffs.light > 0}${buffs.glow > 0}${Math.ceil(buffs.glowCd)}${buffs.wind > 0}`;
+        const penguinChasing = currentMapId === 'town' && !memoryMode.active && !clearedIncidents.has('inc_penguin');
+        const colOpts = { ignoreObs: false, mazeActive: false, penguinChasing };
+
+        if (buffs.fly > 0) {
+          buffs.fly = Math.max(0, buffs.fly - dt);
+          if (Math.random() < 0.35) world.burst(player.x, player.y + 8, '#fbcfe8', 1);
+          if (buffs.fly === 0 && world.isColliding(getMap(), currentMapId, player.x, player.y, colOpts)) {
+            buffs.flyLand = true; showToast('장애물·호수 위입니다. 빈 땅으로 이동하면 착지합니다!');
+          }
+        } else if (buffs.flyLand && !world.isColliding(getMap(), currentMapId, player.x, player.y, colOpts)) {
+          buffs.flyLand = false; showToast('지상에 부드럽게 착지했습니다.');
+        }
+        if (buffs.light > 0) buffs.light = Math.max(0, buffs.light - dt);
+        if (buffs.wind > 0) buffs.wind = Math.max(0, buffs.wind - dt);
+        if (buffs.glowCd > 0) buffs.glowCd = Math.max(0, buffs.glowCd - dt);
+        if (buffs.glow > 0) {
+          buffs.glow = Math.max(0, buffs.glow - dt); buffs.glowAcc += dt;
+          if (Math.random() < 0.3) world.burst(player.x + (Math.random() - 0.5) * 28, player.y + (Math.random() - 0.5) * 20, '#bef264', 1);
+          if (buffs.glowAcc >= 0.5) { buffs.glowAcc -= 0.5; player.mp = Math.min(player.maxMp, player.mp + (sakuraCards.has('glow') ? 3 : 2)); }
+        }
+        if (prevSig !== `${buffs.fly > 0}${buffs.flyLand}${buffs.light > 0}${buffs.glow > 0}${Math.ceil(buffs.glowCd)}${buffs.wind > 0}`) updateFieldBar();
+
+        // 제2사건: 펭귄 대왕 공원 구역 내에서 플레이어 근접 시 부드럽게 추격!
+        if (penguinChasing) {
+          const distP = Math.hypot(player.x - anomaly.penguinX, player.y - anomaly.penguinY);
+          if (distP < 280 && distP > 36 && player.x < 640 && player.y > 630) {
+            const spd = 76;
+            anomaly.penguinX = clamp(anomaly.penguinX + ((player.x - anomaly.penguinX) / distP) * spd * dt, 120, 560);
+            anomaly.penguinY = clamp(anomaly.penguinY + ((player.y - anomaly.penguinY) / distP) * spd * dt, 700, 1140);
+          } else {
+            const t = performance.now() * 0.0008;
+            const homeX = 355 + Math.cos(t) * 85;
+            const homeY = 850 + Math.sin(t * 1.3) * 55;
+            anomaly.penguinX += (homeX - anomaly.penguinX) * Math.min(1, dt * 1.5);
+            anomaly.penguinY += (homeY - anomaly.penguinY) * Math.min(1, dt * 1.5);
+          }
+        }
+
+        const flying = buffs.fly > 0 || buffs.flyLand;
+        const cosBonuses = Rules.getCostumeBonuses(story.costumeId);
+        let spdMod = 1, pushX = 0, pushY = 0;
+
+        // 제1사건 폭우 둔화 (개구리 우비나 윈디로 무효화)
+        const rainInc = INCIDENTS.find((x) => x.id === 'inc_rain');
+        if (rainInc && isIncidentActive(rainInc) && currentMapId === rainInc.map && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
+          if (Math.hypot(player.x - rainInc.x, player.y - rainInc.y) < 115) spdMod *= 0.68;
+        }
+        if (isCardActiveOnMap('jump') && CARDS.jump?.map === currentMapId) {
+          anomaly.jumpHop = Math.max(0, anomaly.jumpHop - dt);
+          anomaly.jumpBind = Math.max(0, anomaly.jumpBind - dt);
+          const dj = Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY);
+          if (dj < 105 && dj > 48 && anomaly.jumpHop <= 0 && anomaly.jumpBind <= 0) {
+            anomaly.jumpHop = 2.0;
+            const spots = [{ x: 515, y: 935 }, { x: 430, y: 1030 }, { x: 550, y: 760 }, { x: 260, y: 1020 }];
+            const pick = spots.filter((s) => Math.hypot(s.x - player.x, s.y - player.y) > 120)[0] || spots[0];
+            anomaly.jumpX = pick.x; anomaly.jumpY = pick.y; world.burst(pick.x, pick.y, '#f472b6', 14);
+            showToast('점프 공명이 통통 뛰어 달아났다! ([윈디]로 묶을 수 있어요)');
+          }
+        }
+        if (isCardActiveOnMap('glow') && CARDS.glow?.map === currentMapId) {
+          const t = performance.now() * 0.001;
+          anomaly.glowX = CARDS.glow.x + Math.sin(t * 1.1) * 34;
+          anomaly.glowY = CARDS.glow.y + Math.cos(t * 1.6) * 14;
+        }
+        if (isCardActiveOnMap('mirror') && CARDS.mirror?.map === currentMapId) {
+          anomaly.mirrorTrail.push({ x: player.x, y: player.y, walk: player.walk });
+          if (anomaly.mirrorTrail.length > 22) anomaly.mirrorTrail.shift();
+        }
+        if (isCardActiveOnMap('illusion') && CARDS.illusion?.map === currentMapId) {
+          for (const d of anomaly.illusionDecoys) {
+            if (!d.popped && Math.hypot(player.x - d.x, player.y - d.y) < 38) {
+              d.popped = true; SoundFX.click(); world.burst(d.x, d.y, '#c084fc', 18);
+              showToast(`"${d.name}"의 모습이 보랏빛 안개로 흩어졌다! 가짜 환영이었어!`);
+            }
+          }
+        }
+
+        let dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+        if (dx || dy) { player.targetPos = null; pendingTarget = null; }
+        else if (player.targetPos) {
+          const tx = player.targetPos.x - player.x, ty = player.targetPos.y - player.y, d = Math.hypot(tx, ty);
+          if (d > 8) { dx = tx / d; dy = ty / d; } else player.targetPos = null;
+        }
+        const moveCol = { ignoreObs: flying, mazeActive: false, penguinChasing };
+        if (dx || dy) {
+          const len = Math.hypot(dx, dy), sp = getMoveSpeed() * spdMod;
+          dx /= len; dy /= len;
+          const nx = player.x + (dx * sp + pushX) * dt, ny = player.y + (dy * sp + pushY) * dt;
+          if (!world.isColliding(getMap(), currentMapId, nx, player.y, moveCol)) player.x = nx;
+          if (!world.isColliding(getMap(), currentMapId, player.x, ny, moveCol)) player.y = ny;
+          player.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+          player.walk += dt * 11;
+        }
+
+        kero.x += (player.x - (player.dir === 'right' ? 28 : -28) - kero.x) * Math.min(1, dt * 4.5);
+        kero.y += (player.y - 22 - kero.y) * Math.min(1, dt * 4.5);
+        kero.bob += dt * 4.5;
+        world.updateCamera(dt, getMap(), player);
+        checkNearby(); updateHUD();
+
+        if (pendingTarget && Math.hypot(player.x - pendingTarget.obj.x, player.y - pendingTarget.obj.y) < 74) {
+          nearbyTarget = pendingTarget; pendingTarget = null; player.targetPos = null; return triggerInteract();
+        }
+        if (portalCd <= 0 && !memoryMode.active) {
+          for (const p of toArr(getMap().portals)) if (Math.hypot(player.x - p.x, player.y - p.y) < 26) return transitionMap(p.targetMap, p.spawnX, p.spawnY);
+        }
+        if (encCd <= 0 && nearbyTarget) {
+          const d = Math.hypot(player.x - nearbyTarget.obj.x, player.y - nearbyTarget.obj.y);
+          if (nearbyTarget.type === 'incident' && d < 52) return triggerInteract();
+          if (nearbyTarget.type === 'card' && d < 48) return triggerInteract();
+          if (nearbyTarget.type === 'boss' && d < 56) return triggerInteract();
+        }
+      }
+
+      let lastT = performance.now();
+      function loop(now) {
+        const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+        lastT = now;
+        if (DATA) {
+          if (battle.isActive()) {
+            battle.updateAndRenderVFX(dt);
+          } else {
+            updateExplore(dt);
+            const cur = getMap();
+            const activeCards = CARD_ORDER
+              .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
+              .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
+            const activeIncidents = INCIDENTS
+              .filter((inc) => isIncidentActive(inc) && inc.map === currentMapId)
+              .map((inc) => ({ ...inc, pos: getIncidentPos(inc) }));
+            const visibleNpcs = NPCS.filter(isNpcVisible).map((n) => {
+              if (n.id === 'yukito') {
+                return { ...n, alpha: getYukitoAlpha(), sleepy: !eriolDefeated && sakuraCards.size < 14 };
+              }
+              return n;
+            });
+
+            const finalReady = isFinalUnlocked();
+            const bossObj = finalReady && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map
+              ? { type: 'eriol', x: BOSS_ERIOL.x, y: BOSS_ERIOL.y, label: '🌌 에리오르 & 두 수호자' }
+              : null;
+            const clockCircle = currentMapId === 'town' && BOSS_ERIOL
+              ? { x: BOSS_ERIOL.x, y: BOSS_ERIOL.y, ready: !!finalReady }
+              : null;
+
+            world.render(now, {
+              part: 2,
+              map: cur,
+              mapId: currentMapId,
+              zones: ZONES,
+              player,
+              kero,
+              buffs,
+              costume: getCostumeObj(),
+              anomaly,
+              activeCards,
+              activeIncidents,
+              npcs: visibleNpcs,
+              boss: bossObj,
+              clockCircle,
+              nextObjective: getNextObjective(),
+              portalCounts: countTargetsInMap,
+              flags: {
+                isSakuraFly: sakuraCards.has('fly'),
+                penguinChasing: currentMapId === 'town' && !memoryMode.active && !clearedIncidents.has('inc_penguin'),
+                wateryActive: currentMapId === 'town' && !memoryMode.active && !clearedIncidents.has('inc_spinel'),
+                eternalDarkness: finalReady,
+                showTarget: mode === 'explore'
+              }
+            });
+          }
+        }
+        requestAnimationFrame(loop);
+      }
+
+      // 8. 새 모험 시작 · 타이틀 복귀 · 계정 대시보드 · 입력 바인딩
+      function startNewAdventure() {
+        if (!DATA) return;
+        Timers.clearAll();
+        vn.finish(true);
+        battle.forceClose();
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+
+        sakuraCards = new Set();
+        clearedIncidents = new Set();
+        eriolDefeated = false;
+        shownActs = new Set();
+        story.syaoranTrust = Math.max(2, part1Link.syaoranTrust || 2);
+        story.convertedOrder = [];
+        story.seenMilestones = new Set();
+        story.metEriol = false;
+        story.costumeId = 'sakura_dress';
+
+        currentMapId = 'town';
+        recalcPower(false);
+        player.x = 385; player.y = 465;
+        player.hp = player.maxHp; player.mp = player.maxMp;
+        player.targetPos = null; pendingTarget = null;
+        kero.x = 355; kero.y = 445;
+        Object.assign(buffs, { fly: 0, flyLand: false, light: 0, glow: 0, glowCd: 0, wind: 0, shield: false, snackBuff: false, cocoaBuff: false });
+        resetAnomalyPositions();
+
+        $('titleBox').classList.add('hidden');
+        $('endingBox').classList.add('hidden');
+        SoundFX.startBGM();
+        handleResize();
+        updateHUD(true);
+        showChapter('PART II · STARLIGHT', '별의 지팡이와 다섯 개의 사건');
+
+        const openLines = toArr(DATA.dialogues.opening).slice();
+        if (part1Link.linked && CARDS[part1Link.firstCard]) {
+          openLines.push({
+            speaker: '사쿠라', role: 'STAR MASTER', avatar: 'sakura', mood: 'happy',
+            text: `1부에서 제일 먼저 봉인했던 [${cardName(CARDS[part1Link.firstCard])}]부터 마지막 [${cardName(CARDS[part1Link.lastCard])}]까지... 소중한 추억이 담긴 카드와 유키토 오빠를 꼭 지켜낼게! (✦ 1부 연동 보너스: 최대 MP +20)`
+          });
+        }
+        vn.start(openLines, () => {
+          encCd = 1.2;
+          autoSave('제2부 모험 시작');
+        });
+      }
+
+      function resetToTitle() {
+        Timers.clearAll();
+        vn.finish(true);
+        battle.forceClose();
+        memoryMode = { active: false, cardId: null, snapshot: null };
+        $('memoryBanner').classList.add('hidden');
+        $('endingBox').classList.add('hidden');
+        $('btnLocalContinue').classList.add('hidden');
+        $('btnTitleLoad').classList.add('col-span-2');
+        $('titleBox').classList.remove('hidden');
+        mode = 'title';
+        updateFieldBar();
+      }
+
+      function setSaveMsg(msg, err = false) {
+        const el = $('saveStatusMsg');
+        if (!el) return;
+        el.textContent = Locale.t(msg);
+        el.className = `min-h-[2.4rem] rounded-xl px-3 py-2 text-xs font-story flex items-center justify-center text-center border ${err ? 'bg-rose-950/75 border-rose-400/60 text-rose-100' : 'bg-emerald-950/65 border-emerald-400/55 text-emerald-100'}`;
+      }
+
+      function renderAuthModal() {
+        syncAuthButton();
+        const loggedIn = !!cloudCreds.id;
+        $('authLoginView').classList.toggle('hidden', loggedIn);
+        $('authDashView').classList.toggle('hidden', !loggedIn);
+        $('authModalTitle').textContent = loggedIn ? 'ACCOUNT DASHBOARD · PART II' : 'ACCOUNT LOGIN · PART II';
+        $('authModalSub').textContent = loggedIn
+          ? '클라우드 계정에 로그인되어 카드 각성·사건 돌파 시 자동 저장됩니다.'
+          : '1부와 같은 아이디로 로그인하면 제1부 기록이 자동 연동됩니다.';
+        if (loggedIn) {
+          $('dashUserId').textContent = cloudCreds.id;
+          const p1Txt = part1Link.linked ? `연동됨 (첫 봉인: ${cardName(CARDS[part1Link.firstCard]) || '완료'})` : '미연동';
+          $('savePreviewInfo').innerHTML = Locale.t(
+            `<div><b>진행도:</b> ★ 각성 ${sakuraCards.size}/${CARD_ORDER.length} · 사건 ${clearedIncidents.size}/${INCIDENTS.length}${eriolDefeated ? ' · 최종장 완료' : ''}</div>` +
+            `<div><b>1부 기록:</b> ${p1Txt} · <b>착용 의상:</b> ${getCostumeObj().name}</div>`
+          );
+        }
+      }
+
+      function openSaveModal() {
+        renderAuthModal();
+        $('saveModal').classList.replace('hidden', 'flex');
+        SoundFX.click();
+      }
+
+      function closeSaveModal() {
+        const m = $('saveModal');
+        if (m.classList.contains('hidden')) return false;
+        m.classList.replace('flex', 'hidden');
+        return true;
+      }
+
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('blur', () => { keys.up = keys.down = keys.left = keys.right = false; });
+
+      window.addEventListener('keydown', (e) => {
+        const code = e.code;
+        if (!$('saveModal').classList.contains('hidden')) {
+          if (code === 'Escape') closeSaveModal();
+          return;
+        }
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) e.preventDefault();
+        if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
+        if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
+        if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
+        if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
+
+        if (mode === 'title') {
+          if (DATA && (code === 'KeyX' || code === 'Enter')) startNewAdventure();
+          return;
+        }
+        if (!$('bookModal').classList.contains('hidden')) {
+          if (code === 'KeyZ' || code === 'Escape') closeBookModal();
+          return;
+        }
+        if (!$('wardrobeModal').classList.contains('hidden')) {
+          if (code === 'KeyZ' || code === 'Escape') closeWardrobeModal();
+          return;
+        }
+        if (vn.isActive()) {
+          if (vn.state.waitChoice) {
+            if (code === 'ArrowUp' || code === 'KeyW') vn.moveChoice(-1);
+            else if (code === 'ArrowDown' || code === 'KeyS') vn.moveChoice(1);
+            else if (code === 'KeyX' || code === 'Enter') vn.confirmChoice();
+            return;
+          }
+          if (code === 'KeyX' || code === 'Enter' || code === 'Space') vn.advance();
+          else if (code === 'KeyZ' || code === 'Escape') vn.finish(false);
+          return;
+        }
+        if (battle.isActive()) {
+          if (typeof battle.handleKey === 'function') battle.handleKey(code);
+          return;
+        }
+        if (mode === 'explore') {
+          if (code === 'KeyX' || code === 'Enter') triggerInteract();
+          else if (code.startsWith('Digit') && code.length === 6) castFieldCard(code[5]);
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      });
+
+      let dragId = null;
+      function pointerMoveWorld(cx, cy, initial) {
+        if (mode !== 'explore') return;
+        const r = $('worldCanvas').getBoundingClientRect(), lx = cx - r.left, ly = cy - r.top;
+        if (initial && lx > world.cam.w - 130 && ly < 110) return;
+        const wx = lx + world.cam.x, wy = ly + world.cam.y;
+        if (initial) {
+          const cur = getMap();
+          for (const p of toArr(cur.portals)) if (Math.hypot(wx - p.x, wy - p.y) < 44) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
+          for (const n of NPCS) if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 48) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
+          for (const inc of INCIDENTS) if (isIncidentActive(inc) && inc.map === currentMapId) { const pos = getIncidentPos(inc); if (Math.hypot(wx - pos.x, wy - pos.y) < 66) { pendingTarget = { type: 'incident', obj: { ...inc, isIncident: true, x: pos.x, y: pos.y } }; player.targetPos = pos; return; } }
+          for (const id of CARD_ORDER) if (isCardActiveOnMap(id) && CARDS[id].map === currentMapId) { const pos = getCardPos(CARDS[id]); if (Math.hypot(wx - pos.x, wy - pos.y) < 56) { pendingTarget = { type: 'card', obj: { ...CARDS[id], x: pos.x, y: pos.y } }; player.targetPos = pos; return; } }
+          if (isFinalUnlocked() && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map && Math.hypot(wx - BOSS_ERIOL.x, wy - BOSS_ERIOL.y) < 60) { pendingTarget = { type: 'boss', obj: BOSS_ERIOL }; player.targetPos = { x: BOSS_ERIOL.x, y: BOSS_ERIOL.y }; return; }
+          pendingTarget = null;
+        }
+        player.targetPos = { x: wx, y: wy };
+      }
+      $('worldCanvas').addEventListener('pointerdown', (e) => { dragId = e.pointerId; pointerMoveWorld(e.clientX, e.clientY, true); });
+      window.addEventListener('pointermove', (e) => { if (dragId === e.pointerId) pointerMoveWorld(e.clientX, e.clientY, false); });
+      window.addEventListener('pointerup', (e) => { if (dragId === e.pointerId) dragId = null; });
+      $('fieldMagicBar').addEventListener('pointerdown', (e) => e.stopPropagation());
+
+      document.querySelectorAll('.pad-btn').forEach((b) => {
+        const d = b.dataset.dir;
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); keys[d] = true; });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, () => { keys[d] = false; }));
+      });
+      $('btnMobileX').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (vn.isActive()) vn.advance();
+        else if (mode === 'explore') triggerInteract();
+        else if (battle.isChantActive()) battle.completeChantStep(false);
+        else if (battle.isTiming()) battle.execSeal();
+      });
+      $('btnMobileZ').onclick = () => { if (closeSaveModal() || closeBookModal() || closeWardrobeModal()) return; if (vn.isActive()) vn.finish(false); else if (battle.isChantActive()) battle.completeChantStep(true); else if (battle.isTiming()) battle.cancelSeal(); };
+
+      // UI 버튼 바인딩
+      $('btnLocaleTitle').onclick = () => { SoundFX.click(); Locale.toggle(); };
+      $('btnLocaleHud').onclick = (e) => { e.currentTarget.blur(); SoundFX.click(); Locale.toggle(); showToast(`명칭 전환: ${Locale.label()}`); };
+      $('btnStartGame').onclick = (e) => { e.currentTarget.blur(); startNewAdventure(); };
+      $('btnLocalContinue').onclick = () => {
+        const saved = SafeStore.getJSON('sakura_part2_autosave');
+        if (saved) { try { applySavePayload(saved); showToast('최근 제2부 자동 저장 데이터를 불러왔습니다!'); } catch {} }
+      };
+      $('btnTitleLoad').onclick = () => openSaveModal();
+      $('btnOpenSave').onclick = (e) => { e.currentTarget.blur(); openSaveModal(); };
+      $('btnCloseSave').onclick = closeSaveModal;
+      $('saveModal').onclick = (e) => { if (e.target.id === 'saveModal') closeSaveModal(); };
+      $('btnOpenBook').onclick = (e) => { e.currentTarget.blur(); openBookModal(); };
+      $('btnCloseBook').onclick = closeBookModal;
+      $('bookModal').onclick = (e) => { if (e.target.id === 'bookModal') closeBookModal(); };
+      $('btnOpenWardrobe').onclick = (e) => { e.currentTarget.blur(); openWardrobeModal(); };
+      $('btnCloseWardrobe').onclick = closeWardrobeModal;
+      $('wardrobeModal').onclick = (e) => { if (e.target.id === 'wardrobeModal') closeWardrobeModal(); };
+      $('btnWardrobeHeal').onclick = () => {
+        player.hp = player.maxHp; player.mp = player.maxMp;
+        SoundFX.heal(); updateHUD(true);
+        showToast('☕ 토모요의 따뜻한 홍차로 HP·MP가 완전 회복되었습니다!');
+      };
+      $('btnGuestClose').onclick = closeSaveModal;
+      $('btnExitMemory').onclick = exitMemoryMode;
+      $('btnFloatInteract').onclick = (e) => { e.currentTarget.blur(); triggerInteract(); };
+      $('btnSoundToggle').onclick = (e) => { e.currentTarget.blur(); e.currentTarget.textContent = SoundFX.toggle() ? '🎵' : '🔇'; };
+      $('btnKeroHint').onclick = (e) => {
+        e.currentTarget.blur(); if (mode !== 'explore') return;
+        const next = getNextObjective();
+        if (!next) showToast('케로: 열아홉 장 모두 사쿠라 카드가 됐어! 토모에다가 별빛으로 가득해!');
+        else if (next.isBoss) showToast(`케로: 준비 끝! 남쪽 [${BOSS_ERIOL.zone}]에서 에리오르의 최종 시련에 맞서자!`);
+        else if (next.targetIncident || next.isIncident) {
+          const ti = next.targetIncident || next;
+          showToast(`케로: [${ti.zone}]에서 "${ti.rumor}" 사건이 벌어지고 있어! 전투 중 ★변환으로 카드를 깨워 봐!`);
+        } else {
+          const tc = next.targetCard || next;
+          showToast(`케로: [${tc.zone}] 쪽에서 [${cardName(tc)}]의 별빛 공명이 느껴져!`);
+        }
+      };
+      $('btnContinueExplore').onclick = () => { $('endingBox').classList.add('hidden'); mode = 'explore'; updateFieldBar(); };
+      $('btnRestartAll').onclick = () => startNewAdventure();
+
+      $('btnAuthSubmit').onclick = async () => {
+        setSaveMsg('계정 확인 및 제1부 기록 연동 중...');
+        try {
+          let res;
+          if (typeof Cloud.loginOrRegister === 'function') {
+            res = await Cloud.loginOrRegister(2, $('savePlayerId').value, $('saveSecret').value);
+          } else {
+            const loaded = await Cloud.load(2, $('savePlayerId').value, $('saveSecret').value);
+            const cid = Cloud.sanitizeId($('savePlayerId').value);
+            const sec = Cloud.sanitizeSecret($('saveSecret').value);
+            res = loaded ? { status: 'logged_in', id: cid, secret: sec, data: loaded } : { status: 'registered', id: cid, secret: sec, data: null };
+          }
+          cloudCreds = { id: res.id, secret: res.secret };
+          const linkedNow = await tryCloudPart1Link(res.id, res.secret);
+          syncAuthButton();
+          if (res.status === 'logged_in' && res.data) {
+            applySavePayload(res.data);
+            SoundFX.seal();
+            closeSaveModal();
+            showToast(`🟢 [${res.id}] 로그인 완료! 제2부 모험을 이어갑니다.${linkedNow ? ' (1부 기록 연동됨)' : ''}`);
+          } else {
+            if (mode !== 'title') await Cloud.save(2, res.id, res.secret, buildSavePayload());
+            SoundFX.heal();
+            renderAuthModal();
+            setSaveMsg(`✨ 새 계정 [${res.id}] 로그인 완료!${linkedNow ? ' 제1부 클리어 기록도 자동 연동되었습니다!' : ''}`);
+          }
+        } catch (err) { setSaveMsg(`접속 실패: ${err.message}`, true); }
+      };
+      $('btnAuthLogout').onclick = () => {
+        const oldId = cloudCreds.id;
+        cloudCreds = { id: '', secret: '' };
+        $('savePlayerId').value = '';
+        $('saveSecret').value = '';
+        SoundFX.click();
+        renderAuthModal();
+        setSaveMsg(`[${oldId}] 계정에서 로그아웃되었습니다.`);
+      };
+      $('btnCloudSave').onclick = async () => {
+        if (!cloudCreds.id) return;
+        setSaveMsg('클라우드에 저장 중...');
+        try {
+          await Cloud.save(2, cloudCreds.id, cloudCreds.secret, buildSavePayload());
+          SoundFX.heal();
+          renderAuthModal();
+          setSaveMsg(`💾 [${cloudCreds.id}] 수동 저장이 완료되었습니다.`);
+        } catch (err) { setSaveMsg(`저장 실패: ${err.message}`, true); }
+      };
+      $('btnImportPart1').onclick = async () => {
+        if (!cloudCreds.id) return;
+        setSaveMsg('제1부 클라우드 기록 확인 중...');
+        const ok = await tryCloudPart1Link(cloudCreds.id, cloudCreds.secret);
+        if (ok) {
+          SoundFX.heal();
+          updateHUD(true);
+          renderAuthModal();
+          setSaveMsg('✨ 제1부 기록 연동 완료! (최대 MP +20 · 특별 의상 및 추억 대사 해금)');
+        } else {
+          setSaveMsg('이 아이디로 저장된 제1부 클라우드 기록을 찾지 못했습니다.', true);
+        }
+      };
+      $('btnCloudDelete').onclick = async () => {
+        if (!cloudCreds.id) return;
+        setSaveMsg('계정 데이터 초기화 중...');
+        try {
+          const cid = await Cloud.del(2, cloudCreds.id, cloudCreds.secret);
+          try { window.localStorage.removeItem('sakura_part2_autosave'); } catch {}
+          cloudCreds = { id: '', secret: '' };
+          $('savePlayerId').value = '';
+          $('saveSecret').value = '';
+          SoundFX.click();
+          syncAuthButton();
+          resetToTitle();
+          closeSaveModal();
+          showToast(`🗑 [${cid}] 제2부 저장 데이터를 삭제하고 초기 상태로 되돌렸습니다.`);
+        } catch (err) { setSaveMsg(`삭제 실패: ${err.message}`, true); }
+      };
+
+      // 9. Firebase 병렬 부팅
+      async function boot() {
+        handleResize();
+        try {
+          $('bootStatus').textContent = '☁ Firebase에서 제2부 하이브리드 데이터와 고퀄리티 아트를 불러오는 중...';
+          const bundle = await Cloud.loadBundle(2);
+          DATA = bundle.data;
+          CARDS = DATA.cards || {};
+          CARD_ORDER = toArr(DATA.cardOrder);
+          MAPS = DATA.maps || {};
+          ZONES = toArr(DATA.zones);
+          NPCS = toArr(DATA.npcs);
+          INCIDENTS = toArr(DATA.incidents).sort((a, b) => (a.order || 0) - (b.order || 0));
+          BOSS_ERIOL = DATA.bossEriol;
+          QUICK_SLOTS = toArr(DATA.fieldQuickSlots);
+          const dataCostumes = toArr(DATA.costumes);
+          COSTUMES = dataCostumes.length ? dataCostumes : FALLBACK_COSTUMES;
+
+          resetAnomalyPositions();
+          tryLocalPart1Link();
+          recalcPower(false);
+          handleResize();
+          syncLocaleUI();
+          syncAuthButton();
+
+          $('bootStatus').textContent = Locale.t(`✨ 제2부 데이터 & 고퀄리티 아트 로드 완료! (${APP_VER})${part1Link.linked ? ' · 1부 기록 연동됨' : ''}`);
+          $('btnStartGame').disabled = false;
+
+          const local = SafeStore.getJSON('sakura_part2_autosave');
+          if (local && local.part === 2) {
+            $('btnLocalContinue').classList.remove('hidden');
+            $('btnTitleLoad').classList.remove('col-span-2');
+          }
+        } catch (err) {
+          $('bootStatus').textContent = `⚠ 데이터 로드 실패: ${err.message}`;
+        }
+      }
+
+      boot();
+      requestAnimationFrame(loop);
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
