@@ -117,6 +117,52 @@ export function createChapter(host, DATA) {
     light: 0,
     glow: 0,
     glowCd: 0,
+    glowAcc: 0,
+    wind: 0,
+    shield: false,
+    snackBuff: false,
+    cocoaBuff: false
+  };
+
+  const anomaly = {
+    jumpX: CARDS.jump?.x || 365,
+    jumpY: CARDS.jump?.y || 830,
+    jumpHop: 0,
+    jumpBind: 0,
+    glowX: CARDS.glow?.x || 790,
+    glowY: CARDS.glow?.y || 530,
+    mirrorTrail: [],
+    // 학교 1층 도서실(illusion 위치 225, 225 주변) 가짜 환영 분신
+    illusionDecoys: [
+      { x: 145, y: 205, name: '토모요?', hair: '#3b0764', dress: '#c084fc', popped: false },
+      { x: 315, y: 215, name: '케로?', hair: '#facc15', dress: '#fde047', popped: false }
+    ]
+  };
+
+  // --------------------------------------------------------------------------
+  // 3. 핵심 헬퍼 · 10개 맵 탐색 · 토모요 촬영 동행 AI · 성장 곡선
+  // --------------------------------------------------------------------------
+  const getMap = () => MAPS[currentMapId] || MAPS.town;
+  const isCardActiveOnMap = (id) => (
+    memoryMode.active ? memoryMode.cardId === id : (id !== 'windy' && !ownedCards.has(id))
+  );
+  const getUnsealed = () => CARD_ORDER.filter(isCardActiveOnMap).map((id) => CARDS[id]);
+  const getCardPos = (c) => (
+    c.id === 'jump'
+      ? { x: anomaly.jumpX, y: anomaly.jumpY }
+      : c.id === 'glow'
+      ? { x: anomaly.glowX, y: anomaly.glowY }
+      : { x: c.x, y: c.y }
+  );
+
+  function countUnsealedInMap(mid) {
+    if (currentMapId === 'town' && MAP_GROUPS[mid]) {
+      const grp = MAP_GROUPS[mid];
+      return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && grp.includes(CARDS[id]?.map)).length;
+    }
+    return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === mid).length;
+  }
+
   /** 토모요(지수) 촬영 동행 활성화 여부 (마을 첫 도착 이후 모든 실내·야외 맵 동행) */
   const isTomoyoFollowing = () => !!(story.tomoyoFollowing && !inPrologue);
 
@@ -1216,6 +1262,11 @@ export function createChapter(host, DATA) {
     const cur = getMap();
     const hideKero = inPrologue && vn.state.i < 3;
     const hideAnomalies = inPrologue && vn.state.i < 2;
+    const activeCards = hideAnomalies
+      ? []
+      : CARD_ORDER
+          .filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === currentMapId)
+          .map((id) => ({ ...CARDS[id], pos: getCardPos(CARDS[id]) }));
     const visibleNpcs = NPCS.filter(isNpcVisible).map((n) => {
       if (n.id === 'tomoyo' && isTomoyoFollowing()) {
         return { ...n, x: tomoyoPos.x, y: tomoyoPos.y };
