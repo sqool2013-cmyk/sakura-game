@@ -1,16 +1,16 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-c
+ * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-d
  * - 1부(황혼) · 2부(별빛) 공용 야외 및 10개 층별/구역별 실내 맵 렌더링 (구 4맵 100% 호환)
  * - 분수대 중앙 원형 산책 데크 & 원형 충돌 판정으로 보이지 않는 벽/다리 막힘 해결
- * - 우드·글로우·섀도·다크·라이트 대폭 강화 이상 현상 (광과민성 안전 준수)
- * - 제2부 에리오르 6대 사건 전용 필드 기믹 & 반투명 유키토(청명) 연출
- * - 마법 의상 8벌 실시간 외형 변화 & 방향별 시선 스프라이트
+ * - 우드·글로우·섀도·다크·라이트·일루전 강화 이상 현상 (광과민성 안전 준수)
+ * - 제2부 에리오르 6대 사건 전용 필드 기믹 & 별빛 공명 코어·이름표 상시 표시
+ * - 반투명 유키토(청명) 연출 & 마법 의상 8벌 실시간 외형·방향별 시선 스프라이트
  * ============================================================================
  */
 import { Utils, Locale, Art } from './core.js';
 
-const { toArr, clamp } = Utils;
+const { toArr, clamp, cardName } = Utils;
 
 export function createWorldEngine(canvas) {
   const ctx = canvas.getContext('2d');
@@ -874,33 +874,33 @@ export function createWorldEngine(canvas) {
           const cy1 = Math.sin(a + 0.35) * r * 0.5;
           const ex = Math.cos(a) * r;
           const ey = Math.sin(a) * r;
-          ctx.strokeStyle = 'rgba(8,4,24,0.96)';
-          ctx.lineWidth = track ? 8.5 : 6.5;
-          ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(cx1, cy1, ex, ey); ctx.stroke();
-          ctx.strokeStyle = 'rgba(129,140,248,0.35)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(199,210,254,0.92)';
-        ctx.beginPath();
-        ctx.ellipse(-10, -5, 4.5, 2.6, 0, 0, Math.PI * 2);
-        ctx.ellipse(10, -5, 4.5, 2.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      }
-
-      case 'illusion':
+      case 'illusion': {
         for (let i = 0; i < 4; i++) {
           const ox = Math.cos(t * 0.9 + i * 1.7) * 22;
           const oy = Math.sin(t * 1.1 + i * 1.4) * 16;
-          const f = ctx.createRadialGradient(ox, oy, 4, ox, oy, 52);
-          f.addColorStop(0, 'rgba(192,132,252,0.45)');
+          const f = ctx.createRadialGradient(ox, oy, 4, ox, oy, 54);
+          f.addColorStop(0, 'rgba(216,180,254,0.52)');
           f.addColorStop(1, 'rgba(126,34,206,0)');
           ctx.fillStyle = f;
-          ctx.beginPath(); ctx.arc(ox, oy, 52, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(ox, oy, 54, 0, Math.PI * 2); ctx.fill();
         }
+        // 실내 어두운 바닥에서도 명확히 보이는 환상 파동 고리 & 코어
+        for (let r = 0; r < 3; r++) {
+          const rad = 14 + ((t * 22 + r * 16) % 46);
+          ctx.strokeStyle = `rgba(232,121,249,${Math.max(0.15, 0.85 - rad / 58)})`;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 5]);
+          ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(250,245,255,0.92)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 12, 6.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#9333ea';
+        ctx.beginPath(); ctx.arc(0, 0, 4.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, Math.PI * 2); ctx.fill();
         break;
+      }
 
       case 'sword':
         for (let i = 0; i < 2; i++) {
@@ -995,6 +995,14 @@ export function createWorldEngine(canvas) {
           ctx.fillStyle = i % 3 === 0 ? `rgba(254,240,138,${a})` : `rgba(217,249,157,${a})`;
           ctx.beginPath(); ctx.arc(rx, ry, 2.4 + (i % 3) * 1.1, 0, Math.PI * 2); ctx.fill();
         }
+        // 상호작용 중심점이 한눈에 보이는 연두빛 등불 코어
+        const coreR = 9 + Math.sin(t * 3.4) * 2;
+        const cg = ctx.createRadialGradient(0, 0, 2, 0, 0, coreR + 14);
+        cg.addColorStop(0, 'rgba(254,252,232,0.96)');
+        cg.addColorStop(0.5, 'rgba(190,242,100,0.68)');
+        cg.addColorStop(1, 'rgba(190,242,100,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(0, 0, coreR + 14, 0, Math.PI * 2); ctx.fill();
         break;
       }
 
@@ -1078,9 +1086,48 @@ export function createWorldEngine(canvas) {
       }
     }
 
-    if (isP2 || dist < 145) {
+    if (isP2) {
+      // 제2부 별빛 공명 지점: 선명한 이중 별빛 마법진 + 중앙 별 코어 + 상단 이름표 상시 표시
+      const pulse = 0.72 + 0.28 * Math.sin(t * 4.2);
+      ctx.save();
+      ctx.rotate(t * 0.65);
+      ctx.strokeStyle = `rgba(249,168,212,${0.65 * pulse + 0.25})`;
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath(); ctx.arc(0, 0, 30 + Math.sin(t * 3.5) * 2.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = `rgba(254,240,138,${0.7 * pulse + 0.2})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+
+      // 중앙 4각 별빛 코어
+      ctx.fillStyle = '#fef08a';
+      ctx.strokeStyle = '#ec4899';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(0, -10); ctx.lineTo(3, -3); ctx.lineTo(10, 0); ctx.lineTo(3, 3);
+      ctx.lineTo(0, 10); ctx.lineTo(-3, 3); ctx.lineTo(-10, 0); ctx.lineTo(-3, -3);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      // 상단 공명 카드 이름표 (어느 배경에서도 선명한 다크 필 배지)
+      const tagText = `★ ${Locale.t(cardName(c))}`;
+      ctx.font = 'bold 11px "Gowun Batang", serif';
+      const tw = ctx.measureText(tagText).width;
+      const ly = -44 + Math.sin(t * 3.2) * 2.5;
+      ctx.fillStyle = 'rgba(22, 6, 40, 0.84)';
+      ctx.strokeStyle = 'rgba(249, 168, 212, 0.82)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(-tw / 2 - 8, ly - 11, tw + 16, 17, 8);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.textAlign = 'center';
+      ctx.fillText(tagText, 0, ly + 1);
+    } else if (dist < 145) {
       const pr = Math.max(0, 1 - dist / 145);
-      ctx.strokeStyle = isP2 ? `rgba(249,168,212,${0.38 + pr * 0.55})` : `rgba(253,224,71,${0.25 + pr * 0.58})`;
+      ctx.strokeStyle = `rgba(253,224,71,${0.25 + pr * 0.58})`;
       ctx.lineWidth = 1.7;
       ctx.setLineDash([4, 5]);
       ctx.beginPath(); ctx.arc(0, 0, 26 + Math.sin(t * 5) * 3, 0, Math.PI * 2); ctx.stroke();
@@ -1504,8 +1551,16 @@ export function createWorldEngine(canvas) {
       }
       for (const c of activeCards) {
         const pos = c.pos || { x: c.x, y: c.y };
-        ctx.fillStyle = part === 2 ? '#fde047' : '#f472b6';
-        ctx.beginPath(); ctx.arc(mx + pos.x * sxm, my + pos.y * sym, 3.0, 0, Math.PI * 2); ctx.fill();
+        if (part === 2) {
+          ctx.strokeStyle = 'rgba(249,168,212,0.9)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(mx + pos.x * sxm, my + pos.y * sym, 4.5, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath(); ctx.arc(mx + pos.x * sxm, my + pos.y * sym, 2.8, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = '#f472b6';
+          ctx.beginPath(); ctx.arc(mx + pos.x * sxm, my + pos.y * sym, 3.0, 0, Math.PI * 2); ctx.fill();
+        }
       }
       for (const n of npcs) {
         ctx.fillStyle = n.id === 'eriol' ? '#60a5fa' : (n.id === 'yue' || n.id === 'yukito') ? '#bae6fd' : '#c084fc';
