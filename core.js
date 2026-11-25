@@ -1,8 +1,9 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 코어 엔진 (core.js) — v.0.3.0
- * - 1·2·3부 통합 아키텍처(index.html + chapter1/2/3.js) 지원 & 기존 페이지 100% 호환
- * - Firebase RTDB 데이터·아트 병렬 로더 및 3부작 통합 로그인(Cloud.loginTrilogy)
+ * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.0
+ * - 단일 스토리 연속 3부작(제1부 황혼 -> 제2부 별빛 -> 제3부 꿈결) 통합 엔진
+ * - 단일 Firebase 경로(/sakura/players/{id}) + 멀티 세이브 슬롯(자동 1 + 수동 6)
+ * - 게스트 모드(localStorage)에서도 동일한 멀티 세이브 슬롯 구조 100% 지원
  * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 자동 보정
  * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 분리
  * - 6종 표정 오버레이 합성 & 2D 캔버스용 건물 스프라이트 캐싱
@@ -10,15 +11,23 @@
  * ============================================================================
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import { getDatabase, ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  engine: 'v.0.3.0',
-  trilogy: 'v.0.3.0',
-  part1: 'v.0.3.0',
-  part2: 'v.0.3.0',
-  part3: 'COMING SOON'
+  app: 'v.0.1.0',
+  engine: 'v.0.1.0',
+  trilogy: 'v.0.1.0'
 };
+
+export const SAVE_SLOTS = [
+  { key: 'auto', label: '자동 저장 슬롯', isAuto: true },
+  { key: 'slot1', label: '저장 슬롯 1', isAuto: false },
+  { key: 'slot2', label: '저장 슬롯 2', isAuto: false },
+  { key: 'slot3', label: '저장 슬롯 3', isAuto: false },
+  { key: 'slot4', label: '저장 슬롯 4', isAuto: false },
+  { key: 'slot5', label: '저장 슬롯 5', isAuto: false },
+  { key: 'slot6', label: '저장 슬롯 6', isAuto: false }
+];
 
 /* ----------------------------------------------------------------------------
  * 1. 안전 스토리지 & 중앙 타이머 & 기본 유틸리티
@@ -123,6 +132,20 @@ export const Utils = {
   /** 간결한 카드 표시용 텍스트 */
   cardRuby(c) {
     return c ? (c.read || c.kr || '') : '';
+  },
+  /** 저장 시각 포맷 (MM/DD HH:MM) */
+  formatTime(ts) {
+    if (!ts) return '';
+    try {
+      const d = new Date(ts);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mi = String(d.getMinutes()).padStart(2, '0');
+      return `${mm}/${dd} ${hh}:${mi}`;
+    } catch {
+      return '';
+    }
   }
 };
 
@@ -633,6 +656,7 @@ export const Rules = {
 
   isCostumeUnlocked(costume, ctx) {
     if (!costume) return false;
+    if (ctx.unlockedCostumes?.has?.(costume.id)) return true;
     const t = costume.unlockType;
     if (t === 'default') return true;
     if (t === 'card') return !!(ctx.ownedCards?.has(costume.unlockCard) || ctx.sakuraCards?.has(costume.unlockCard));
@@ -648,7 +672,9 @@ export const Rules = {
 };
 
 /* ----------------------------------------------------------------------------
- * 6. Firebase Realtime Database 공용 데이터·아트 로드 및 3부작 통합 계정 클라우드
+ * 6. Firebase RTDB 공용 데이터·아트 로더 & 단일 경로 멀티 세이브 슬롯 클라우드
+ *    - 클라우드 경로: /sakura/players/{playerId}/slots/{auto | slot1..slot6}
+ *    - 로컬 게스트 경로: localStorage['sakura_trilogy_local_slots']
  * --------------------------------------------------------------------------*/
 const FIREBASE_CFG = {
   apiKey: "AIzaSyCsIXKvZt9PrES_opeCDYxaSLV02dWVVKA",
@@ -660,10 +686,10 @@ const FIREBASE_CFG = {
   appId: "1:833154417780:web:b94e8cb42751abdccdfd21"
 };
 
+const LOCAL_SLOTS_KEY = 'sakura_trilogy_local_slots';
 const app = initializeApp(FIREBASE_CFG);
 const db = getDatabase(app);
 
-// 메모리 캐시 (1부 -> 2부 전환 시 공용 아트 재다운로드 방지!)
 const contentCache = {
   artLoaded: false,
   art: { avatars: null, buildings: null, clow: null, sakura: null, clear: null },
@@ -680,6 +706,11 @@ function sanitizeId(raw) {
 
 function sanitizeSecret(raw) {
   return String(raw || '').trim().slice(0, 16);
+}
+
+function sanitizeSlotKey(key) {
+  const valid = SAVE_SLOTS.some((s) => s.key === key);
+  return valid ? key : 'auto';
 }
 
 function secretMatches(savedVal, inputSec) {
@@ -709,8 +740,9 @@ async function fetchNode(path, required = true) {
 export const Cloud = {
   sanitizeId,
   sanitizeSecret,
+  sanitizeSlotKey,
 
-  /** 공용 아트 4종 1회 병렬 프리로드 (1·2·3부 전환 시 재사용) */
+  /** 공용 아트 4종 1회 병렬 프리로드 (챕터 전환 시 메모리 캐시 재사용) */
   async ensureSharedArt(includeSakura = true, includeClear = false) {
     const tasks = [];
     if (!contentCache.art.avatars) tasks.push(fetchNode('sakura/content/art/avatars', true).then((v) => { contentCache.art.avatars = v; }));
@@ -724,7 +756,7 @@ export const Cloud = {
     return contentCache.art;
   },
 
-  /** 특정 부(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 (메모리 캐시 자동 활용) */
+  /** 특정 막(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 */
   async loadBundle(part = 1) {
     const [, data] = await Promise.all([
       this.ensureSharedArt(part >= 2, part >= 3),
@@ -738,113 +770,146 @@ export const Cloud = {
     return { data, art: contentCache.art };
   },
 
-  /**
-   * 3부작 통합 계정 로그인 / 신규 등록
-   * - 기존 /sakura/part1/players, part2/players, part3/players 경로 100% 호환
-   * - 한 번 로그인으로 1·2·3부 전체 저장 기록을 함께 불러와 세션 유지
-   */
-  async loginTrilogy(rawId, rawSecret) {
-    const cid = sanitizeId(rawId);
-    const sec = sanitizeSecret(rawSecret);
-    if (!cid) throw new Error('아이디를 입력해 주세요. (한글·영문·숫자 자유 입력)');
-    if (sec.length < 4) throw new Error('비밀번호는 4자 이상 입력해 주세요.');
-
-    const [s1, s2, s3] = await Promise.all([
-      withTimeout(get(ref(db, `sakura/part1/players/${cid}`))),
-      withTimeout(get(ref(db, `sakura/part2/players/${cid}`))),
-      withTimeout(get(ref(db, `sakura/part3/players/${cid}`))).catch(() => ({ exists: () => false }))
-    ]);
-
-    const p1 = s1.exists() ? s1.val() : null;
-    const p2 = s2.exists() ? s2.val() : null;
-    const p3 = s3 && s3.exists() ? s3.val() : null;
-
-    const existing = [p1, p2, p3].filter(Boolean);
-    for (const rec of existing) {
-      if (!secretMatches(rec, sec)) {
-        throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
-      }
-    }
-
-    return {
-      status: existing.length > 0 ? 'logged_in' : 'registered',
-      id: cid,
-      secret: sec,
-      parts: { 1: p1, 2: p2, 3: p3 }
-    };
+  /* ---- 로컬 게스트 멀티 슬롯 관리 ---- */
+  getLocalSlots() {
+    const raw = SafeStore.getJSON(LOCAL_SLOTS_KEY, {});
+    return raw && typeof raw === 'object' ? raw : {};
+  },
+  saveLocalSlot(slotKey, snapshot) {
+    const sk = sanitizeSlotKey(slotKey);
+    const all = this.getLocalSlots();
+    all[sk] = { ...snapshot, slotKey: sk, savedAt: snapshot.savedAt || Date.now() };
+    SafeStore.setJSON(LOCAL_SLOTS_KEY, all);
+    return all[sk];
+  },
+  deleteLocalSlot(slotKey) {
+    const sk = sanitizeSlotKey(slotKey);
+    const all = this.getLocalSlots();
+    delete all[sk];
+    SafeStore.setJSON(LOCAL_SLOTS_KEY, all);
+    return all;
   },
 
-  /** 단일 부 로그인/등록 (기존 part1.html / part2.html 하위 호환 유지) */
-  async loginOrRegister(part, rawId, rawSecret) {
+  /** 가장 최근에 저장된 슬롯 반환 (타이틀 '모험 이어하기' 버튼용) */
+  getLatestSlot(slotsObj) {
+    if (!slotsObj || typeof slotsObj !== 'object') return null;
+    let best = null;
+    for (const s of SAVE_SLOTS) {
+      const rec = slotsObj[s.key];
+      if (!rec || typeof rec !== 'object') continue;
+      if (!best || (rec.savedAt || 0) > (best.savedAt || 0)) {
+        best = { ...rec, slotKey: s.key };
+      }
+    }
+    return best;
+  },
+
+  /* ---- Firebase 단일 경로(/sakura/players/{id}) 통합 계정 & 멀티 슬롯 ---- */
+  async loginAccount(rawId, rawSecret) {
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     if (!cid) throw new Error('아이디를 입력해 주세요. (한글·영문·숫자 자유 입력)');
     if (sec.length < 4) throw new Error('비밀번호는 4자 이상 입력해 주세요.');
 
-    const nodeRef = ref(db, `sakura/part${part}/players/${cid}`);
-    const snap = await withTimeout(get(nodeRef));
+    const accRef = ref(db, `sakura/players/${cid}`);
+    const snap = await withTimeout(get(accRef));
     if (snap.exists()) {
       const val = snap.val();
       if (!secretMatches(val, sec)) {
-        throw new Error('비밀번호가 일치하지 않습니다.');
+        throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
       }
-      return { status: 'logged_in', id: cid, secret: sec, data: val };
+      return {
+        status: 'logged_in',
+        id: cid,
+        secret: sec,
+        slots: (val.slots && typeof val.slots === 'object') ? val.slots : {}
+      };
     }
-    return { status: 'registered', id: cid, secret: sec, data: null };
+
+    // 신규 계정 즉시 생성 (단일 경로 /sakura/players/{id})
+    const now = Date.now();
+    await withTimeout(set(accRef, {
+      playerId: cid,
+      secret: sec,
+      createdAt: now,
+      updatedAt: now
+    }));
+    return {
+      status: 'registered',
+      id: cid,
+      secret: sec,
+      slots: {}
+    };
   },
 
-  async save(part, rawId, rawSecret, payload) {
+  async fetchAccountSlots(rawId, rawSecret) {
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+    const snap = await withTimeout(get(ref(db, `sakura/players/${cid}`)));
+    if (!snap.exists()) return {};
+    const val = snap.val();
+    if (!secretMatches(val, sec)) throw new Error('비밀번호가 일치하지 않습니다.');
+    return (val.slots && typeof val.slots === 'object') ? val.slots : {};
+  },
+
+  async saveSlot(rawId, rawSecret, slotKey, snapshot) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    const sk = sanitizeSlotKey(slotKey);
     if (!cid) throw new Error('아이디를 입력해 주세요.');
     if (sec.length < 4) throw new Error('비밀번호는 4자 이상 입력해 주세요.');
 
-    const nodeRef = ref(db, `sakura/part${part}/players/${cid}`);
-    const cur = await withTimeout(get(nodeRef));
-    if (cur.exists() && !secretMatches(cur.val(), sec)) {
-      throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
+    const accRef = ref(db, `sakura/players/${cid}`);
+    const snap = await withTimeout(get(accRef));
+    if (snap.exists() && !secretMatches(snap.val(), sec)) {
+      throw new Error('비밀번호가 일치하지 않습니다.');
     }
-    await withTimeout(set(nodeRef, {
-      ...payload,
+
+    const now = Date.now();
+    const record = {
+      ...snapshot,
+      slotKey: sk,
+      savedAt: now
+    };
+    await withTimeout(update(accRef, {
       playerId: cid,
       secret: sec,
-      pin: sec,
-      updatedAt: Date.now()
+      updatedAt: now,
+      [`slots/${sk}`]: record
     }));
-    return { id: cid, secret: sec };
+    return record;
   },
 
-  async load(part, rawId, rawSecret) {
+  async deleteSlot(rawId, rawSecret, slotKey) {
+    const cid = sanitizeId(rawId);
+    const sec = sanitizeSecret(rawSecret);
+    const sk = sanitizeSlotKey(slotKey);
+    if (!cid) throw new Error('아이디를 입력해 주세요.');
+
+    const accRef = ref(db, `sakura/players/${cid}`);
+    const snap = await withTimeout(get(accRef));
+    if (!snap.exists()) throw new Error('계정 정보를 찾을 수 없습니다.');
+    if (!secretMatches(snap.val(), sec)) throw new Error('비밀번호가 일치하지 않습니다.');
+
+    await withTimeout(remove(ref(db, `sakura/players/${cid}/slots/${sk}`)));
+    return sk;
+  },
+
+  async deleteAccount(rawId, rawSecret) {
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     if (!cid) throw new Error('아이디를 입력해 주세요.');
-    const snap = await withTimeout(get(ref(db, `sakura/part${part}/players/${cid}`)));
-    if (!snap.exists()) return null;
-    const val = snap.val();
-    if (!secretMatches(val, sec)) {
-      throw new Error('비밀번호가 일치하지 않습니다.');
-    }
-    return val;
-  },
 
-  async loadPart1(rawId, rawSecret) {
-    return this.load(1, rawId, rawSecret);
-  },
+    const accRef = ref(db, `sakura/players/${cid}`);
+    const snap = await withTimeout(get(accRef));
+    if (!snap.exists()) throw new Error('삭제할 계정이 없습니다.');
+    if (!secretMatches(snap.val(), sec)) throw new Error('비밀번호가 일치하지 않습니다.');
 
-  async del(part, rawId, rawSecret) {
-    const cid = sanitizeId(rawId);
-    const sec = sanitizeSecret(rawSecret);
-    if (!cid) throw new Error('아이디를 입력해 주세요.');
-    const nodeRef = ref(db, `sakura/part${part}/players/${cid}`);
-    const snap = await withTimeout(get(nodeRef));
-    if (!snap.exists()) throw new Error('삭제할 저장 데이터가 없습니다.');
-    if (!secretMatches(snap.val(), sec)) {
-      throw new Error('비밀번호가 일치하지 않습니다.');
-    }
-    await withTimeout(remove(nodeRef));
+    await withTimeout(remove(accRef));
     return cid;
   }
 };
 
-export const SakuraCore = { VERSION, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud };
+export const SakuraCore = { VERSION, SAVE_SLOTS, SafeStore, Timers, Utils, Locale, Art, SoundFX, Rules, Cloud };
 window.SakuraCore = SakuraCore;
