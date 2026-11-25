@@ -260,7 +260,7 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
           <span>PART I · REMASTER</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-f</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-g</span>
         </div>
       </div>
     </div>
@@ -360,7 +360,7 @@
       <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
       <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CLOUD ARCHIVE</span>
-        <span id="modalVersionBadge">v.0.2.0-f</span>
+        <span id="modalVersionBadge">v.0.2.0-g</span>
       </div>
     </div>
   </div>
@@ -378,7 +378,7 @@
         'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
       );
       let lastErr = null;
-      const cacheBust = '?v=0.2.0-f';
+      const cacheBust = '?v=0.2.0-g';
       for (const base of candidates) {
         try {
           // core.js는 world.js/battle.js의 './core.js'와 동일한 단일 인스턴스를 공유하도록 쿼리 없이 로드
@@ -414,7 +414,7 @@
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
-      const APP_VER = 'v.0.2.0-f';
+      const APP_VER = 'v.0.2.0-g';
       if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
       if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
@@ -637,7 +637,9 @@
         anomaly.jumpX = CARDS.jump.x; anomaly.jumpY = CARDS.jump.y; anomaly.jumpBind = 0;
         currentMapId = c.map;
         const cur = getMap();
-        const sp = c.id === 'maze' ? { x: 540, y: 610 } : { x: clamp(c.x - 95, 60, cur.w - 60), y: clamp(c.y + 65, 60, cur.h - 60) };
+        const sp = c.id === 'maze'
+          ? (c.map === 'shrine_gate' ? { x: 500, y: 480 } : { x: 540, y: 610 })
+          : { x: clamp(c.x - 95, 60, cur.w - 60), y: clamp(c.y + 65, 60, cur.h - 60) };
         player.x = sp.x; player.y = sp.y; kero.x = sp.x - 26; kero.y = sp.y - 18;
         player.targetPos = null; pendingTarget = null; encCd = 1.2;
         $('memoryBannerText').textContent = Locale.t(`✨ [${cardName(c)}] 기억 회상 중`);
@@ -842,10 +844,10 @@
           showToast('비행(플라이) 해방! 12초간 건물·호수·미궁 벽 위를 자유롭게 비행합니다!');
         } else if (s.id === 'light') {
           player.mp -= s.mp; buffs.light = 16; SoundFX.heal(); world.burst(player.x, player.y, '#fef08a', 24);
-          if (currentMapId === 'school' && isCardActiveOnMap('illusion')) anomaly.illusionDecoys.forEach((d) => { d.popped = true; });
+          if (isCardActiveOnMap('illusion') && CARDS.illusion?.map === currentMapId) anomaly.illusionDecoys.forEach((d) => { d.popped = true; });
           const next = getNextObjective();
           if (next) world.guideBeam(player.x, player.y, next.x, next.y, '#fef08a');
-          showToast('빛(라이트) 해방! 어둠과 가짜 환영을 걷어내고 목표 방향을 비춥니다!');
+          showToast('라이트 해방! 어둠과 가짜 환영을 걷어내고 목표 방향을 비춥니다!');
         } else if (s.id === 'glow') {
           if (player.mp >= player.maxMp) return showToast('MP가 이미 가득 차 있습니다!');
           buffs.glow = 7; buffs.glowCd = 18; buffs.glowAcc = 0; SoundFX.heal(); world.burst(player.x, player.y, '#bef264', 24);
@@ -1097,7 +1099,7 @@
         if (portalCd > 0) portalCd = Math.max(0, portalCd - dt);
 
         const prevSig = `${buffs.fly > 0}${buffs.flyLand}${buffs.light > 0}${buffs.glow > 0}${Math.ceil(buffs.glowCd)}${buffs.wind > 0}`;
-        const colOpts = { ignoreObs: false, mazeActive: currentMapId === 'school' && isCardActiveOnMap('maze') };
+        const colOpts = { ignoreObs: false, mazeActive: (currentMapId === 'school' || currentMapId === 'shrine_gate') && isCardActiveOnMap('maze') };
 
         if (buffs.fly > 0) {
           buffs.fly = Math.max(0, buffs.fly - dt);
@@ -1122,36 +1124,43 @@
         const cosBonuses = Rules.getCostumeBonuses(story.costumeId);
         let spdMod = 1, pushX = 0, pushY = 0;
 
-        if (currentMapId === 'town') {
-          if (isCardActiveOnMap('wood') && !flying && buffs.wind <= 0 && Math.hypot(player.x - CARDS.wood.x, player.y - CARDS.wood.y) < 105) spdMod *= 0.45;
-          if (isCardActiveOnMap('earthy') && !flying && Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y) < 115) spdMod *= 0.62;
-          if (isCardActiveOnMap('watery') && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
-            const dw = Math.hypot(player.x - CARDS.watery.x, player.y - CARDS.watery.y);
-            if (dw < 120 && dw > 35) { pushX += ((player.x - CARDS.watery.x) / dw) * 58; pushY += ((player.y - CARDS.watery.y) / dw) * 58; }
+        // 10개 층별/구역별 맵 호환: 각 카드의 실제 배치 맵 기준으로 특수 이상 현상 작동
+        if (isCardActiveOnMap('wood') && CARDS.wood?.map === currentMapId && !flying && buffs.wind <= 0) {
+          if (Math.hypot(player.x - CARDS.wood.x, player.y - CARDS.wood.y) < 105) spdMod *= 0.45;
+        }
+        if (isCardActiveOnMap('earthy') && CARDS.earthy?.map === currentMapId && !flying) {
+          if (Math.hypot(player.x - CARDS.earthy.x, player.y - CARDS.earthy.y) < 115) spdMod *= 0.62;
+        }
+        if (isCardActiveOnMap('watery') && CARDS.watery?.map === currentMapId && !flying && buffs.wind <= 0 && !cosBonuses.waterPushImmune) {
+          const dw = Math.hypot(player.x - CARDS.watery.x, player.y - CARDS.watery.y);
+          if (dw < 120 && dw > 35) { pushX += ((player.x - CARDS.watery.x) / dw) * 58; pushY += ((player.y - CARDS.watery.y) / dw) * 58; }
+        }
+        if (isCardActiveOnMap('jump') && CARDS.jump?.map === currentMapId) {
+          anomaly.jumpHop = Math.max(0, anomaly.jumpHop - dt);
+          anomaly.jumpBind = Math.max(0, anomaly.jumpBind - dt);
+          const dj = Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY);
+          if (dj < 110 && dj > 44 && anomaly.jumpHop <= 0 && anomaly.jumpBind <= 0) {
+            anomaly.jumpHop = 1.9;
+            const spots = [{ x: 365, y: 830 }, { x: 475, y: 760 }, { x: 255, y: 935 }, { x: 465, y: 970 }];
+            const pick = spots.filter((s) => Math.hypot(s.x - player.x, s.y - player.y) > 125)[0] || spots[0];
+            anomaly.jumpX = pick.x; anomaly.jumpY = pick.y; world.burst(pick.x, pick.y, '#f472b6', 14);
+            showToast('점프 기운이 공중으로 통통 뛰어 도망쳤다! ([윈디]로 묶을 수 있어요)');
           }
-          if (isCardActiveOnMap('jump')) {
-            anomaly.jumpHop = Math.max(0, anomaly.jumpHop - dt);
-            anomaly.jumpBind = Math.max(0, anomaly.jumpBind - dt);
-            const dj = Math.hypot(player.x - anomaly.jumpX, player.y - anomaly.jumpY);
-            if (dj < 110 && dj > 44 && anomaly.jumpHop <= 0 && anomaly.jumpBind <= 0) {
-              anomaly.jumpHop = 1.9;
-              const spots = [{ x: 365, y: 830 }, { x: 475, y: 760 }, { x: 255, y: 935 }, { x: 465, y: 970 }];
-              const pick = spots.filter((s) => Math.hypot(s.x - player.x, s.y - player.y) > 125)[0] || spots[0];
-              anomaly.jumpX = pick.x; anomaly.jumpY = pick.y; world.burst(pick.x, pick.y, '#f472b6', 14);
-              showToast('도약 기운이 공중으로 통통 뛰어 도망쳤다! ([바람(윈디)]로 묶을 수 있어요)');
-            }
-          }
-          if (isCardActiveOnMap('glow')) { const t = performance.now() * 0.001; anomaly.glowX = 900 + Math.sin(t * 1.1) * 52; anomaly.glowY = 635 + Math.cos(t * 1.6) * 18; }
-        } else if (currentMapId === 'house') {
-          if (isCardActiveOnMap('shield') && !flying && buffs.wind <= 0) {
-            const ds = Math.hypot(player.x - CARDS.shield.x, player.y - CARDS.shield.y);
-            if (ds < 95 && ds > 42) { pushX += ((player.x - CARDS.shield.x) / ds) * 46; pushY += ((player.y - CARDS.shield.y) / ds) * 46; }
-          }
-          if (isCardActiveOnMap('mirror')) {
-            anomaly.mirrorTrail.push({ x: player.x, y: player.y, walk: player.walk });
-            if (anomaly.mirrorTrail.length > 22) anomaly.mirrorTrail.shift();
-          }
-        } else if (currentMapId === 'school' && isCardActiveOnMap('illusion')) {
+        }
+        if (isCardActiveOnMap('glow') && CARDS.glow?.map === currentMapId) {
+          const t = performance.now() * 0.001;
+          anomaly.glowX = CARDS.glow.x + Math.sin(t * 1.1) * 42;
+          anomaly.glowY = CARDS.glow.y + Math.cos(t * 1.6) * 16;
+        }
+        if (isCardActiveOnMap('shield') && CARDS.shield?.map === currentMapId && !flying && buffs.wind <= 0) {
+          const ds = Math.hypot(player.x - CARDS.shield.x, player.y - CARDS.shield.y);
+          if (ds < 95 && ds > 42) { pushX += ((player.x - CARDS.shield.x) / ds) * 46; pushY += ((player.y - CARDS.shield.y) / ds) * 46; }
+        }
+        if (isCardActiveOnMap('mirror') && CARDS.mirror?.map === currentMapId) {
+          anomaly.mirrorTrail.push({ x: player.x, y: player.y, walk: player.walk });
+          if (anomaly.mirrorTrail.length > 22) anomaly.mirrorTrail.shift();
+        }
+        if (isCardActiveOnMap('illusion') && CARDS.illusion?.map === currentMapId) {
           for (const d of anomaly.illusionDecoys) {
             if (!d.popped && Math.hypot(player.x - d.x, player.y - d.y) < 36) {
               d.popped = true; SoundFX.click(); world.burst(d.x, d.y, '#c084fc', 18);
@@ -1290,8 +1299,8 @@
         const hasBasement = !!MAPS.house_b1;
         currentMapId = hasBasement ? 'house_b1' : (MAPS.house ? 'house' : 'town');
         recalcPower(false);
-        player.x = hasBasement ? 300 : (currentMapId === 'house' ? 240 : 385);
-        player.y = hasBasement ? 320 : (currentMapId === 'house' ? 320 : 465);
+        player.x = hasBasement ? 380 : (currentMapId === 'house' ? 240 : 385);
+        player.y = hasBasement ? 225 : (currentMapId === 'house' ? 320 : 465);
         player.hp = player.maxHp;
         player.mp = player.maxMp;
         player.targetPos = null;
@@ -1321,6 +1330,7 @@
         ];
         vn.start(prologueLines, () => {
           inPrologue = false;
+          encCd = 1.2;
           world.burst(player.x, player.y, '#38bdf8', 24);
           showToast('📖 크로우 카드 1/19 (윈디) 보유! 마을로 나가 흩어진 18장을 봉인하세요!');
           autoSave('모험 시작');
