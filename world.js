@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-b
+ * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-c
  * - 1부(황혼) · 2부(별빛) 공용 야외 및 10개 층별/구역별 실내 맵 렌더링 (구 4맵 100% 호환)
  * - 분수대 중앙 원형 산책 데크 & 원형 충돌 판정으로 보이지 않는 벽/다리 막힘 해결
  * - 우드·글로우·섀도·다크·라이트 대폭 강화 이상 현상 (광과민성 안전 준수)
@@ -1367,6 +1367,8 @@ export function createWorldEngine(canvas) {
       ctx.fillStyle = nextObjective.isBoss ? 'rgba(253,224,71,0.9)' : 'rgba(244,114,182,0.85)';
       ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-3, -4); ctx.lineTo(-1, 0); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
       ctx.restore();
+    }
+
     // 7) 주인공 & 케로 (프롤로그에서 케로 등장 전에는 hideKero 플래그로 숨김)
     drawPlayerSprite(state, now);
     if (!flags.hideKero && kero) {
