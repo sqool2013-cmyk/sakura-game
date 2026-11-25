@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-d
+ * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-e
  * - 1부(황혼) · 2부(별빛) 공용 야외 및 10개 층별/구역별 실내 맵 렌더링 (구 4맵 100% 호환)
  * - 분수대 중앙 원형 산책 데크 & 원형 충돌 판정으로 보이지 않는 벽/다리 막힘 해결
  * - 우드·글로우·섀도·다크·라이트·일루전 강화 이상 현상 (광과민성 안전 준수)
@@ -874,6 +874,20 @@ export function createWorldEngine(canvas) {
           const cy1 = Math.sin(a + 0.35) * r * 0.5;
           const ex = Math.cos(a) * r;
           const ey = Math.sin(a) * r;
+          ctx.strokeStyle = track ? 'rgba(6,3,18,0.96)' : 'rgba(15,10,40,0.88)';
+          ctx.lineWidth = track ? 7.5 : 5.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(cx1, cy1, ex, ey); ctx.stroke();
+        }
+        const bl = Math.sin(t * 2.5) > -0.75 ? 1 : 0.1;
+        ctx.fillStyle = `rgba(199,210,254,${0.9 * bl})`;
+        ctx.beginPath();
+        ctx.ellipse(-9, -4, 4, 2.2, 0, 0, Math.PI * 2);
+        ctx.ellipse(9, -4, 4, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+
       case 'illusion': {
         for (let i = 0; i < 4; i++) {
           const ox = Math.cos(t * 0.9 + i * 1.7) * 22;
