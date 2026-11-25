@@ -1,13 +1,11 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 — 제1부 고유 컨트롤러 (chapter1.js) — v.0.3.0
- * - 통합 런처(index.html)의 host 인터페이스와 연동되는 제1부(크로우 카드 편) 모듈
- * - 지하 서재 붉은 책 & 윈디 비산 인터랙티브 프롤로그 (케로·이상 현상 등장 시점 제어)
- * - 10개 층별/구역별 맵(집 3층 · 학교 3구역 · 신사 3구역 · 마을) 및 구 4맵 호환
- * - 19장 크로우 카드 이상 현상 · 8벌 마법 의상실 · 크로우 북 기억 돌아보기
- * - NPC 역할 분담 (토모요 회복+선택형 의상실 / 토우야 공격버프+미러 특별 대사 /
- *   유키토 방어버프+유에 강림 시 동일체 숨김 / 샤오랑 사건 공투+친밀도 원호)
- * - 제1부 엔딩에서 제2부(별빛의 토모에다)로 바로 이어가는 원클릭 직결 지원
+ * 카드캡터 3부작 — 제1부 고유 컨트롤러 (chapter1.js) — v.0.1.0
+ * - 단일 스토리 통합 앱(index.html)과 연동되는 제1부(크로우 카드 편) 모듈
+ * - 멀티 세이브 슬롯(자동 1 + 수동 6) 스냅샷·메타·공유 상태(의상/친밀도/추억) 제공
+ * - 모달(의상실·도감·세이브) 오픈 중 이동·포인터 입력 완전 차단
+ * - 지하 서재 붉은 책 & 윈디 비산 프롤로그 · 10개 층별/구역별 맵 · 8벌 마법 의상실
+ * - 유에 격파 시 로비로 끊기지 않고 제2부 막간 시네마틱(Interlude)으로 자연 직결
  * ============================================================================
  */
 
@@ -78,7 +76,8 @@ export function createChapter(host, DATA) {
     syaoranTrust: 0,
     seenEncounters: new Set(),
     sealedOrder: [],
-    costumeId: 'sakura_dress'
+    costumeId: 'sakura_dress',
+    unlockedCostumes: new Set(['sakura_dress'])
   };
 
   const player = {
@@ -126,138 +125,43 @@ export function createChapter(host, DATA) {
   };
 
   // --------------------------------------------------------------------------
-  // 3. 핵심 헬퍼 (맵 · 카드 위치 · 의상 · 스탯 · 동일체 규칙)
+  // 4. 저장 페이로드 구성 · 공유 계승 상태 · 슬롯 메타 · 자동 저장
   // --------------------------------------------------------------------------
-  const getMap = () => MAPS[currentMapId] || MAPS.town;
-  const isCardActiveOnMap = (id) => (
-    memoryMode.active ? (memoryMode.cardId === id) : (id !== 'windy' && !ownedCards.has(id))
-  );
-  const getUnsealed = () => CARD_ORDER.filter(isCardActiveOnMap).map((id) => CARDS[id]);
-  const getCardPos = (c) => (
-    c.id === 'jump'
-      ? { x: anomaly.jumpX, y: anomaly.jumpY }
-      : c.id === 'glow'
-      ? { x: anomaly.glowX, y: anomaly.glowY }
-      : { x: c.x, y: c.y }
-  );
-
-  function countUnsealedInMap(mid) {
-    if (currentMapId === 'town' && MAP_GROUPS[mid]) {
-      const grp = MAP_GROUPS[mid];
-      return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && grp.includes(CARDS[id]?.map)).length;
-    }
-    return CARD_ORDER.filter((id) => isCardActiveOnMap(id) && CARDS[id]?.map === mid).length;
-  }
-
-  /** 시계탑에 유에가 강림한 동안 유키토(청명) 숨김 — 원작 동일체 고증 */
-  function isNpcVisible(n) {
-    if (n.map !== currentMapId) return false;
-    const yueSummoned = ownedCards.size === CARD_ORDER.length && !yueDefeated && !memoryMode.active;
-    if (n.id === 'yukito' && yueSummoned) return false;
-    return true;
-  }
-
-  const getCostumeObj = () => COSTUMES.find((c) => c.id === story.costumeId) || COSTUMES[0];
-
-  function resetAnomalyState() {
-    anomaly.jumpX = CARDS.jump?.x || 365;
-    anomaly.jumpY = CARDS.jump?.y || 830;
-    anomaly.jumpHop = 0;
-    anomaly.jumpBind = 0;
-    anomaly.glowX = CARDS.glow?.x || 790;
-    anomaly.glowY = CARDS.glow?.y || 530;
-    anomaly.mirrorTrail = [];
-    anomaly.illusionDecoys.forEach((d) => { d.popped = false; });
-  }
-
-  function recalcPower(healBonus = false) {
-    const prevMaxHp = player.maxHp;
-    const prevMaxMp = player.maxMp;
-    const stats = Rules.calcStats({
-      part: 1,
-      progressCount: Math.max(0, ownedCards.size - 1),
-      total: CARD_ORDER.length || 19,
-      costumeId: story.costumeId,
-      progCfg: DATA?.progression
+  function getUnlockedCostumeList() {
+    const unlocked = new Set(story.unlockedCostumes);
+    COSTUMES.forEach((cos) => {
+      if (Rules.isCostumeUnlocked(cos, { ownedCards, bossCleared: yueDefeated, unlockedCostumes: unlocked })) {
+        unlocked.add(cos.id);
+      }
     });
-    player.lv = stats.lv;
-    player.maxHp = stats.maxHp;
-    player.maxMp = stats.maxMp;
-    player.mult = stats.mult;
-    if (healBonus) {
-      if (player.maxHp > prevMaxHp) player.hp += (player.maxHp - prevMaxHp);
-      if (player.maxMp > prevMaxMp) player.mp += (player.maxMp - prevMaxMp);
-    }
-    player.hp = clamp(player.hp, 1, player.maxHp);
-    player.mp = clamp(player.mp, 0, player.maxMp);
+    return Array.from(unlocked);
   }
 
-  function getMoveSpeed() {
-    let s = 215 + (ownedCards.has('fly') ? 28 : 0) + (ownedCards.has('jump') ? 20 : 0);
-    s *= Rules.getCostumeBonuses(story.costumeId).speedMult || 1;
-    if (buffs.fly > 0 || buffs.flyLand) s *= 1.55;
-    return s;
+  function getSharedState() {
+    return {
+      costumeId: story.costumeId,
+      unlockedCostumes: getUnlockedCostumeList(),
+      syaoranTrust: story.syaoranTrust,
+      part1Cleared: yueDefeated,
+      firstSealedCard: story.sealedOrder[0] || '',
+      lastSealedCard: story.sealedOrder[story.sealedOrder.length - 1] || '',
+      hadMirror: ownedCards.has('mirror') || yueDefeated
+    };
   }
 
-  function getZoneName() {
-    if (currentMapId !== 'town') return getMap()?.name || '황혼의 토모에다';
-    for (const z of ZONES) {
-      if (player.x >= z.x && player.x <= z.x + z.w && player.y >= z.y && player.y <= z.y + z.h) {
-        return z.name;
-      }
-    }
-    return '황혼의 토모에다';
+  function getSlotMeta() {
+    return {
+      zoneName: getZoneName(),
+      summary: yueDefeated
+        ? `유에 심판 돌파 · 봉인 ${ownedCards.size}/${CARD_ORDER.length} · Lv.${player.lv}`
+        : `봉인 ${ownedCards.size}/${CARD_ORDER.length} · 마력 Lv.${player.lv}`
+    };
   }
 
-  function getNextObjective() {
-    const rem = getUnsealed();
-    if (rem.length > 0) {
-      const here = rem.filter((c) => c.map === currentMapId);
-      if (here.length > 0) {
-        let best = here[0];
-        let bestD = Infinity;
-        for (const c of here) {
-          const p = getCardPos(c);
-          const d = Math.hypot(p.x - player.x, p.y - player.y);
-          if (d < bestD) {
-            bestD = d;
-            best = { ...c, x: p.x, y: p.y };
-          }
-        }
-        return best;
-      }
-      const tc = rem[0];
-      const portals = toArr(getMap()?.portals);
-      const direct = portals.find((p) => p.targetMap === tc.map)
-        || portals.find((p) => MAP_GROUPS[p.targetMap]?.includes(tc.map))
-        || portals.find((p) => p.targetMap === 'town')
-        || portals[0];
-      return direct ? { isPortal: true, x: direct.x, y: direct.y, zone: tc.zone, targetCard: tc } : tc;
-    }
-    if (!yueDefeated && !memoryMode.active && BOSS_YUE) {
-      if (currentMapId !== 'town') {
-        const portals = toArr(getMap()?.portals);
-        const p = portals.find((x) => x.targetMap === 'town') || portals[0];
-        return p ? { isPortal: true, isBoss: true, x: p.x, y: p.y, zone: BOSS_YUE.zone, targetCard: BOSS_YUE } : BOSS_YUE;
-      }
-      return BOSS_YUE;
-    }
-    return null;
-  }
-
-  function showChapterOnce(sub, title) {
-    if (shownActs.has(sub)) return;
-    shownActs.add(sub);
-    host.showChapterBanner(sub, title);
-  }
-
-  // --------------------------------------------------------------------------
-  // 4. 저장 페이로드 구성 & 자동 저장 & 세이브 적용
-  // --------------------------------------------------------------------------
   function getSavePayload() {
     const s = memoryMode.active && memoryMode.snapshot ? memoryMode.snapshot : null;
     return {
-      version: 4,
+      version: 5,
       part: 1,
       yueDefeated: s ? s.yueDefeated : yueDefeated,
       currentMapId: s ? s.currentMapId : currentMapId,
@@ -268,7 +172,8 @@ export function createChapter(host, DATA) {
         syaoranTrust: story.syaoranTrust,
         seenEncounters: Array.from(story.seenEncounters),
         sealedOrder: story.sealedOrder.slice(),
-        costumeId: story.costumeId
+        costumeId: story.costumeId,
+        unlockedCostumes: getUnlockedCostumeList()
       },
       player: {
         x: Math.round(s ? s.px : player.x),
@@ -282,10 +187,10 @@ export function createChapter(host, DATA) {
 
   function autoSave(reason = '') {
     if (memoryMode.active) return;
-    host.saveChapter(1, getSavePayload(), reason);
+    host.autoSave(reason);
   }
 
-  function applySavePayload(saved) {
+  function applySavePayload(saved, shared = null) {
     Timers.clearAll();
     vn.finish(true);
     battle.forceClose();
@@ -302,7 +207,12 @@ export function createChapter(host, DATA) {
     story.syaoranTrust = Number(st.syaoranTrust) || 0;
     story.seenEncounters = new Set(toArr(st.seenEncounters));
     story.sealedOrder = toArr(st.sealedOrder);
-    story.costumeId = st.costumeId || 'sakura_dress';
+    story.costumeId = st.costumeId || shared?.costumeId || 'sakura_dress';
+    story.unlockedCostumes = new Set([
+      'sakura_dress',
+      ...toArr(st.unlockedCostumes),
+      ...toArr(shared?.unlockedCostumes)
+    ]);
 
     currentMapId = MAPS[saved.currentMapId] ? saved.currentMapId : 'town';
     recalcPower(false);
@@ -595,7 +505,11 @@ export function createChapter(host, DATA) {
       },
       renderGrid(grid) {
         COSTUMES.forEach((cos) => {
-          const unlocked = Rules.isCostumeUnlocked(cos, { ownedCards, bossCleared: yueDefeated });
+          const unlocked = Rules.isCostumeUnlocked(cos, {
+            ownedCards,
+            bossCleared: yueDefeated,
+            unlockedCostumes: story.unlockedCostumes
+          });
           const equipped = story.costumeId === cos.id;
           const card = document.createElement('div');
           card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${
@@ -825,22 +739,24 @@ export function createChapter(host, DATA) {
     yueDefeated = true;
     recalcPower(true);
     updateHUD(true);
-    autoSave('최후의 심판 돌파');
+    autoSave('제1부 완결 · 최후의 심판 돌파');
 
     vn.start(toArr(DATA.dialogues?.yueVictory), () => {
       mode = 'ending';
       updateFieldBar();
       const f = CARDS[story.sealedOrder[0] || 'fly'];
       const l = CARDS[story.sealedOrder[story.sealedOrder.length - 1] || 'light'];
-      host.showEnding({
-        sub: 'PART I CLEAR · THE NEW MASTER',
-        title: '새로운 크로우 카드의 주인',
-        summaryHtml:
-          `사쿠라는 <b>[${cardName(f)}]</b>에서 시작해 마지막 <b>[${cardName(l)}]</b>까지 열아홉 장의 크로우 카드를 모두 봉인하고, 달의 심판자 유에에게 새로운 주인으로 인정받았습니다!<br/>` +
-          `<span class="text-emerald-200 font-bold mt-1.5 inline-block">⚡ 샤오랑 친밀도 ${story.syaoranTrust} · 최종 체력 ${player.maxHp} · 마력 Lv.${player.lv}</span><br/>` +
-          `<span class="text-yellow-200 text-xs mt-1 inline-block">✨ 지금 바로 제2부 [별빛의 토모에다]로 출발하면 추억과 최대 MP +20 보너스가 자동 계승됩니다!</span>`,
-        nextPart: 2,
-        nextPartLabel: '⭐ 제2부: 별빛의 토모에다로 이어서 출발!'
+      host.transitionToNextAct(2, {
+        icon: '⭐',
+        sub: 'ACT I COMPLETE · INTERLUDE',
+        title: '황혼이 지나고, 별빛의 새 학기',
+        body:
+          `<b>[${cardName(f)}]</b>에서 시작해 마지막 <b>[${cardName(l)}]</b>까지 열아홉 장의 크로우 카드를 모두 봉인하고, 달의 심판자 유에에게 새로운 주인으로 인정받았습니다.<br/><br/>` +
+          `평화로운 새 학기가 찾아올 무렵, 영국에서 신비로운 전학생이 찾아오고 봉인의 지팡이는 사쿠라만의 <b>별의 지팡이</b>로 깨어나려 하는데...<br/>` +
+          `<span class="text-yellow-200 font-bold mt-2 inline-block">✨ 제1부의 모든 의상(🕊 순백의 천사 드레스 포함) · 샤오랑 친밀도(${story.syaoranTrust}) · 추억이 그대로 이어집니다!</span>`,
+        buttonLabel: '⭐ 제2부: 별빛의 토모에다로 계속하기 (X)',
+        sharedPatch: getSharedState(),
+        act1Payload: getSavePayload()
       });
     });
   }
@@ -967,7 +883,7 @@ export function createChapter(host, DATA) {
 
   function updateExplore(dt) {
     world.updateAmbience(dt);
-    if (mode !== 'explore') return;
+    if (mode !== 'explore' || host.isAnyModalOpen?.()) return;
 
     if (encCd > 0) encCd = Math.max(0, encCd - dt);
     if (portalCd > 0) portalCd = Math.max(0, portalCd - dt);
@@ -1208,6 +1124,7 @@ export function createChapter(host, DATA) {
     story.seenEncounters = new Set();
     story.sealedOrder = [];
     story.costumeId = 'sakura_dress';
+    story.unlockedCostumes = new Set(['sakura_dress']);
 
     const hasBasement = !!MAPS.house_b1;
     currentMapId = hasBasement ? 'house_b1' : (MAPS.house ? 'house' : 'town');
@@ -1267,9 +1184,9 @@ export function createChapter(host, DATA) {
       onFlee: () => { encCd = 2.0; host.showToast('잠시 물러나 재정비합니다.'); }
     },
     start({ saved } = {}) {
+    start({ saved, shared } = {}) {
       if (saved && saved.ownedCards) {
-        applySavePayload(saved);
-        host.showToast('⚡ 제1부 저장 기록을 이어서 시작합니다!');
+        applySavePayload(saved, shared);
       } else {
         startNewAdventure();
       }
@@ -1290,12 +1207,12 @@ export function createChapter(host, DATA) {
       updateFieldBar();
     },
     onKeyDown(code) {
-      if (mode !== 'explore') return;
+      if (mode !== 'explore' || host.isAnyModalOpen?.()) return;
       if (code === 'KeyX' || code === 'Enter') triggerInteract();
       else if (code.startsWith('Digit') && code.length === 6) castFieldCard(code[5]);
     },
     onCanvasPointer(lx, ly, initial) {
-      if (mode !== 'explore') return;
+      if (mode !== 'explore' || host.isAnyModalOpen?.()) return;
       if (initial && lx > world.cam.w - 130 && ly < 110) return;
       const wx = lx + world.cam.x;
       const wy = ly + world.cam.y;
@@ -1346,10 +1263,13 @@ export function createChapter(host, DATA) {
     exitMemoryMode,
     getCurrentMap: getMap,
     getPlayerPos: () => player,
-    getSavePayload,
-    applyCloudSave(saved) {
-      applySavePayload(saved);
+    clearTargetPos() {
+      player.targetPos = null;
+      pendingTarget = null;
     },
+    getSavePayload,
+    getSharedState,
+    getSlotMeta,
     destroy() {
       Timers.clearAll();
     }
