@@ -260,7 +260,7 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75">
           <span>PART I · REMASTER</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-g</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.0-h</span>
         </div>
       </div>
     </div>
@@ -360,7 +360,7 @@
       <div id="saveStatusMsg" class="min-h-[2.4rem] rounded-xl bg-black/45 border border-white/10 px-3 py-2 text-xs font-story text-amber-100 flex items-center justify-center text-center">아이디와 비밀번호를 입력하면 기존 기록을 불러오거나 새 계정을 만듭니다.</div>
       <div class="flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CLOUD ARCHIVE</span>
-        <span id="modalVersionBadge">v.0.2.0-g</span>
+        <span id="modalVersionBadge">v.0.2.0-h</span>
       </div>
     </div>
   </div>
@@ -378,7 +378,7 @@
         'https://cdn.jsdelivr.net/gh/sqool2013-cmyk/sakura-game@main/'
       );
       let lastErr = null;
-      const cacheBust = '?v=0.2.0-g';
+      const cacheBust = '?v=0.2.0-h';
       for (const base of candidates) {
         try {
           // core.js는 world.js/battle.js의 './core.js'와 동일한 단일 인스턴스를 공유하도록 쿼리 없이 로드
@@ -414,7 +414,7 @@
       } = engines;
 
       const { $, toArr, clamp, cardName, cardRuby } = Utils;
-      const APP_VER = 'v.0.2.0-g';
+      const APP_VER = 'v.0.2.0-h';
       if ($('titleVersionBadge')) $('titleVersionBadge').textContent = APP_VER;
       if ($('modalVersionBadge')) $('modalVersionBadge').textContent = APP_VER;
       SoundFX.setTheme(1);
@@ -881,17 +881,20 @@
           const filmMsg = latest
             ? `방금 봉인하신 [${cardName(latest)}] 장면이 어찌나 사랑스러웠는지 카메라에 고스란히 담아 두었답니다!`
             : '황혼빛 아래 마법 의상이 정말 눈부셔요! 따뜻한 홍차 드시고 기운 내세요!';
+          let openWardrobeAfter = false;
           vn.start([
             { speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: filmMsg },
             {
               speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy',
               text: `현재 착용 중인 [${getCostumeObj().name}] 외에 새 배틀 의상도 준비해 두었어요. 의상실을 열어 보실래요?`,
               choices: [
-                { label: '🎀 응! 마법 의상실 열어줘!', effect: () => Timers.after(() => openWardrobeModal(), 80), reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 의상마다 특별한 마법 효과가 깃들어 있답니다!' }] },
+                { label: '🎀 응! 마법 의상실 열어줘!', effect: () => { openWardrobeAfter = true; }, reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '마음에 드는 의상을 골라 보세요! 의상마다 특별한 마법 효과가 깃들어 있답니다!' }] },
                 { label: '고마워 토모요! 홍차만 마시고 바로 출발할게!', reply: [{ speaker: '토모요', role: 'COSTUME DESIGNER', avatar: 'tomoyo', mood: 'happy', text: '네! 멋진 활약, 오늘도 응원할게요!' }] }
               ]
             }
-          ]);
+          ], () => {
+            if (openWardrobeAfter) openWardrobeModal();
+          });
         } else if (npc.id === 'touya') {
           buffs.cocoaBuff = true; SoundFX.heal(); updateHUD(true);
           showToast('☕ 토우야의 코코아! 다음 전투 공격력 +15% · 치명타 +10%!');
@@ -1046,8 +1049,8 @@
       }
 
       function checkNearby() {
-        nearbyTarget = null; let best = 74; const cur = getMap();
-        for (const p of toArr(cur.portals)) { const d = Math.hypot(player.x - p.x, player.y - p.y); if (d < 60 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; } }
+        nearbyTarget = null; let best = 86; const cur = getMap();
+        for (const p of toArr(cur.portals)) { const d = Math.hypot(player.x - p.x, player.y - p.y); if (d < 64 && d < best) { best = d; nearbyTarget = { type: 'portal', obj: p }; } }
         for (const n of NPCS) { if (!isNpcVisible(n)) continue; const d = Math.hypot(player.x - n.x, player.y - n.y); if (d < best) { best = d; nearbyTarget = { type: 'npc', obj: n }; } }
         for (const id of CARD_ORDER) {
           if (!isCardActiveOnMap(id)) continue;
@@ -1079,16 +1082,16 @@
           if (memoryMode.active) return showToast('기억 회상 중에는 상단 [↩ 현재 마을로 돌아가기]를 이용해 주세요!');
           transitionMap(t.obj.targetMap, t.obj.spawnX, t.obj.spawnY);
         } else if (t.type === 'npc') talkNPC(t.obj);
-        else if (t.type === 'card') vn.start(buildCardIntro(t.obj.id), () => battle.start(t.obj));
-        else if (t.type === 'boss') {
-          if (ownedCards.size < CARD_ORDER.length) {
-            encCd = 2.4;
-            vn.start([{ speaker: '케로', role: 'GUARDIAN', avatar: 'kero', text: `남은 크로우 카드 ${CARD_ORDER.length - ownedCards.size}장을 모두 봉인하면 달의 마법진이 열릴 거야!` }]);
-          } else {
-            const intro = toArr(DATA.dialogues.yueIntro).slice();
-            if (story.syaoranTrust >= 2 && DATA.dialogues.syaoranYueCheer) intro.unshift(...toArr(DATA.dialogues.syaoranYueCheer));
-            vn.start(intro, () => battle.start(BOSS_YUE));
-          }
+        if (pendingTarget && Math.hypot(player.x - pendingTarget.obj.x, player.y - pendingTarget.obj.y) < 72) {
+          nearbyTarget = pendingTarget; pendingTarget = null; player.targetPos = null; return triggerInteract();
+        }
+        if (portalCd <= 0 && !memoryMode.active) {
+          for (const p of toArr(getMap().portals)) if (Math.hypot(player.x - p.x, player.y - p.y) < 26) return transitionMap(p.targetMap, p.spawnX, p.spawnY);
+        }
+        if (encCd <= 0 && nearbyTarget) {
+          const d = Math.hypot(player.x - nearbyTarget.obj.x, player.y - nearbyTarget.obj.y);
+          if (nearbyTarget.type === 'card' && d < 48) return triggerInteract();
+          if (nearbyTarget.type === 'boss' && ownedCards.size === CARD_ORDER.length && d < 54) return triggerInteract();
         }
       }
 
@@ -1462,10 +1465,10 @@
         const wx = lx + world.cam.x, wy = ly + world.cam.y;
         if (initial) {
           const cur = getMap();
-          for (const p of toArr(cur.portals)) if (Math.hypot(wx - p.x, wy - p.y) < 40) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
-          for (const n of NPCS) if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 40) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
-          for (const id of CARD_ORDER) if (isCardActiveOnMap(id) && CARDS[id].map === currentMapId) { const pos = getCardPos(CARDS[id]); if (Math.hypot(wx - pos.x, wy - pos.y) < 50) { pendingTarget = { type: 'card', obj: { ...CARDS[id], x: pos.x, y: pos.y } }; player.targetPos = pos; return; } }
-          if (!yueDefeated && !memoryMode.active && BOSS_YUE && currentMapId === BOSS_YUE.map && Math.hypot(wx - BOSS_YUE.x, wy - BOSS_YUE.y) < 56) { pendingTarget = { type: 'boss', obj: BOSS_YUE }; player.targetPos = { x: BOSS_YUE.x, y: BOSS_YUE.y }; return; }
+          for (const p of toArr(cur.portals)) if (Math.hypot(wx - p.x, wy - p.y) < 42) { pendingTarget = { type: 'portal', obj: p }; player.targetPos = { x: p.x, y: p.y }; return; }
+          for (const n of NPCS) if (isNpcVisible(n) && Math.hypot(wx - n.x, wy - n.y) < 48) { pendingTarget = { type: 'npc', obj: n }; player.targetPos = { x: n.x, y: n.y }; return; }
+          for (const id of CARD_ORDER) if (isCardActiveOnMap(id) && CARDS[id].map === currentMapId) { const pos = getCardPos(CARDS[id]); if (Math.hypot(wx - pos.x, wy - pos.y) < 56) { pendingTarget = { type: 'card', obj: { ...CARDS[id], x: pos.x, y: pos.y } }; player.targetPos = pos; return; } }
+          if (!yueDefeated && !memoryMode.active && BOSS_YUE && currentMapId === BOSS_YUE.map && Math.hypot(wx - BOSS_YUE.x, wy - BOSS_YUE.y) < 58) { pendingTarget = { type: 'boss', obj: BOSS_YUE }; player.targetPos = { x: BOSS_YUE.x, y: BOSS_YUE.y }; return; }
           pendingTarget = null;
         }
         player.targetPos = { x: wx, y: wy };
