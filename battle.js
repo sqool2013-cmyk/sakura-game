@@ -1,12 +1,13 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.2.0-b
+ * 카드캡터 3부작 공용 대화창(VN) & 전략 배틀 · 영창 시네마틱 엔진 (battle.js) — v.0.2.0-c
  * - 비주얼 노벨 대화창 (6종 표정 mood 오버레이 · 감정 모션 · AUTO 기본 OFF)
+ * - 배틀 돌입 시 지팡이 봉인 해제(레리즈 / 봉인 해제) 컷인 연출 (Z 즉시 스킵)
  * - 저항력 50% 이하 봉인 개방 & 랜덤 구역 고난도 무딜레이 게이지
  * - 배틀 커맨드 & 카드 그리드 키보드(방향키/WASD + X/Z) 완전 조작
  * - 컴팩트 원클릭 카드 칩(효과 요약 태그) + 상단 포커스 카드 상세 설명 바
  * - 8벌 의상 패시브(치명타·회복+25%·속성 경감·MP재생) & 토우야/유키토 버프 반영
- * - 공식 고증 4행 줄맞춤 영창 & [정령 -> 빛의 응축 -> 카드] 3단계 실시간 변신!
+ * - 카드 봉인/변환 시 순수 봉인·변환 주문 & [정령 -> 카드] 3단계 실시간 변신!
  * ============================================================================
  */
 import { Utils, Locale, Art, SoundFX, Rules, Timers } from './core.js';
@@ -333,6 +334,7 @@ export function createBattleEngine(hooks) {
 
   const chant = {
     active: false,
+    mode: 'seal', // 'release' | 'seal'
     typing: false,
     full: '',
     sub: '',
@@ -343,6 +345,53 @@ export function createBattleEngine(hooks) {
     finalCards: [],
     isSakura: false
   };
+
+  /** 배틀 돌입 지팡이 봉인 해제 컷인용 전용 벡터 (1부 봉인의 지팡이 / 2부 별의 지팡이) */
+  function getWandReleaseSVG(isPart2) {
+    if (isPart2) {
+      return `<svg viewBox="0 0 180 220" class="w-full h-full">
+        <defs>
+          <radialGradient id="wrStarBg" cx="50%" cy="38%" r="58%">
+            <stop offset="0%" stop-color="#fde047" stop-opacity="0.55"/>
+            <stop offset="55%" stop-color="#ec4899" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="#1e0b36" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="90" cy="84" r="76" fill="url(#wrStarBg)"/>
+        <circle cx="90" cy="84" r="64" fill="none" stroke="#fbcfe8" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.7"/>
+        <rect x="85" y="102" width="10" height="106" rx="5" fill="#f472b6" stroke="#fef08a" stroke-width="1.5"/>
+        <path d="M74 96 Q34 62 24 88 Q44 102 74 108 Z" fill="#ffffff" stroke="#fbcfe8" stroke-width="1.6"/>
+        <path d="M106 96 Q146 62 156 88 Q136 102 106 108 Z" fill="#ffffff" stroke="#fbcfe8" stroke-width="1.6"/>
+        <circle cx="90" cy="74" r="28" fill="#db2777" stroke="#fef08a" stroke-width="2.6"/>
+        <circle cx="90" cy="74" r="20" fill="#4a0828" stroke="#fbcfe8" stroke-width="1.4"/>
+        <polygon points="90,56 95,69 109,69 98,77 102,91 90,82 78,91 82,77 71,69 85,69" fill="#fef08a" stroke="#f59e0b" stroke-width="1.2"/>
+        <circle cx="38" cy="42" r="3" fill="#fef08a"/>
+        <circle cx="144" cy="46" r="2.6" fill="#fbcfe8"/>
+        <circle cx="136" cy="142" r="2.5" fill="#fef08a"/>
+      </svg>`;
+    }
+    return `<svg viewBox="0 0 180 220" class="w-full h-full">
+      <defs>
+        <radialGradient id="wrSealBg" cx="50%" cy="38%" r="58%">
+          <stop offset="0%" stop-color="#fde047" stop-opacity="0.58"/>
+          <stop offset="55%" stop-color="#f43f5e" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#14072b" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="90" cy="84" r="76" fill="url(#wrSealBg)"/>
+      <circle cx="90" cy="84" r="64" fill="none" stroke="#fde047" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.72"/>
+      <rect x="85" y="102" width="10" height="106" rx="5" fill="#e11d48" stroke="#fde047" stroke-width="1.5"/>
+      <path d="M74 92 Q28 54 20 82 Q44 98 74 104 Z" fill="#ffffff" stroke="#fde047" stroke-width="1.6"/>
+      <path d="M106 92 Q152 54 160 82 Q136 98 106 104 Z" fill="#ffffff" stroke="#fde047" stroke-width="1.6"/>
+      <circle cx="90" cy="76" r="24" fill="#fb7185" stroke="#fde047" stroke-width="2.4"/>
+      <polygon points="108,70 132,76 108,84" fill="#facc15" stroke="#ca8a04" stroke-width="1.5"/>
+      <circle cx="95" cy="70" r="3.6" fill="#0f172a"/>
+      <circle cx="94" cy="69" r="1.3" fill="#ffffff"/>
+      <polygon points="90,34 93,42 101,42 94.5,47 97,55 90,50 83,55 85.5,47 79,42 87,42" fill="#fef08a"/>
+      <circle cx="38" cy="42" r="3" fill="#fef08a"/>
+      <circle cx="144" cy="48" r="2.5" fill="#fda4af"/>
+    </svg>`;
+  }
 
   function setLog(msg) {
     const el = $('battleLog');
@@ -736,8 +785,15 @@ export function createBattleEngine(hooks) {
       ? `${target.kr}이(가) 앞을 가로막는다! [🃏 카드 해방]에서 크로우 카드를 실시간 [★ 별빛 변환]해 돌파하자!`
       : `${cardName(target)}의 정령이 실체화했다! 저항력을 50% 이하로 약화시켜 봉인하자!`;
     setLog(startMsg + bonus);
-    SoundFX.encounter();
+
+    // 배틀 돌입 시 지팡이 봉인 해제(레리즈 / 봉인 해제) 컷인 연출 선행!
+    state.busy = true;
     updateUI();
+    openWandRelease(() => {
+      state.busy = false;
+      SoundFX.encounter();
+      updateUI();
+    });
   }
 
   function damageEnemy(raw, { isBreak = false, isWand = false, isWeak = false, fromReflect = false } = {}) {
@@ -1175,7 +1231,13 @@ export function createBattleEngine(hooks) {
     if (state.sEvade) {
       state.sEvade = false;
       SoundFX.magic();
-      return { txt: '[도약(점프)]으로 완벽히 회피했다!', ref: 0 };
+      return { txt: '[점프]로 완벽히 회피했다!', ref: 0 };
+    }
+    if (state.sRef) {
+      state.sRef = false;
+      const r = Math.round(raw * 1.35);
+      SoundFX.magic();
+      return { txt: `[미러]가 공격을 되돌려 ${r}의 피해를 반사했다!`, ref: r };
     }
     if (state.sRef) {
       state.sRef = false;
@@ -1274,7 +1336,7 @@ export function createBattleEngine(hooks) {
     } else if (act.type === 'barrier') {
       state.eGuard = true;
       SoundFX.magic();
-      msg = `${getEnemyDisplayName(e)}가 마력 결계를 펼쳤다! (검·소멸·샤오랑 원호로 파괴)`;
+      msg = `${getEnemyDisplayName(e)}가 마력 결계를 펼쳤다! (소드·이레이즈·샤오랑 원호로 파괴)`;
     } else if (act.type === 'reflect') {
       state.eRef = true;
       SoundFX.magic();
@@ -1521,8 +1583,62 @@ export function createBattleEngine(hooks) {
   }
 
   /* --------------------------------------------------------------------------
-   * 3단계 정령 -> 카드 실시간 변신 영창 시네마틱 (공식 4행 줄맞춤)
+   * 배틀 돌입 지팡이 봉인 해제 컷인 & 3단계 정령 -> 카드 실시간 변신 영창
    * ------------------------------------------------------------------------*/
+  function openWandRelease(onDone) {
+    const isP2 = hooks.part === 2;
+    SoundFX.magic();
+    spawnVFX('seal');
+    chant.active = true;
+    chant.mode = 'release';
+    chant.typing = true;
+    chant.flipped = true;
+    chant.finalCards = [];
+    chant.isSakura = isP2;
+    chant.full = Locale.getChant(isP2 ? 'release_p2' : 'release_p1');
+    chant.sub = Locale.t(
+      isP2 ? '별의 열쇠가 찬란한 빛과 함께 별의 지팡이로 깨어났다!' : '봉인의 열쇠가 빛을 뿜으며 봉인의 지팡이로 깨어났다!'
+    );
+    chant.len = 0;
+    chant.onDone = onDone;
+
+    const vis = $('chantCardVisual');
+    if (vis) {
+      vis.className = 'w-44 h-52 sm:w-52 sm:h-60 rounded-3xl manifest-stage p-2 relative z-10 flex items-center justify-center animate-float';
+      vis.innerHTML = getWandReleaseSVG(isP2);
+    }
+
+    if ($('chantSubLabel')) {
+      $('chantSubLabel').textContent = isP2 ? 'RELEASE · KEY OF THE STAR' : 'RELEASE · KEY OF DARKNESS';
+    }
+    const textEl = $('chantText');
+    if (textEl) {
+      textEl.style.whiteSpace = 'pre-line';
+      textEl.textContent = '';
+    }
+    if ($('chantSubQuote')) $('chantSubQuote').textContent = '';
+    if ($('btnChantDone')) {
+      $('btnChantDone').textContent = '⚔ 배틀 시작! (X / 클릭)';
+      $('btnChantDone').classList.add('hidden');
+    }
+    $('chantOverlay')?.classList.remove('hidden');
+
+    Timers.clear(chant.tId);
+    chant.tId = Timers.every(() => {
+      chant.len += 2;
+      if (chant.len >= chant.full.length) {
+        if (textEl) textEl.textContent = chant.full;
+        if ($('chantSubQuote')) $('chantSubQuote').textContent = chant.sub;
+        chant.typing = false;
+        Timers.clear(chant.tId);
+        chant.tId = null;
+        $('btnChantDone')?.classList.remove('hidden');
+      } else if (textEl) {
+        textEl.textContent = chant.full.slice(0, chant.len);
+      }
+    }, 24);
+  }
+
   function revealFinalChantCard() {
     if (chant.flipped) return;
     chant.flipped = true;
@@ -1546,6 +1662,7 @@ export function createBattleEngine(hooks) {
     SoundFX.magic();
     spawnVFX('seal');
     chant.active = true;
+    chant.mode = 'seal';
     chant.typing = true;
     chant.flipped = false;
     chant.finalCards = cards;
@@ -1566,7 +1683,7 @@ export function createBattleEngine(hooks) {
 
     if ($('chantSubLabel')) {
       $('chantSubLabel').textContent = Locale.t(
-        isSakura ? 'STAR RELEASE · BECOME MY SAKURA CARD' : 'RELEASE · RETURN TO YOUR TRUE FORM'
+        isSakura ? 'STAR TRANSFORMATION · SAKURA CARD' : 'RETURN TO YOUR TRUE FORM · CLOW CARD'
       );
     }
     const textEl = $('chantText');
@@ -1610,7 +1727,7 @@ export function createBattleEngine(hooks) {
       Timers.clear(chant.tId);
       chant.tId = null;
       chant.typing = false;
-      revealFinalChantCard();
+      if (chant.mode !== 'release') revealFinalChantCard();
       if ($('chantText')) $('chantText').textContent = chant.full;
       if ($('chantSubQuote')) $('chantSubQuote').textContent = chant.sub;
       $('btnChantDone')?.classList.remove('hidden');
