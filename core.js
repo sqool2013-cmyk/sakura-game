@@ -1,22 +1,22 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.0
+ * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.2
  * - 단일 스토리 연속 3부작(제1부 황혼 -> 제2부 별빛 -> 제3부 꿈결) 통합 엔진
  * - 단일 Firebase 경로(/sakura/players/{id}) + 멀티 세이브 슬롯(자동 1 + 수동 6)
- * - 게스트 모드(localStorage)에서도 동일한 멀티 세이브 슬롯 구조 100% 지원
- * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 자동 보정
+ * - 3부작 무퇴보 연속 성장 곡선 (1부 HP 100->120 / 2부 120->145 / 3부 145->170)
+ * - 1부 8벌 의상 + 2부 ★별빛 리폼(패시브 강화) + 2부 신규 의상 2벌 규칙
+ * - 샤오랑 친밀도 아크별 상한 규칙 (1부 최대 5 / 2부 최대 10 / 3부 최대 15)
+ * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 보정
  * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 분리
- * - 6종 표정 오버레이 합성 & 2D 캔버스용 건물 스프라이트 캐싱
- * - Web Audio 오르골 BGM & 효과음 / 8벌 마법 의상실 패시브 & 성장 곡선 규칙
  * ============================================================================
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  app: 'v.0.1.0',
-  engine: 'v.0.1.0',
-  trilogy: 'v.0.1.0'
+  app: 'v.0.1.2',
+  engine: 'v.0.1.2',
+  trilogy: 'v.0.1.2'
 };
 
 export const SAVE_SLOTS = [
@@ -524,6 +524,13 @@ export const SoundFX = (() => {
       tone(659.25, 0.18, 'sine', 0.07, 0.08);
       tone(1046.5, 0.3, 'triangle', 0.07, 0.16);
     },
+    comboStep(idx = 0) {
+      const notes = [659.25, 783.99, 1046.5, 1318.5];
+      tone(notes[idx % notes.length], 0.13, 'triangle', 0.08);
+    },
+    clashTap() {
+      tone(520 + Math.random() * 140, 0.06, 'triangle', 0.06);
+    },
     seal() {
       const chord = themePart === 2
         ? [587.33, 739.99, 880, 1174.66, 1479.98]
@@ -537,88 +544,135 @@ export const SoundFX = (() => {
 })();
 
 /* ----------------------------------------------------------------------------
- * 5. 성장 곡선(1부 100->115 / 2부 105->120 / 3부 120->140) & 8벌 의상 규칙
+ * 5. 3부작 무퇴보 연속 성장 곡선 · 8벌+2벌 의상 & ★별빛 리폼 · 친밀도 상한
  * --------------------------------------------------------------------------*/
 export const Rules = {
+  TRUST_CAPS: { 1: 5, 2: 10, 3: 15 },
+
+  clampTrust(value, part = 1) {
+    const cap = this.TRUST_CAPS[part] || 10;
+    return Utils.clamp(Math.floor(Number(value) || 0), 0, cap);
+  },
+
   DEFAULT_COSTUMES_P1: [
     {
-      id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', unlockType: 'default', unlockHint: '기본 지급 의상',
+      id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', icon: '🌸', unlockType: 'default', unlockHint: '기본 지급 의상',
       dressColor: '#f472b6', accentColor: '#fff1f2', hatType: 'beret', hatColor: '#f43f5e',
-      passive: '최대 MP +5', tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+      passive: '최대 MP +5',
+      reformedPassive: '★별빛 리폼: 최대 MP +12 · 마법 위력 +5%',
+      tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
     },
     {
-      id: 'frog_rain', name: '🐸 개구리 우비 슈트', unlockType: 'card', unlockCard: 'watery', unlockHint: '워터리 봉인 시 해금',
+      id: 'frog_rain', name: '🐸 개구리 우비 슈트', icon: '🐸', unlockType: 'card', unlockCard: 'watery', unlockHint: '워터리 봉인 시 해금',
       dressColor: '#4ade80', accentColor: '#fef08a', hatType: 'frog', hatColor: '#22c55e',
-      passive: '물·바람 피해 25% 경감 · 필드 물결 밀림 면역', tomoyoQuote: '비 오는 날에도 끄떡없는 개구리 후드 우비와 노란 장화랍니다!'
+      passive: '물·바람 피해 25% 경감 · 필드 물결 밀림 면역',
+      reformedPassive: '★별빛 리폼: 물·바람 피해 32% 경감 · 최대 HP +5 · 물결/폭우 면역',
+      tomoyoQuote: '비 오는 날에도 끄떡없는 개구리 후드 우비와 노란 장화랍니다!'
     },
     {
-      id: 'cat_thunder', name: '🐱 고양이 귀 번개 슈트', unlockType: 'card', unlockCard: 'thunder', unlockHint: '선더 봉인 시 해금',
+      id: 'cat_thunder', name: '🐱 고양이 귀 번개 슈트', icon: '🐱', unlockType: 'card', unlockCard: 'thunder', unlockHint: '선더 봉인 시 해금',
       dressColor: '#1e1b4b', accentColor: '#facc15', hatType: 'cat', hatColor: '#1e1b4b',
-      passive: '마법 공격 위력 +10% · 번개/화염 피해 20% 경감', tomoyoQuote: '고양이 귀 후드와 노란 리본! 전기가 통하지 않는 특수 마법 천으로 지었답니다!'
+      passive: '마법 공격 위력 +10% · 번개/화염 피해 20% 경감',
+      reformedPassive: '★별빛 리폼: 마법 공격 위력 +16% · 번개/화염 피해 28% 경감',
+      tomoyoQuote: '고양이 귀 후드와 노란 리본! 전기가 통하지 않는 특수 마법 천으로 지었답니다!'
     },
     {
-      id: 'sky_wing', name: '🪽 하늘빛 날개 드레스', unlockType: 'cards_all', unlockCards: ['fly', 'jump'], unlockHint: '플라이 + 점프 봉인 시 해금',
+      id: 'sky_wing', name: '🪽 하늘빛 날개 드레스', icon: '🪽', unlockType: 'cards_all', unlockCards: ['fly', 'jump'], unlockHint: '플라이 + 점프 봉인 시 해금',
       dressColor: '#38bdf8', accentColor: '#ffffff', hatType: 'wing', hatColor: '#e0f2fe',
-      passive: '필드 이동 속도 +12% · 봉인 게이지 구역 +4%', tomoyoQuote: '하늘을 가르는 순백의 프릴과 날개 리본이에요! 발걸음도 한결 가벼워질 거예요!'
+      passive: '필드 이동 속도 +12% · 봉인/공명 판정 여유 +4%',
+      reformedPassive: '★별빛 리폼: 필드 이동 속도 +16% · 봉인/공명 판정 여유 +7%',
+      tomoyoQuote: '하늘을 가르는 순백의 프릴과 날개 리본이에요! 발걸음도 한결 가벼워질 거예요!'
     },
     {
-      id: 'alice_maid', name: '🎀 앨리스 메이드 드레스', unlockType: 'cards_any', unlockCards: ['mirror', 'flower'], unlockHint: '미러 또는 플라워 봉인 시 해금',
+      id: 'alice_maid', name: '🎀 앨리스 메이드 드레스', icon: '🎀', unlockType: 'cards_any', unlockCards: ['mirror', 'flower'], unlockHint: '미러 또는 플라워 봉인 시 해금',
       dressColor: '#2563eb', accentColor: '#ffffff', hatType: 'ribbon', hatColor: '#f8fafc',
-      passive: '회복(플라워·글로우·라이트) 효과 +25%', tomoyoQuote: '파란 드레스에 순백의 앞치마와 큰 리본! 치유의 마력이 더욱 포근하게 퍼진답니다!'
+      passive: '회복(플라워·글로우·라이트) 효과 +25%',
+      reformedPassive: '★별빛 리폼: 회복 효과 +38% · 최대 MP +8',
+      tomoyoQuote: '파란 드레스에 순백의 앞치마와 큰 리본! 치유의 마력이 더욱 포근하게 퍼진답니다!'
     },
     {
-      id: 'pierrot_magic', name: '🃏 피에로 매직 슈트', unlockType: 'cards_all', unlockCards: ['illusion', 'maze'], unlockHint: '일루전 + 메이즈 봉인 시 해금',
+      id: 'pierrot_magic', name: '🃏 피에로 매직 슈트', icon: '🃏', unlockType: 'cards_all', unlockCards: ['illusion', 'maze'], unlockHint: '일루전 + 메이즈 봉인 시 해금',
       dressColor: '#7e22ce', accentColor: '#fde047', hatType: 'jester', hatColor: '#a855f7',
-      passive: '치명타(1.3배 피해) 확률 20% 발생', tomoyoQuote: '금빛 방울이 달린 장난스러운 어릿광대 슈트예요! 상대를 깜짝 놀라게 할 일격이 터질 거예요!'
+      passive: '치명타(1.3배 피해) 확률 20% 발생',
+      reformedPassive: '★별빛 리폼: 치명타(1.35배 피해) 확률 28% 발생',
+      tomoyoQuote: '금빛 방울이 달린 장난스러운 어릿광대 슈트예요! 상대를 깜짝 놀라게 할 일격이 터질 거예요!'
     },
     {
-      id: 'star_royal', name: '👑 황혼 로열 드레스', unlockType: 'owned_count', unlockCount: 12, unlockHint: '크로우 카드 12장 이상 보유 시 해금',
+      id: 'star_royal', name: '👑 황혼 로열 드레스', icon: '👑', unlockType: 'owned_count', unlockCount: 12, unlockHint: '크로우 카드 12장 이상 보유 시 해금',
       dressColor: '#be185d', accentColor: '#fde047', hatType: 'crown', hatColor: '#fde047',
-      passive: '전투 매 턴 MP +4 자동 회복', tomoyoQuote: '해와 달이 어우러지는 황혼을 금빛 실로 수놓은 특별 의상이에요!'
+      passive: '전투 매 턴 MP +4 자동 회복',
+      reformedPassive: '★별빛 리폼: 전투 매 턴 MP +7 자동 회복',
+      tomoyoQuote: '해와 달이 어우러지는 황혼을 금빛 실로 수놓은 특별 의상이에요!'
     },
     {
-      id: 'pure_angel', name: '🕊 순백의 천사 드레스', unlockType: 'boss_clear', unlockHint: '달의 심판자 유에 격파 시 해금 (2부 계승)',
+      id: 'pure_angel', name: '🕊 순백의 천사 드레스', icon: '🕊', unlockType: 'boss_clear', unlockHint: '달의 심판자 유에 격파 시 해금',
       dressColor: '#f8fafc', accentColor: '#fde047', hatType: 'halo', hatColor: '#fef08a',
-      passive: '최대 HP +10 · 최대 MP +15 · 모든 공격 +12%', tomoyoQuote: '새로운 크로우 카드의 주인님께 바치는 순백의 천사 드레스예요! 정말 눈부셔요!'
+      passive: '최대 HP +10 · 최대 MP +15 · 모든 공격 +12%',
+      reformedPassive: '★별빛 리폼: 최대 HP +15 · 최대 MP +22 · 모든 공격 +18%',
+      tomoyoQuote: '새로운 크로우 카드의 주인님께 바치는 순백의 천사 드레스예요! 정말 눈부셔요!'
     }
   ],
 
-  calcStats({ part = 1, progressCount = 0, total = 19, costumeId = 'sakura_dress', part1Linked = false, progCfg = null }) {
-    const bonus = this.getCostumeBonuses(costumeId);
+  /** 제2부 전용 신규 의상 2벌 (1부 해금 의상과 겹치지 않는 오리지널 보상!) */
+  DEFAULT_COSTUMES_P2_EXTRA: [
+    {
+      id: 'star_opening', name: '⭐ 별빛 오프닝 드레스', icon: '⭐', unlockType: 'default', unlockHint: '새 학기 별의 지팡이 각성 기념 지급',
+      dressColor: '#db2777', accentColor: '#fef08a', hatType: 'beret', hatColor: '#fbcfe8',
+      passive: '최대 MP +10 · 마법 위력 +8% · 3키 공명 시간 여유',
+      reformedPassive: '최대 MP +10 · 마법 위력 +8% · 3키 공명 시간 여유',
+      tomoyoQuote: '별의 지팡이와 새 학기를 기념해 밤새워 지은 반짝이는 분홍 별빛 드레스예요!'
+    },
+    {
+      id: 'eclipse_cape', name: '🌙 흑백 성좌 케이프', icon: '🌙', unlockType: 'incident', unlockIncident: 'inc_ruby', unlockHint: '스피넬 썬 · 루비 문 시련 돌파 시 해금',
+      dressColor: '#1e1b4b', accentColor: '#f472b6', hatType: 'crown', hatColor: '#38bdf8',
+      passive: '전투 매 턴 MP +5 · 치명타 확률 22% · 모든 공격 +10%',
+      reformedPassive: '전투 매 턴 MP +5 · 치명타 확률 22% · 모든 공격 +10%',
+      tomoyoQuote: '검은 태양과 붉은 달의 대결에서 영감을 받아 지은 신비로운 성좌 망토 의상이에요!'
+    }
+  ],
+
+  /**
+   * 3부작 연속 무퇴보 성장 곡선
+   * - 제1부: HP 100 -> 120 / MP 100 -> 208 (장당 +6) / 배율 1.00 -> 1.58
+   * - 제2부: HP 120 -> 145 / MP 210 -> 324 (장당 +6) / 배율 1.55 -> 2.15
+   * - 제3부: HP 145 -> 170 / MP 325 -> 450 / 배율 2.10 -> 2.75
+   * (구버전 데이터 JSON의 낮은 수치가 내려오더라도 절대 1부 최종치 아래로 내려가지 않도록 하한 보장!)
+   */
+  calcStats({ part = 1, progressCount = 0, total = 19, costumeId = 'sakura_dress', isReformed = false, part1Linked = false, progCfg = null }) {
+    const bonus = this.getCostumeBonuses(costumeId, isReformed);
     const ratio = Utils.clamp(progressCount / Math.max(1, total - (part === 1 ? 1 : 0)), 0, 1);
 
     if (part === 3) {
-      const startHp = progCfg?.startHp ?? 120;
-      const maxHpCap = progCfg?.maxHp ?? 140;
-      const baseMp = progCfg?.baseMp ?? 160;
-      const mpPer = progCfg?.mpPerCard ?? 10;
-      const linkMp = part1Linked ? (progCfg?.linkMpBonus ?? 20) : 0;
+      const startHp = Math.max(145, progCfg?.startHp ?? 145);
+      const maxHpCap = Math.max(170, progCfg?.maxHp ?? 170);
+      const baseMp = Math.max(325, progCfg?.baseMp ?? 325);
+      const mpPer = progCfg?.mpPerCard ?? 7;
       return {
         lv: 1 + progressCount,
         maxHp: Math.round(startHp + (maxHpCap - startHp) * ratio) + (bonus.hpBonus || 0),
-        maxMp: baseMp + progressCount * mpPer + linkMp + (bonus.mpBonus || 0),
-        mult: 1.15 + progressCount * 0.038
+        maxMp: baseMp + progressCount * mpPer + (bonus.mpBonus || 0),
+        mult: 2.10 + progressCount * 0.035
       };
     }
 
     if (part === 2) {
-      const startHp = progCfg?.startHp ?? 105;
-      const maxHpCap = progCfg?.maxHp ?? 120;
-      const baseMp = progCfg?.baseMp ?? 130;
-      const mpPer = progCfg?.mpPerCard ?? 9;
-      const linkMp = part1Linked ? (progCfg?.part1LinkMpBonus ?? 20) : 0;
+      const startHp = Math.max(120, progCfg?.startHp ?? 120);
+      const maxHpCap = Math.max(145, progCfg?.maxHp ?? 145);
+      const baseMp = Math.max(210, progCfg?.baseMp ?? 210);
+      const mpPer = Math.max(6, progCfg?.mpPerCard ?? 6);
+      const linkMp = part1Linked ? 12 : 0;
       return {
         lv: 1 + progressCount,
         maxHp: Math.round(startHp + (maxHpCap - startHp) * ratio) + (bonus.hpBonus || 0),
         maxMp: baseMp + progressCount * mpPer + linkMp + (bonus.mpBonus || 0),
-        mult: 1.05 + progressCount * 0.036
+        mult: 1.55 + progressCount * 0.032
       };
     }
 
-    const startHp = progCfg?.startHp ?? 100;
-    const maxHpCap = progCfg?.maxHp ?? 115;
-    const baseMp = progCfg?.baseMp ?? 100;
-    const mpPer = progCfg?.mpPerCard ?? 14;
+    const startHp = Math.max(100, progCfg?.startHp ?? 100);
+    const maxHpCap = Math.max(120, progCfg?.maxHp ?? 120);
+    const baseMp = Math.max(100, progCfg?.baseMp ?? 100);
+    const mpPer = 6;
     return {
       lv: 1 + progressCount,
       maxHp: Math.round(startHp + (maxHpCap - startHp) * ratio) + (bonus.hpBonus || 0),
@@ -627,7 +681,7 @@ export const Rules = {
     };
   },
 
-  getCostumeBonuses(costumeId) {
+  getCostumeBonuses(costumeId, isReformed = false) {
     const base = {
       hpBonus: 0, mpBonus: 0, magicMult: 1.0, allAtkMult: 1.0,
       elemResist: 1.0, waterWindResist: 1.0, waterPushImmune: false,
@@ -636,22 +690,48 @@ export const Rules = {
     };
     switch (costumeId) {
       case 'frog_rain':
-        return { ...base, waterWindResist: 0.75, waterPushImmune: true };
+        return isReformed
+          ? { ...base, hpBonus: 5, waterWindResist: 0.68, waterPushImmune: true }
+          : { ...base, waterWindResist: 0.75, waterPushImmune: true };
       case 'cat_thunder':
-        return { ...base, magicMult: 1.10, elemResist: 0.80 };
+        return isReformed
+          ? { ...base, magicMult: 1.16, elemResist: 0.72 }
+          : { ...base, magicMult: 1.10, elemResist: 0.80 };
       case 'sky_wing':
-        return { ...base, speedMult: 1.12, sealZoneBonus: 4 };
+        return isReformed
+          ? { ...base, speedMult: 1.16, sealZoneBonus: 7 }
+          : { ...base, speedMult: 1.12, sealZoneBonus: 4 };
       case 'alice_maid':
-        return { ...base, healMult: 1.25 };
+        return isReformed
+          ? { ...base, mpBonus: 8, healMult: 1.38 }
+          : { ...base, healMult: 1.25 };
       case 'pierrot_magic':
-        return { ...base, critChance: 0.20, critMult: 1.30 };
+        return isReformed
+          ? { ...base, critChance: 0.28, critMult: 1.35 }
+          : { ...base, critChance: 0.20, critMult: 1.30 };
       case 'star_royal':
-        return { ...base, turnMpRegen: 4 };
+        return isReformed
+          ? { ...base, turnMpRegen: 7 }
+          : { ...base, turnMpRegen: 4 };
       case 'pure_angel':
-        return { ...base, hpBonus: 10, mpBonus: 15, magicMult: 1.12, allAtkMult: 1.12 };
+        return isReformed
+          ? { ...base, hpBonus: 15, mpBonus: 22, magicMult: 1.18, allAtkMult: 1.18 }
+          : { ...base, hpBonus: 10, mpBonus: 15, magicMult: 1.12, allAtkMult: 1.12 };
+      case 'star_opening':
+        return { ...base, mpBonus: 10, magicMult: 1.08, sealZoneBonus: 3 };
+      case 'eclipse_cape':
+        return { ...base, turnMpRegen: 5, critChance: 0.22, critMult: 1.32, allAtkMult: 1.10 };
       default:
-        return { ...base, mpBonus: 5 };
+        return isReformed
+          ? { ...base, mpBonus: 12, magicMult: 1.05 }
+          : { ...base, mpBonus: 5 };
     }
+  },
+
+  getCostumePassiveLabel(costume, isReformed = false) {
+    if (!costume) return '';
+    if (isReformed && costume.reformedPassive) return costume.reformedPassive;
+    return costume.passive || '';
   },
 
   isCostumeUnlocked(costume, ctx) {
@@ -826,7 +906,6 @@ export const Cloud = {
       };
     }
 
-    // 신규 계정 즉시 생성 (단일 경로 /sakura/players/{id})
     const now = Date.now();
     await withTimeout(set(accRef, {
       playerId: cid,
