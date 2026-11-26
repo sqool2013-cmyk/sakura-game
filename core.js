@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.3
+ * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.4
  * - 단일 스토리 연속 3부작(제1부 황혼 -> 제2부 별빛 -> 제3부 꿈결) 통합 엔진
  * - 메모리 전용 익명 인증(inMemoryPersistence) + 무유출 SHA-256 해시(/sakura/secrets)
  * - 단일 Firebase 경로(/sakura/players/{id}) + 멀티 세이브 슬롯(자동 1 + 수동 6)
  * - 3부작 무퇴보 연속 성장 곡선 (1부 HP 100->120 / 2부 120->145 / 3부 145->170)
- * - 1부 8벌 의상 + 2부 ★별빛 리폼(패시브 강화) + 2부 신규 의상 2벌 규칙
- * - 샤오랑 친밀도 아크별 상한 규칙 (1부 최대 5 / 2부 최대 10 / 3부 최대 15)
+ * - 초등학교 교복(school_uniform) + 1부 8벌 의상 + 2부 ★별빛 리폼 + 신규 의상 2벌
+ * - 제1부 4막 단계 개방형 스토리 규칙(Rules.PART1_ACTS) 및 친밀도 아크별 상한
  * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 보정
  * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 분리
  * ============================================================================
@@ -16,9 +16,9 @@ import { initializeAuth, inMemoryPersistence, signInAnonymously } from "https://
 import { getDatabase, ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  app: 'v.0.1.3',
-  engine: 'v.0.1.3',
-  trilogy: 'v.0.1.3'
+  app: 'v.0.1.4',
+  engine: 'v.0.1.4',
+  trilogy: 'v.0.1.4'
 };
 
 export const SAVE_SLOTS = [
@@ -551,6 +551,31 @@ export const SoundFX = (() => {
 export const Rules = {
   TRUST_CAPS: { 1: 5, 2: 10, 3: 15 },
 
+  /** 제1부 4막 단계 개방형 스토리 진행 규칙 (원작 기승전결 + 막 내부 자유 탐험) */
+  PART1_ACTS: {
+    act1: ['fly'],
+    act2: ['wood', 'jump', 'shield', 'flower', 'illusion', 'shadow'],
+    act3: ['watery', 'thunder', 'mirror', 'sword', 'maze', 'erase', 'glow', 'firey'],
+    act4Pair: ['dark', 'light'],
+    act4Final: ['earthy']
+  },
+
+  /** 프롤로그 ~ 첫 플라이 봉인 직전 기본 착용하는 초등학교 교복 정의 */
+  SCHOOL_UNIFORM: {
+    id: 'school_uniform',
+    name: '🎒 초등학교 교복',
+    icon: '🎒',
+    unlockType: 'default',
+    unlockHint: '기본 복장',
+    dressColor: '#1e293b',
+    accentColor: '#ffffff',
+    hatType: 'uniform',
+    hatColor: '#1e293b',
+    passive: '단정한 평상복 (마법 보정 없음)',
+    reformedPassive: '단정한 평상복 (마법 보정 없음)',
+    tomoyoQuote: '평소 입는 교복도 정말 귀엽지만, 카드 봉인 때는 역시 제가 정성껏 지어 드린 배틀 의상이 최고랍니다!'
+  },
+
   clampTrust(value, part = 1) {
     const cap = this.TRUST_CAPS[part] || 10;
     return Utils.clamp(Math.floor(Number(value) || 0), 0, cap);
@@ -558,11 +583,18 @@ export const Rules = {
 
   DEFAULT_COSTUMES_P1: [
     {
-      id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', icon: '🌸', unlockType: 'default', unlockHint: '기본 지급 의상',
+      id: 'school_uniform', name: '🎒 초등학교 교복', icon: '🎒', unlockType: 'default', unlockHint: '기본 복장',
+      dressColor: '#1e293b', accentColor: '#ffffff', hatType: 'uniform', hatColor: '#1e293b',
+      passive: '단정한 평상복 (마법 보정 없음)',
+      reformedPassive: '단정한 평상복 (마법 보정 없음)',
+      tomoyoQuote: '평소 입는 교복도 정말 귀엽지만, 카드 봉인 때는 역시 제가 정성껏 지어 드린 배틀 의상이 최고랍니다!'
+    },
+    {
+      id: 'sakura_dress', name: '🌸 벚꽃 배틀 드레스', icon: '🌸', unlockType: 'card', unlockCard: 'fly', unlockHint: '플라이 봉인 후 토모요 합류 시 선물',
       dressColor: '#f472b6', accentColor: '#fff1f2', hatType: 'beret', hatColor: '#f43f5e',
       passive: '최대 MP +5',
       reformedPassive: '★별빛 리폼: 최대 MP +12 · 마법 위력 +5%',
-      tomoyoQuote: '황혼빛과 가장 잘 어울리는 분홍빛 기본 배틀 의상이에요!'
+      tomoyoQuote: '사쿠라의 첫 비행을 기념해 정성껏 지은 분홍빛 첫 배틀 의상이에요!'
     },
     {
       id: 'frog_rain', name: '🐸 개구리 우비 슈트', icon: '🐸', unlockType: 'card', unlockCard: 'watery', unlockHint: '워터리 봉인 시 해금',
@@ -691,6 +723,12 @@ export const Rules = {
       speedMult: 1.0, sealZoneBonus: 0, turnMpRegen: 0
     };
     switch (costumeId) {
+      case 'school_uniform':
+        return { ...base };
+      case 'sakura_dress':
+        return isReformed
+          ? { ...base, mpBonus: 12, magicMult: 1.05 }
+          : { ...base, mpBonus: 5 };
       case 'frog_rain':
         return isReformed
           ? { ...base, hpBonus: 5, waterWindResist: 0.68, waterPushImmune: true }
@@ -724,9 +762,7 @@ export const Rules = {
       case 'eclipse_cape':
         return { ...base, turnMpRegen: 5, critChance: 0.22, critMult: 1.32, allAtkMult: 1.10 };
       default:
-        return isReformed
-          ? { ...base, mpBonus: 12, magicMult: 1.05 }
-          : { ...base, mpBonus: 5 };
+        return { ...base };
     }
   },
 
