@@ -1,14 +1,15 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.4
+ * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.2.0
  * - 단일 스토리 연속 3부작(제1부 황혼 -> 제2부 별빛 -> 제3부 꿈결) 통합 엔진
  * - 메모리 전용 익명 인증(inMemoryPersistence) + 무유출 SHA-256 해시(/sakura/secrets)
  * - 단일 Firebase 경로(/sakura/players/{id}) + 멀티 세이브 슬롯(자동 1 + 수동 6)
- * - 3부작 무퇴보 연속 성장 곡선 (1부 HP 100->120 / 2부 120->145 / 3부 145->170)
- * - 초등학교 교복(school_uniform) + 1부 8벌 의상 + 2부 ★별빛 리폼 + 신규 의상 2벌
- * - 제1부 4막 단계 개방형 스토리 규칙(Rules.PART1_ACTS) 및 친밀도 아크별 상한
- * - 원작명판(사쿠라·토모요) <-> 국내 번안판(체리·지수) 실시간 전환 & 조사 보정
- * - 지팡이 봉인 해제 주문(배틀 돌입)과 카드 봉인/변환 주문 분리
+ * - 제3부 분할 노드(part3 + part3_late / cards_clear_a + cards_clear_b) 자동 병합 로드
+ * - 3부작 무퇴보 연속 성장 곡선 (1부 HP 100->120 / 2부 120->145 / 3부 145->175)
+ * - 초등학교 교복 + 1부 8벌 + 2부 ★별빛 리폼·2벌 + 3부 중학교 교복·신규 3벌
+ * - 원작명판(사쿠라·토모요·아키호·카이토) <-> 번안판(체리·지수·루베리·카이트)
+ *   실시간 전환 · 말더듬 보정(토, 토모요 -> 지, 지수) · ㄹ받침 조사 보정
+ * - 1·2·3부 원작/더빙 공식 주문 영창 정밀 고증 교정
  * ============================================================================
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -16,9 +17,9 @@ import { initializeAuth, inMemoryPersistence, signInAnonymously } from "https://
 import { getDatabase, ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  app: 'v.0.1.4',
-  engine: 'v.0.1.4',
-  trilogy: 'v.0.1.4'
+  app: 'v.0.2.0',
+  engine: 'v.0.2.0',
+  trilogy: 'v.0.2.0'
 };
 
 export const SAVE_SLOTS = [
@@ -121,13 +122,19 @@ export const Utils = {
     const code = ch.charCodeAt(0);
     return code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0;
   },
+  endsWithRieul(word) {
+    if (!word) return false;
+    const ch = String(word).trim().slice(-1);
+    const code = ch.charCodeAt(0);
+    return code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 === 8;
+  },
   /** 단어 끝 받침에 맞는 조사 자동 부착 (예: '과/와', '이/가', '은/는', '을/를') */
   withParticle(word, pair = '과/와') {
     if (!word) return '';
     const [withB, withoutB] = pair.split('/');
     return word + (this.hasBatchim(word) ? withB : withoutB);
   },
-  /** TVA 스타일 괄호 없는 단일 호칭 (예: '플라이', '윈디') */
+  /** TVA 스타일 괄호 없는 단일 호칭 (예: '플라이', '윈디', '게일') */
   cardName(c) {
     return c ? (c.read || c.kr || '') : '';
   },
@@ -153,6 +160,7 @@ export const Utils = {
 
 /* ----------------------------------------------------------------------------
  * 2. 원작명판(orig: 사쿠라) <-> 국내 공식 번안판(kr: 체리) 자동 변환 엔진
+ *    - 말더듬 교정(토, 토모요 -> 지, 지수 등) + ㄹ받침 조사 보정 + 1·2·3부 공식 주문
  * --------------------------------------------------------------------------*/
 export const Locale = (() => {
   const STORE_KEY = 'sakura_locale_mode';
@@ -171,6 +179,15 @@ export const Locale = (() => {
   ];
 
   const DIRECT_RULES = [
+    // 말더듬 패턴 우선 치환 (앞 글자 잔존 방지!)
+    ['토, 토모요', '지, 지수'],
+    ['사, 사쿠라', '체, 체리'],
+    ['유, 유키토', '청, 청명'],
+    ['토, 토우야', '도, 도진'],
+    ['에, 에리오르', '에, 에리얼'],
+    ['아, 아키호', '루, 루베리'],
+    ['카, 카이토', '카, 카이트'],
+    // 지명·학교·신사·인물 공식 번안
     ['토모에다 초등학교', '우수초등학교'],
     ['토모에다 중학교', '우수중학교'],
     ['토모에다 마을', '우수 마을'],
@@ -184,6 +201,10 @@ export const Locale = (() => {
     ['키노모토 사쿠라', '유체리'],
     ['키노모토', '유체리'],
     ['다이도우지 토모요', '신지수'],
+    ['시노모토 아키호', '서 루베리'],
+    ['유나 D. 카이토', '유나 D. 카이트'],
+    ['아키호', '루베리'],
+    ['카이토', '카이트'],
     ['사쿠라 카드', '체리 카드'],
     ['사쿠라 북', '체리 북'],
     ['THE SAKURA BOOK', 'THE CHERRY BOOK'],
@@ -208,8 +229,8 @@ export const Locale = (() => {
       kr: '별의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
     },
     release_p3: {
-      orig: '꿈의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라.\n계약 아래 사쿠라가 명한다, 레리즈!',
-      kr: '꿈의 힘을 지니고 있는 열쇠여,\n진정한 모습으로 내 앞에 나타나라.\n너와의 계약에 따라 체리가 명한다, 봉인 해제!'
+      orig: '꿈의 힘을 감춘 열쇠여,\n진정한 모습을 내 앞에 보여라!\n레리즈!',
+      kr: '꿈의 힘을 지닌 열쇠여,\n진정한 모습으로 내 앞에 나타나라!\n봉인 해제!'
     },
     seal_p1: {
       orig: '그대의 본래 모습으로 돌아가라,\n크로우 카드!',
@@ -228,8 +249,12 @@ export const Locale = (() => {
       kr: '어둠과 빛이여,\n낡은 모습을 벗어버리고 새롭게 태어나라.\n너의 새로운 주인, 체리의 이름 아래서!'
     },
     secure_p3: {
-      orig: '주인 없는 자여,\n꿈의 지팡이 아래 나의 힘이 되어라.\n고착(시큐어)!',
-      kr: '주인 없는 자여,\n꿈의 지팡이 아래 나의 힘이 되어라.\n고착!'
+      orig: '주인 없는 자여,\n꿈의 지팡이 아래 나의 힘이 되어라!\n시큐어!',
+      kr: '주인 없는 존재여,\n꿈의 지팡이를 따라 여기 나의 힘이 되어라!\n시큐어!'
+    },
+    finale_p3: {
+      orig: '절대 괜찮아질 거야!\n누구도 사라지지 않는 새로운 이야기로—\n꿈의 지팡이 아래, 모두의 내일을 열어라!',
+      kr: '다 잘될 거야!\n누구도 사라지지 않는 새로운 이야기로—\n꿈의 지팡이 아래, 모두의 내일을 열어라!'
     }
   };
 
@@ -248,7 +273,8 @@ export const Locale = (() => {
     if (typeof input !== 'string' || !input) return input;
     return input
       .replace(CARD_PAREN_RE, '$2')
-      .replace(/레리즈\(해방\)/g, '레리즈');
+      .replace(/레리즈\(해방\)/g, '레리즈')
+      .replace(/고착\(시큐어\)/g, '시큐어');
   }
 
   function translateToKr(input) {
@@ -261,9 +287,11 @@ export const Locale = (() => {
 
     for (const rule of PARTICLE_RULES) {
       if (!out.includes(rule.from)) continue;
+      const isRieul = Utils.endsWithRieul(rule.to);
       const re = new RegExp(`${rule.from}(가|는|를|와|랑|야|여|로)?`, 'g');
       out = out.replace(re, (_, part) => {
         if (!part) return rule.to;
+        if (part === '로' && isRieul) return `${rule.to}로`;
         return rule.to + (PARTICLE_MAP[part] || part);
       });
     }
@@ -317,7 +345,7 @@ export const Locale = (() => {
 })();
 
 /* ----------------------------------------------------------------------------
- * 3. 벡터 아트 복원 · 6종 상황별 표정 오버레이 · 건물 스프라이트 캐시 매니저
+ * 3. 벡터 아트 복원 · 6종 상황별 표정 오버레이 · 1/2/3부 카드 & 보스 렌더러
  * --------------------------------------------------------------------------*/
 export const Art = (() => {
   let rawArt = { avatars: {}, buildings: {}, clow: {}, sakura: {}, clear: {} };
@@ -374,12 +402,28 @@ export const Art = (() => {
       if (!overlay || !base) return base;
       return base.replace(/<\/svg>\s*$/i, `${overlay}</svg>`);
     },
-    getCard(card, isSakura = false) {
+    getCard(card, isSakura = false, isClear = false) {
       if (!card) return '';
       const clow = rawArt.clow || {};
       const sak = rawArt.sakura || {};
+      const clr = rawArt.clear || {};
+
+      // 제3부 클리어 카드 (투명 크리스탈 프레임)
+      if (isClear || card.isClear) {
+        if (card.isBoss) {
+          return decodeSvg((clr.bosses && clr.bosses.clear_finale_card) || '');
+        }
+        const tpl = decodeSvg(clr.frameTemplate || '');
+        const inner = decodeSvg((clr.cards && clr.cards[card.id]) || '');
+        if (tpl && inner) {
+          return tpl.replace('{{ART}}', inner).replace('{{TITLE}}', card.en || '');
+        }
+      }
 
       if (card.isBoss) {
+        if (card.id === 'kaito_boss') {
+          return decodeSvg((clr.bosses && clr.bosses.clear_finale_card) || '');
+        }
         if (isSakura || card.id === 'eriol_boss') {
           return decodeSvg((sak.bosses && sak.bosses.eriol_card) || '');
         }
@@ -399,10 +443,25 @@ export const Art = (() => {
       const mark = card.ruler === 'kero' ? '☀' : '☽';
       return tpl.replace('{{RULER}}', mark).replace('{{ART}}', inner).replace('{{TITLE}}', card.en || '');
     },
-    getManifest(target, { isPart2 = false, bossPhase = 1 } = {}) {
+    getManifest(target, { isPart2 = false, isPart3 = false, bossPhase = 1 } = {}) {
       if (!target) return '';
       const clow = rawArt.clow || {};
       const sak = rawArt.sakura || {};
+      const clr = rawArt.clear || {};
+
+      if (isPart3 || target.id === 'kaito_boss') {
+        const cb = clr.bosses || {};
+        if (target.isBoss || target.id === 'kaito_boss') {
+          return decodeSvg(bossPhase === 1 ? (cb.clockwork_construct || '') : (cb.clockland_mage || ''));
+        }
+        if (target.id === 'dreaming' && cb.cloaked_figure) {
+          return decodeSvg(cb.cloaked_figure);
+        }
+        const body = decodeSvg((clr.cards && clr.cards[target.id]) || '');
+        const tpl = decodeSvg(clr.spiritTemplate || '');
+        if (tpl && body) return tpl.replace('{{BODY}}', body);
+        return this.getCard(target, false, true);
+      }
 
       if (target.isBoss) {
         if (isPart2 || target.id === 'eriol_boss') {
@@ -421,7 +480,7 @@ export const Art = (() => {
       if (body.trim().startsWith('<svg')) return body;
       const tpl = decodeSvg((isPart2 && sak.trialSpiritTemplate) ? sak.trialSpiritTemplate : (clow.spiritTemplate || ''));
       if (tpl && body) return tpl.replace('{{BODY}}', body);
-      return this.getCard(target, isPart2);
+      return this.getCard(target, isPart2, false);
     }
   };
 })();
@@ -484,7 +543,7 @@ export const SoundFX = (() => {
         tone(n, 0.42, 'triangle', 0.024);
         if (step % 4 === 0) tone(n * 0.5, 0.72, 'sine', 0.019);
         step++;
-      }, themePart === 2 ? 500 : 520);
+      }, themePart === 3 ? 480 : themePart === 2 ? 500 : 520);
     },
     toggle() {
       enabled = !enabled;
@@ -534,7 +593,9 @@ export const SoundFX = (() => {
       tone(520 + Math.random() * 140, 0.06, 'triangle', 0.06);
     },
     seal() {
-      const chord = themePart === 2
+      const chord = themePart === 3
+        ? [659.25, 880, 1046.5, 1318.5, 1567.98]
+        : themePart === 2
         ? [587.33, 739.99, 880, 1174.66, 1479.98]
         : [523.25, 659.25, 783.99, 1046.5, 1318.5];
       chord.forEach((f, i) => tone(f, 0.34, 'triangle', 0.08, i * 0.09));
@@ -546,12 +607,12 @@ export const SoundFX = (() => {
 })();
 
 /* ----------------------------------------------------------------------------
- * 5. 3부작 무퇴보 연속 성장 곡선 · 8벌+2벌 의상 & ★별빛 리폼 · 친밀도 상한
+ * 5. 3부작 무퇴보 연속 성장 곡선 · 의상(1부 9 + 2부 2 + 3부 4) · 친밀도 상한
  * --------------------------------------------------------------------------*/
 export const Rules = {
   TRUST_CAPS: { 1: 5, 2: 10, 3: 15 },
 
-  /** 제1부 4막 단계 개방형 스토리 진행 규칙 (원작 기승전결 + 막 내부 자유 탐험) */
+  /** 제1부 4막 단계 개방형 스토리 진행 규칙 */
   PART1_ACTS: {
     act1: ['fly'],
     act2: ['wood', 'jump', 'shield', 'flower', 'illusion', 'shadow'],
@@ -647,7 +708,7 @@ export const Rules = {
     }
   ],
 
-  /** 제2부 전용 신규 의상 2벌 (1부 해금 의상과 겹치지 않는 오리지널 보상!) */
+  /** 제2부 전용 신규 의상 2벌 */
   DEFAULT_COSTUMES_P2_EXTRA: [
     {
       id: 'star_opening', name: '⭐ 별빛 오프닝 드레스', icon: '⭐', unlockType: 'default', unlockHint: '새 학기 별의 지팡이 각성 기념 지급',
@@ -665,12 +726,43 @@ export const Rules = {
     }
   ],
 
+  /** 제3부 전용 신규 의상 4벌 */
+  DEFAULT_COSTUMES_P3_EXTRA: [
+    {
+      id: 'mschool_uniform', name: '🎀 중학교 세일러 교복', icon: '🎀', unlockType: 'default', unlockHint: '중학교 입학 기본 복장',
+      dressColor: '#0f172a', accentColor: '#f8fafc', hatType: 'uniform_mid', hatColor: '#e11d48',
+      passive: '단정한 중학교 교복 (마법 보정 없음)',
+      reformedPassive: '단정한 중학교 교복 (마법 보정 없음)',
+      tomoyoQuote: '중학생이 되신 사쿠라의 교복 모습도 정말 사랑스러워요!'
+    },
+    {
+      id: 'crystal_dream', name: '💎 크리스탈 드림 드레스', icon: '💎', unlockType: 'card', unlockCard: 'gale', unlockHint: '첫 클리어 카드 게일 고착 후 토모요 선물',
+      dressColor: '#38bdf8', accentColor: '#fef08a', hatType: 'crystal', hatColor: '#bae6fd',
+      passive: '클리어 마법 위력 +12% · 최대 MP +15',
+      reformedPassive: '클리어 마법 위력 +12% · 최대 MP +15',
+      tomoyoQuote: '투명하게 반짝이는 꿈의 지팡이에 맞춰 하늘빛 크리스탈 프릴로 지어 보았답니다!'
+    },
+    {
+      id: 'clockwork_wonder', name: '🕰 클락워크 원더 드레스', icon: '🕰', unlockType: 'clear_count', unlockCount: 12, unlockHint: '클리어 카드 12장 이상 고착 시 해금',
+      dressColor: '#4338ca', accentColor: '#fde047', hatType: 'crown', hatColor: '#fef08a',
+      passive: '받는 피해 15% 경감 · 프리즘 락 판정 여유 +6%',
+      reformedPassive: '받는 피해 15% 경감 · 프리즘 락 판정 여유 +6%',
+      tomoyoQuote: '황금 시계 장식을 수놓은 신비로운 드레스예요!'
+    },
+    {
+      id: 'prism_snow', name: '❄️ 프리즘 스노우 케이프', icon: '❄️', unlockType: 'clear_count', unlockCount: 22, unlockHint: '클리어 카드 22장 이상 고착 시 해금',
+      dressColor: '#e0f2fe', accentColor: '#f472b6', hatType: 'halo', hatColor: '#7dd3fc',
+      passive: '매 턴 MP +8 자동 회복 · 모든 공격 +18%',
+      reformedPassive: '매 턴 MP +8 자동 회복 · 모든 공격 +18%',
+      tomoyoQuote: '눈꽃처럼 투명하면서도 따뜻한 빛을 품은 최고 걸작 케이프랍니다!'
+    }
+  ],
+
   /**
    * 3부작 연속 무퇴보 성장 곡선
    * - 제1부: HP 100 -> 120 / MP 100 -> 208 (장당 +6) / 배율 1.00 -> 1.58
    * - 제2부: HP 120 -> 145 / MP 210 -> 324 (장당 +6) / 배율 1.55 -> 2.15
-   * - 제3부: HP 145 -> 170 / MP 325 -> 450 / 배율 2.10 -> 2.75
-   * (구버전 데이터 JSON의 낮은 수치가 내려오더라도 절대 1부 최종치 아래로 내려가지 않도록 하한 보장!)
+   * - 제3부: HP 145 -> 175 / MP 325 -> 480 (31장 장당 +5) / 배율 2.10 -> 3.03
    */
   calcStats({ part = 1, progressCount = 0, total = 19, costumeId = 'sakura_dress', isReformed = false, part1Linked = false, progCfg = null }) {
     const bonus = this.getCostumeBonuses(costumeId, isReformed);
@@ -678,14 +770,14 @@ export const Rules = {
 
     if (part === 3) {
       const startHp = Math.max(145, progCfg?.startHp ?? 145);
-      const maxHpCap = Math.max(170, progCfg?.maxHp ?? 170);
+      const maxHpCap = Math.max(175, progCfg?.maxHp ?? 175);
       const baseMp = Math.max(325, progCfg?.baseMp ?? 325);
-      const mpPer = progCfg?.mpPerCard ?? 7;
+      const mpPer = progCfg?.mpPerCard ?? 5;
       return {
         lv: 1 + progressCount,
         maxHp: Math.round(startHp + (maxHpCap - startHp) * ratio) + (bonus.hpBonus || 0),
         maxMp: baseMp + progressCount * mpPer + (bonus.mpBonus || 0),
-        mult: 2.10 + progressCount * 0.035
+        mult: 2.10 + progressCount * 0.03
       };
     }
 
@@ -718,12 +810,13 @@ export const Rules = {
   getCostumeBonuses(costumeId, isReformed = false) {
     const base = {
       hpBonus: 0, mpBonus: 0, magicMult: 1.0, allAtkMult: 1.0,
-      elemResist: 1.0, waterWindResist: 1.0, waterPushImmune: false,
+      allDmgResist: 1.0, elemResist: 1.0, waterWindResist: 1.0, waterPushImmune: false,
       healMult: 1.0, critChance: 0, critMult: 1.3,
       speedMult: 1.0, sealZoneBonus: 0, turnMpRegen: 0
     };
     switch (costumeId) {
       case 'school_uniform':
+      case 'mschool_uniform':
         return { ...base };
       case 'sakura_dress':
         return isReformed
@@ -761,6 +854,12 @@ export const Rules = {
         return { ...base, mpBonus: 10, magicMult: 1.08, sealZoneBonus: 3 };
       case 'eclipse_cape':
         return { ...base, turnMpRegen: 5, critChance: 0.22, critMult: 1.32, allAtkMult: 1.10 };
+      case 'crystal_dream':
+        return { ...base, mpBonus: 15, magicMult: 1.12 };
+      case 'clockwork_wonder':
+        return { ...base, allDmgResist: 0.85, sealZoneBonus: 6 };
+      case 'prism_snow':
+        return { ...base, turnMpRegen: 8, allAtkMult: 1.18, magicMult: 1.12 };
       default:
         return { ...base };
     }
@@ -777,7 +876,13 @@ export const Rules = {
     if (ctx.unlockedCostumes?.has?.(costume.id)) return true;
     const t = costume.unlockType;
     if (t === 'default') return true;
-    if (t === 'card') return !!(ctx.ownedCards?.has(costume.unlockCard) || ctx.sakuraCards?.has(costume.unlockCard));
+    if (t === 'card') {
+      return !!(
+        ctx.ownedCards?.has(costume.unlockCard) ||
+        ctx.sakuraCards?.has(costume.unlockCard) ||
+        ctx.clearCards?.has(costume.unlockCard)
+      );
+    }
     if (t === 'cards_all') return Utils.toArr(costume.unlockCards).every((id) => ctx.ownedCards?.has(id));
     if (t === 'cards_any') return Utils.toArr(costume.unlockCards).some((id) => ctx.ownedCards?.has(id));
     if (t === 'owned_count') return (ctx.ownedCards?.size || 0) >= (costume.unlockCount || 12);
@@ -785,17 +890,13 @@ export const Rules = {
     if (t === 'card_or_p1') return !!(ctx.part1Linked || ctx.sakuraCards?.has(costume.unlockCard));
     if (t === 'incident') return !!ctx.clearedIncidents?.has(costume.unlockIncident);
     if (t === 'sakura_count') return (ctx.sakuraCards?.size || 0) >= (costume.unlockCount || 5);
+    if (t === 'clear_count') return (ctx.clearCards?.size || 0) >= (costume.unlockCount || 12);
     return false;
   }
 };
 
 /* ----------------------------------------------------------------------------
  * 6. Firebase RTDB 공용 데이터·아트 로더 & 무마찰 4중 보안 멀티 세이브 클라우드
- *    - 익명 인증: initializeAuth(..., { persistence: inMemoryPersistence })
- *      (구글 사이트 iframe · 사파리 · 크롬북 스토리지 차단 환경에서도 오류 0%)
- *    - 세이브 경로: /sakura/players/{playerId}/slots/{auto | slot1..slot6} (비밀번호 미저장)
- *    - 비밀번호 검증: /sakura/secrets/{playerId}/{sha256Hash} = true (무유출 해시 검증)
- *    - 로컬 게스트 경로: localStorage['sakura_trilogy_local_slots']
  * --------------------------------------------------------------------------*/
 const FIREBASE_CFG = {
   apiKey: "AIzaSyCsIXKvZt9PrES_opeCDYxaSLV02dWVVKA",
@@ -844,10 +945,6 @@ function withTimeout(promise, ms = 12000) {
   ]);
 }
 
-/**
- * 보이지 않는 자동 출입증 발급 (메모리 전용 익명 인증)
- * - 여러 병렬 DB 요청이 동시에 들어와도 단 1회의 익명 로그인만 수행
- */
 function ensureAuth() {
   if (auth.currentUser) return Promise.resolve(auth.currentUser);
   if (!authReadyPromise) {
@@ -861,10 +958,6 @@ function ensureAuth() {
   return authReadyPromise;
 }
 
-/**
- * 아이디+비밀번호 조합 SHA-256 해시 계산 (브라우저에서 복호화 불가능)
- * - 반환값은 64자리 16진수 문자열로 Firebase RTDB 키 규격에 100% 안전
- */
 async function computeSecretHash(cid, inputSec) {
   if (!window.crypto || !window.crypto.subtle) {
     throw new Error('보안 연결(HTTPS) 환경에서만 클라우드 계정을 이용할 수 있습니다.');
@@ -876,11 +969,6 @@ async function computeSecretHash(cid, inputSec) {
     .join('');
 }
 
-/**
- * 무유출 secrets 경로 기반 비밀번호 검증
- * 1) /sakura/secrets/{cid}/{hashKey} === true 여부만 서버에 질의 (해시 목록은 .read:false로 차단)
- * 2) 혹시 구버전 평문 secret/pin이 남아 있는 기존 계정이라면 자동 검증 후 secrets로 무중단 이관
- */
 async function verifySecret(cid, inputSec, playerVal) {
   const hashKey = await computeSecretHash(cid, inputSec);
   const hashRef = ref(db, `sakura/secrets/${cid}/${hashKey}`);
@@ -889,7 +977,6 @@ async function verifySecret(cid, inputSec, playerVal) {
     return { ok: true, hashKey };
   }
 
-  // 구버전 평문 계정 자동 이관(하위 호환)
   const legacySec = playerVal && playerVal.secret != null ? String(playerVal.secret) : '';
   const legacyPin = playerVal && playerVal.pin != null ? String(playerVal.pin) : '';
   if ((legacySec && legacySec === inputSec) || (legacyPin && legacyPin === inputSec)) {
@@ -921,32 +1008,80 @@ export const Cloud = {
   sanitizeSlotKey,
   ensureAuth,
 
-  /** 공용 아트 4종 1회 병렬 프리로드 (챕터 전환 시 메모리 캐시 재사용) */
+  /** 공용 아트 병렬 프리로드 (3부 분할 노드 cards_clear_a + cards_clear_b 자동 병합) */
   async ensureSharedArt(includeSakura = true, includeClear = false) {
     await ensureAuth();
     const tasks = [];
-    if (!contentCache.art.avatars) tasks.push(fetchNode('sakura/content/art/avatars', true).then((v) => { contentCache.art.avatars = v; }));
-    if (!contentCache.art.buildings) tasks.push(fetchNode('sakura/content/art/buildings', true).then((v) => { contentCache.art.buildings = v; }));
-    if (!contentCache.art.clow) tasks.push(fetchNode('sakura/content/art/cards_clow', true).then((v) => { contentCache.art.clow = v; }));
-    if (includeSakura && !contentCache.art.sakura) tasks.push(fetchNode('sakura/content/art/cards_sakura', false).then((v) => { contentCache.art.sakura = v || {}; }));
-    if (includeClear && !contentCache.art.clear) tasks.push(fetchNode('sakura/content/art/cards_clear', false).then((v) => { contentCache.art.clear = v || {}; }));
+    if (!contentCache.art.avatars) {
+      tasks.push(fetchNode('sakura/content/art/avatars', true).then((v) => { contentCache.art.avatars = v; }));
+    }
+    if (!contentCache.art.buildings) {
+      tasks.push(fetchNode('sakura/content/art/buildings', true).then((v) => { contentCache.art.buildings = v; }));
+    }
+    if (!contentCache.art.clow) {
+      tasks.push(fetchNode('sakura/content/art/cards_clow', true).then((v) => { contentCache.art.clow = v; }));
+    }
+    if (includeSakura && !contentCache.art.sakura) {
+      tasks.push(fetchNode('sakura/content/art/cards_sakura', false).then((v) => { contentCache.art.sakura = v || {}; }));
+    }
+    if (includeClear && !contentCache.art.clear) {
+      tasks.push(
+        Promise.all([
+          fetchNode('sakura/content/art/cards_clear_a', false),
+          fetchNode('sakura/content/art/cards_clear_b', false),
+          fetchNode('sakura/content/art/cards_clear', false)
+        ]).then(([a, b, legacy]) => {
+          const base = a || legacy || {};
+          contentCache.art.clear = {
+            frameTemplate: base.frameTemplate || '',
+            spiritTemplate: base.spiritTemplate || '',
+            cards: { ...(legacy?.cards || {}), ...(a?.cards || {}), ...(b?.cards || {}) },
+            bosses: { ...(legacy?.bosses || {}), ...(a?.bosses || {}), ...(b?.bosses || {}) }
+          };
+        })
+      );
+    }
     if (tasks.length) await Promise.all(tasks);
     Art.setRawArt(contentCache.art);
     contentCache.artLoaded = true;
     return contentCache.art;
   },
 
-  /** 특정 막(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 */
+  /** 특정 막(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 (3부는 part3 + part3_late 자동 병합!) */
   async loadBundle(part = 1) {
     await ensureAuth();
+    let dataPromise;
+    if (contentCache.parts[part]) {
+      dataPromise = Promise.resolve(contentCache.parts[part]);
+    } else if (part === 3) {
+      dataPromise = Promise.all([
+        fetchNode('sakura/content/part3', true),
+        fetchNode('sakura/content/part3_late', false)
+      ]).then(([early, late]) => {
+        const merged = {
+          ...early,
+          cardOrder: [...Utils.toArr(early.cardOrder), ...Utils.toArr(late?.cardOrderLate)],
+          acts: {
+            ...(early.actsEarly || {}),
+            ...(late?.actsLate || {})
+          },
+          cards: { ...(early.cards || {}), ...(late?.cards || {}) },
+          bossClear: late?.bossClear || early.bossClear || null,
+          dialogues: { ...(early.dialogues || {}), ...(late?.dialogues || {}) }
+        };
+        contentCache.parts[3] = merged;
+        return merged;
+      });
+    } else {
+      dataPromise = fetchNode(`sakura/content/part${part}`, true).then((v) => {
+        contentCache.parts[part] = v;
+        return v;
+      });
+    }
+
     const [, data] = await Promise.all([
       this.ensureSharedArt(part >= 2, part >= 3),
-      contentCache.parts[part]
-        ? Promise.resolve(contentCache.parts[part])
-        : fetchNode(`sakura/content/part${part}`, true).then((v) => {
-            contentCache.parts[part] = v;
-            return v;
-          })
+      dataPromise
     ]);
     return { data, art: contentCache.art };
   },
@@ -971,7 +1106,6 @@ export const Cloud = {
     return all;
   },
 
-  /** 가장 최근에 저장된 슬롯 반환 (타이틀 '모험 이어하기' 버튼용) */
   getLatestSlot(slotsObj) {
     if (!slotsObj || typeof slotsObj !== 'object') return null;
     let best = null;
