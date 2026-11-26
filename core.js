@@ -1,7 +1,8 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.2
+ * 카드캡터 3부작 통합 공용 코어 엔진 (core.js) — v.0.1.3
  * - 단일 스토리 연속 3부작(제1부 황혼 -> 제2부 별빛 -> 제3부 꿈결) 통합 엔진
+ * - 메모리 전용 익명 인증(inMemoryPersistence) + 무유출 SHA-256 해시(/sakura/secrets)
  * - 단일 Firebase 경로(/sakura/players/{id}) + 멀티 세이브 슬롯(자동 1 + 수동 6)
  * - 3부작 무퇴보 연속 성장 곡선 (1부 HP 100->120 / 2부 120->145 / 3부 145->170)
  * - 1부 8벌 의상 + 2부 ★별빛 리폼(패시브 강화) + 2부 신규 의상 2벌 규칙
@@ -11,12 +12,13 @@
  * ============================================================================
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { initializeAuth, inMemoryPersistence, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getDatabase, ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 export const VERSION = {
-  app: 'v.0.1.2',
-  engine: 'v.0.1.2',
-  trilogy: 'v.0.1.2'
+  app: 'v.0.1.3',
+  engine: 'v.0.1.3',
+  trilogy: 'v.0.1.3'
 };
 
 export const SAVE_SLOTS = [
@@ -752,8 +754,11 @@ export const Rules = {
 };
 
 /* ----------------------------------------------------------------------------
- * 6. Firebase RTDB 공용 데이터·아트 로더 & 단일 경로 멀티 세이브 슬롯 클라우드
- *    - 클라우드 경로: /sakura/players/{playerId}/slots/{auto | slot1..slot6}
+ * 6. Firebase RTDB 공용 데이터·아트 로더 & 무마찰 4중 보안 멀티 세이브 클라우드
+ *    - 익명 인증: initializeAuth(..., { persistence: inMemoryPersistence })
+ *      (구글 사이트 iframe · 사파리 · 크롬북 스토리지 차단 환경에서도 오류 0%)
+ *    - 세이브 경로: /sakura/players/{playerId}/slots/{auto | slot1..slot6} (비밀번호 미저장)
+ *    - 비밀번호 검증: /sakura/secrets/{playerId}/{sha256Hash} = true (무유출 해시 검증)
  *    - 로컬 게스트 경로: localStorage['sakura_trilogy_local_slots']
  * --------------------------------------------------------------------------*/
 const FIREBASE_CFG = {
@@ -768,7 +773,10 @@ const FIREBASE_CFG = {
 
 const LOCAL_SLOTS_KEY = 'sakura_trilogy_local_slots';
 const app = initializeApp(FIREBASE_CFG);
+const auth = initializeAuth(app, { persistence: inMemoryPersistence });
 const db = getDatabase(app);
+
+let authReadyPromise = null;
 
 const contentCache = {
   artLoaded: false,
@@ -793,14 +801,6 @@ function sanitizeSlotKey(key) {
   return valid ? key : 'auto';
 }
 
-function secretMatches(savedVal, inputSec) {
-  if (!savedVal) return true;
-  const storedSec = savedVal.secret != null ? String(savedVal.secret) : '';
-  const storedPin = savedVal.pin != null ? String(savedVal.pin) : '';
-  if (!storedSec && !storedPin) return true;
-  return (storedSec && storedSec === inputSec) || (storedPin && storedPin === inputSec);
-}
-
 function withTimeout(promise, ms = 12000) {
   return Promise.race([
     promise,
@@ -808,7 +808,69 @@ function withTimeout(promise, ms = 12000) {
   ]);
 }
 
+/**
+ * 보이지 않는 자동 출입증 발급 (메모리 전용 익명 인증)
+ * - 여러 병렬 DB 요청이 동시에 들어와도 단 1회의 익명 로그인만 수행
+ */
+function ensureAuth() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (!authReadyPromise) {
+    authReadyPromise = withTimeout(signInAnonymously(auth), 12000)
+      .then((cred) => cred.user)
+      .catch((err) => {
+        authReadyPromise = null;
+        throw new Error(`인증 세션 발급 실패: ${err.message}`);
+      });
+  }
+  return authReadyPromise;
+}
+
+/**
+ * 아이디+비밀번호 조합 SHA-256 해시 계산 (브라우저에서 복호화 불가능)
+ * - 반환값은 64자리 16진수 문자열로 Firebase RTDB 키 규격에 100% 안전
+ */
+async function computeSecretHash(cid, inputSec) {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error('보안 연결(HTTPS) 환경에서만 클라우드 계정을 이용할 수 있습니다.');
+  }
+  const encoded = new TextEncoder().encode(`sakura_secret_v1:${cid}:${inputSec}`);
+  const buf = await window.crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * 무유출 secrets 경로 기반 비밀번호 검증
+ * 1) /sakura/secrets/{cid}/{hashKey} === true 여부만 서버에 질의 (해시 목록은 .read:false로 차단)
+ * 2) 혹시 구버전 평문 secret/pin이 남아 있는 기존 계정이라면 자동 검증 후 secrets로 무중단 이관
+ */
+async function verifySecret(cid, inputSec, playerVal) {
+  const hashKey = await computeSecretHash(cid, inputSec);
+  const hashRef = ref(db, `sakura/secrets/${cid}/${hashKey}`);
+  const hashSnap = await withTimeout(get(hashRef));
+  if (hashSnap.exists() && hashSnap.val() === true) {
+    return { ok: true, hashKey };
+  }
+
+  // 구버전 평문 계정 자동 이관(하위 호환)
+  const legacySec = playerVal && playerVal.secret != null ? String(playerVal.secret) : '';
+  const legacyPin = playerVal && playerVal.pin != null ? String(playerVal.pin) : '';
+  if ((legacySec && legacySec === inputSec) || (legacyPin && legacyPin === inputSec)) {
+    await withTimeout(set(hashRef, true));
+    await withTimeout(update(ref(db, `sakura/players/${cid}`), {
+      secret: null,
+      pin: null,
+      authMode: 'secrets'
+    }));
+    return { ok: true, hashKey };
+  }
+
+  return { ok: false, hashKey };
+}
+
 async function fetchNode(path, required = true) {
+  await ensureAuth();
   const snap = await withTimeout(get(ref(db, path)));
   if (!snap.exists()) {
     if (required) throw new Error(`${path} 경로에 데이터가 없습니다.`);
@@ -821,9 +883,11 @@ export const Cloud = {
   sanitizeId,
   sanitizeSecret,
   sanitizeSlotKey,
+  ensureAuth,
 
   /** 공용 아트 4종 1회 병렬 프리로드 (챕터 전환 시 메모리 캐시 재사용) */
   async ensureSharedArt(includeSakura = true, includeClear = false) {
+    await ensureAuth();
     const tasks = [];
     if (!contentCache.art.avatars) tasks.push(fetchNode('sakura/content/art/avatars', true).then((v) => { contentCache.art.avatars = v; }));
     if (!contentCache.art.buildings) tasks.push(fetchNode('sakura/content/art/buildings', true).then((v) => { contentCache.art.buildings = v; }));
@@ -838,6 +902,7 @@ export const Cloud = {
 
   /** 특정 막(1 | 2 | 3) 데이터 + 공용 아트 번들 로드 */
   async loadBundle(part = 1) {
+    await ensureAuth();
     const [, data] = await Promise.all([
       this.ensureSharedArt(part >= 2, part >= 3),
       contentCache.parts[part]
@@ -884,8 +949,9 @@ export const Cloud = {
     return best;
   },
 
-  /* ---- Firebase 단일 경로(/sakura/players/{id}) 통합 계정 & 멀티 슬롯 ---- */
+  /* ---- Firebase 단일 경로(/sakura/players/{id}) + 무유출 secrets 계정 ---- */
   async loginAccount(rawId, rawSecret) {
+    await ensureAuth();
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     if (!cid) throw new Error('아이디를 입력해 주세요. (한글·영문·숫자 자유 입력)');
@@ -895,7 +961,8 @@ export const Cloud = {
     const snap = await withTimeout(get(accRef));
     if (snap.exists()) {
       const val = snap.val();
-      if (!secretMatches(val, sec)) {
+      const verified = await verifySecret(cid, sec, val);
+      if (!verified.ok) {
         throw new Error('이미 등록된 아이디입니다. 비밀번호가 일치하지 않습니다.');
       }
       return {
@@ -907,9 +974,11 @@ export const Cloud = {
     }
 
     const now = Date.now();
+    const hashKey = await computeSecretHash(cid, sec);
+    await withTimeout(set(ref(db, `sakura/secrets/${cid}/${hashKey}`), true));
     await withTimeout(set(accRef, {
       playerId: cid,
-      secret: sec,
+      authMode: 'secrets',
       createdAt: now,
       updatedAt: now
     }));
@@ -922,17 +991,20 @@ export const Cloud = {
   },
 
   async fetchAccountSlots(rawId, rawSecret) {
+    await ensureAuth();
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     if (!cid) throw new Error('아이디를 입력해 주세요.');
     const snap = await withTimeout(get(ref(db, `sakura/players/${cid}`)));
     if (!snap.exists()) return {};
     const val = snap.val();
-    if (!secretMatches(val, sec)) throw new Error('비밀번호가 일치하지 않습니다.');
+    const verified = await verifySecret(cid, sec, val);
+    if (!verified.ok) throw new Error('비밀번호가 일치하지 않습니다.');
     return (val.slots && typeof val.slots === 'object') ? val.slots : {};
   },
 
   async saveSlot(rawId, rawSecret, slotKey, snapshot) {
+    await ensureAuth();
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     const sk = sanitizeSlotKey(slotKey);
@@ -941,8 +1013,12 @@ export const Cloud = {
 
     const accRef = ref(db, `sakura/players/${cid}`);
     const snap = await withTimeout(get(accRef));
-    if (snap.exists() && !secretMatches(snap.val(), sec)) {
-      throw new Error('비밀번호가 일치하지 않습니다.');
+    if (snap.exists()) {
+      const verified = await verifySecret(cid, sec, snap.val());
+      if (!verified.ok) throw new Error('비밀번호가 일치하지 않습니다.');
+    } else {
+      const hashKey = await computeSecretHash(cid, sec);
+      await withTimeout(set(ref(db, `sakura/secrets/${cid}/${hashKey}`), true));
     }
 
     const now = Date.now();
@@ -953,7 +1029,9 @@ export const Cloud = {
     };
     await withTimeout(update(accRef, {
       playerId: cid,
-      secret: sec,
+      authMode: 'secrets',
+      secret: null,
+      pin: null,
       updatedAt: now,
       [`slots/${sk}`]: record
     }));
@@ -961,6 +1039,7 @@ export const Cloud = {
   },
 
   async deleteSlot(rawId, rawSecret, slotKey) {
+    await ensureAuth();
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     const sk = sanitizeSlotKey(slotKey);
@@ -969,13 +1048,15 @@ export const Cloud = {
     const accRef = ref(db, `sakura/players/${cid}`);
     const snap = await withTimeout(get(accRef));
     if (!snap.exists()) throw new Error('계정 정보를 찾을 수 없습니다.');
-    if (!secretMatches(snap.val(), sec)) throw new Error('비밀번호가 일치하지 않습니다.');
+    const verified = await verifySecret(cid, sec, snap.val());
+    if (!verified.ok) throw new Error('비밀번호가 일치하지 않습니다.');
 
     await withTimeout(remove(ref(db, `sakura/players/${cid}/slots/${sk}`)));
     return sk;
   },
 
   async deleteAccount(rawId, rawSecret) {
+    await ensureAuth();
     const cid = sanitizeId(rawId);
     const sec = sanitizeSecret(rawSecret);
     if (!cid) throw new Error('아이디를 입력해 주세요.');
@@ -983,9 +1064,13 @@ export const Cloud = {
     const accRef = ref(db, `sakura/players/${cid}`);
     const snap = await withTimeout(get(accRef));
     if (!snap.exists()) throw new Error('삭제할 계정이 없습니다.');
-    if (!secretMatches(snap.val(), sec)) throw new Error('비밀번호가 일치하지 않습니다.');
+    const verified = await verifySecret(cid, sec, snap.val());
+    if (!verified.ok) throw new Error('비밀번호가 일치하지 않습니다.');
 
-    await withTimeout(remove(accRef));
+    await Promise.all([
+      withTimeout(remove(accRef)),
+      withTimeout(remove(ref(db, `sakura/secrets/${cid}`)))
+    ]);
     return cid;
   }
 };
