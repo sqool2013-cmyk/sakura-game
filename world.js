@@ -1,11 +1,12 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.2.0-e
+ * 카드캡터 3부작 공용 2D 월드 & 비주얼 렌더 엔진 (world.js) — v.0.1.4
  * - 1부(황혼) · 2부(별빛) 공용 야외 및 10개 층별/구역별 실내 맵 렌더링 (구 4맵 100% 호환)
  * - 분수대 중앙 원형 산책 데크 & 원형 충돌 판정으로 보이지 않는 벽/다리 막힘 해결
  * - 우드·글로우·섀도·다크·라이트·일루전 강화 이상 현상 (광과민성 안전 준수)
  * - 제2부 에리오르 6대 사건 전용 필드 기믹 & 별빛 공명 코어·이름표 상시 표시
- * - 반투명 유키토(청명) 연출 & 마법 의상 8벌 실시간 외형·방향별 시선 스프라이트
+ * - 지팡이 방안 2 적용: 평상시 탐험 중 지팡이 숨김(비행 중/해방 시에만 출현)
+ * - 초등학교 교복(uniform) 포함 마법 의상 실시간 외형·방향별 시선 스프라이트
  * ============================================================================
  */
 import { Utils, Locale, Art } from './core.js';
@@ -475,7 +476,23 @@ export function createWorldEngine(canvas) {
     ctx.stroke();
 
     // 의상별 포인트 장식
-    if (hatType === 'cat') {
+    if (hatType === 'uniform') {
+      // 토모에다(우수) 초등학교 세일러 교복 흰 카라 & 빨간 스카프
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x - 7, y - 3);
+      ctx.lineTo(x + 7, y - 3);
+      ctx.lineTo(x, y + 4.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e11d48';
+      ctx.beginPath();
+      ctx.moveTo(x - 2.4, y + 2);
+      ctx.lineTo(x + 2.4, y + 2);
+      ctx.lineTo(x, y + 8.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (hatType === 'cat') {
       ctx.fillStyle = '#facc15';
       ctx.fillRect(x - 4, y + 1, 8, 3);
     } else if (hatType === 'ribbon') {
@@ -593,6 +610,8 @@ export function createWorldEngine(canvas) {
       ctx.beginPath();
       ctx.ellipse(x, y - 24, 9, 3, 0, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (hatType === 'uniform') {
+      // 교복 착용 시에는 모자 없이 단정한 단발 머리 유지
     } else {
       ctx.fillStyle = hatCol;
       ctx.beginPath();
@@ -667,12 +686,16 @@ export function createWorldEngine(canvas) {
 
     drawProtagonistChar(0, 0, player.walk, player.dir || 'down', costume);
 
-    ctx.strokeStyle = part === 2 ? '#f472b6' : '#f43f5e';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(11, -14); ctx.lineTo(11, 10); ctx.stroke();
-    ctx.fillStyle = '#fef08a';
-    ctx.beginPath(); ctx.arc(11, -16.5, part === 2 ? 5.2 : 4.2, 0, Math.PI * 2); ctx.fill();
-    if (part === 2) { ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 1.4; ctx.stroke(); }
+    // 지팡이 방안 2: 평상시 탐험 중에는 열쇠 목걸이 상태(지팡이 숨김), 비행 중 또는 명시적 해방 시에만 출현
+    const showWand = flying || !!flags?.showWand;
+    if (showWand && !flags?.hideWand) {
+      ctx.strokeStyle = part === 2 ? '#f472b6' : '#f43f5e';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(11, -14); ctx.lineTo(11, 10); ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.arc(11, -16.5, part === 2 ? 5.2 : 4.2, 0, Math.PI * 2); ctx.fill();
+      if (part === 2) { ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 1.4; ctx.stroke(); }
+    }
 
     if (buffs.shield) {
       ctx.strokeStyle = part === 2 ? 'rgba(251,207,232,0.9)' : 'rgba(253,224,71,0.9)';
