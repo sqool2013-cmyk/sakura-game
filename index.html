@@ -311,8 +311,8 @@
         <p class="font-magic text-[11px] tracking-[0.34em] text-yellow-300/90 mb-1.5 relative z-10">COMPLETE MAGIC CHRONICLE</p>
         <h1 id="titleMainHeading" class="font-story text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-sky-200 mb-3 relative z-10">카드캡터 사쿠라</h1>
         <p id="titleSubDesc" class="font-story text-xs sm:text-sm text-pink-100/90 leading-relaxed mb-4 relative z-10">
-          지하 서재에서 열린 붉은 책의 봉인에서 시작해,<br/>
-          황혼의 <b>크로우 카드</b>와 별빛의 <b>사쿠라 카드</b>로 이어지는 하나의 마법 이야기.
+          지하 서재에서 열린 신비로운 책과 함께 시작되는 모험.<br/>
+          황혼에서 별빛, 그리고 아득한 꿈결로 이어지는 하나의 마법 이야기.
         </p>
 
         <!-- 최근 세이브 프리뷰 배지 -->
@@ -340,7 +340,7 @@
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-purple-300/75 relative z-10">
           <span>SEAMLESS TRILOGY EDITION</span>
-          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.1.4</span>
+          <span id="titleVersionBadge" class="px-2 py-0.5 rounded-full bg-black/45 border border-yellow-400/35 text-yellow-200 font-bold">v.0.2.1</span>
         </div>
       </div>
     </div>
@@ -482,16 +482,16 @@
       <div id="saveStatusMsg" class="shrink-0 min-h-[2.2rem] rounded-xl bg-black/45 border border-white/10 px-3 py-1.5 text-xs font-story text-amber-100 flex items-center justify-center text-center">원하는 슬롯을 선택해 저장하거나 불러오세요. · 닫기(Esc)</div>
       <div class="shrink-0 flex items-center justify-between text-[10px] font-mono text-purple-300/70">
         <span>SAKURA CHRONICLE · MULTI-SLOT</span>
-        <span id="modalVersionBadge">v.0.1.4</span>
+        <span id="modalVersionBadge">v.0.2.1</span>
       </div>
     </div>
   </div>
 
   <!-- =========================================================================
-   * 통합 단일 스토리 호스트 & 멀티 세이브 컨트롤러 (v.0.1.4)
+   * 통합 단일 스토리 호스트 & 멀티 세이브 컨트롤러 (v.0.2.1)
    * =======================================================================-->
   <script type="module">
-    const APP_VER = 'v.0.1.4';
+    const APP_VER = 'v.0.2.1';
     let ENGINE_BASE = '';
 
     /** 공용 엔진 3종 로드 (core.js는 쿼리 없이 로드해 모든 모듈이 단일 인스턴스 공유) */
@@ -569,6 +569,7 @@
             syaoranTrust: 0,
             part1Cleared: false,
             part2Cleared: false,
+            part3Cleared: false,
             firstSealedCard: '',
             lastSealedCard: '',
             hadMirror: false
@@ -724,8 +725,11 @@
         $('hudBookIcon').textContent = p === 2 ? '🌸' : p === 3 ? '💎' : '📖';
         $('hudBookLabel').textContent = Locale.t(p === 2 ? '사쿠라 북' : p === 3 ? '클리어 북' : '크로우 북');
         $('fieldMagicBarLabel').textContent = p === 2 ? 'STAR' : p === 3 ? 'DREAM' : 'FIELD';
-        $('btnWandLabel').textContent = p === 2 ? '⭐ 별의 지팡이' : p === 3 ? '🔮 꿈의 지팡이' : '🪄 지팡이';
-        $('btnCardSub').textContent = p === 2 ? '✨3키 ★변환' : '보유 카드';
+        $('btnWandLabel').textContent = p === 2 ? '⭐ 별의 지팡이' : p === 3 ? '💎 꿈의 지팡이' : '🪄 지팡이';
+        $('btnCardSub').textContent = p === 2 ? '✨5~7키 ★변환' : p === 3 ? '클리어 카드' : '보유 카드';
+        if ($('btnSealMain')) {
+          $('btnSealMain').textContent = p === 3 ? '💎 프리즘 고착!' : p === 2 ? '★ 공명 변환!' : '🎯 수렴 봉인!';
+        }
       }
 
       function handleResize() {
@@ -778,7 +782,7 @@
         $('btnLocaleHud').textContent = Locale.shortLabel();
         $('hudHeroName').textContent = Locale.t('사쿠라');
         $('titleMainHeading').textContent = mainTitle;
-        $('titleSubDesc').innerHTML = Locale.t('지하 서재에서 열린 붉은 책의 봉인에서 시작해,<br/>황혼의 <b>크로우 카드</b>와 별빛의 <b>사쿠라 카드</b>로 이어지는 하나의 마법 이야기.');
+        $('titleSubDesc').innerHTML = Locale.t('지하 서재에서 열린 신비로운 책과 함께 시작되는 모험.<br/>황혼에서 별빛, 그리고 아득한 꿈결로 이어지는 하나의 마법 이야기.');
         $('wardrobeTitle').textContent = Locale.t('🎀 토모요의 마법 의상실');
         if (part) setTheme(part);
 
