@@ -788,6 +788,11 @@ export function createChapter(host, DATA) {
             unlockedCostumes: story.unlockedCostumes
           });
           const equipped = story.costumeId === cos.id;
+          const lockedHint = cos.unlockType === 'boss_clear'
+            ? '🔒 마지막 시련을 돌파하면 토모요가 선물해 드려요.'
+            : cos.unlockType === 'owned_count'
+            ? '🔒 모험을 진행하며 카드를 더 많이 모으면 해금됩니다.'
+            : '🔒 모험 중 특정 조건을 달성하면 토모요가 새로 지어 드려요.';
           const card = document.createElement('div');
           card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${
             equipped
@@ -799,11 +804,11 @@ export function createChapter(host, DATA) {
           card.innerHTML = `
             <div>
               <div class="flex items-center justify-between gap-2 mb-1">
-                <span class="font-story font-bold text-sm text-yellow-200">${Locale.t(cos.name)}</span>
-                <span class="w-4 h-4 rounded-full border border-white/70" style="background:${cos.dressColor}"></span>
+                <span class="font-story font-bold text-sm ${unlocked ? 'text-yellow-200' : 'text-slate-300'}">${unlocked ? Locale.t(cos.name) : '🔒 ??? (비밀 배틀 의상)'}</span>
+                <span class="w-4 h-4 rounded-full border ${unlocked ? 'border-white/70' : 'border-white/25'}" style="background:${unlocked ? cos.dressColor : '#334155'}"></span>
               </div>
-              <div class="text-xs font-bold text-emerald-300 mb-1">✦ ${Locale.t(cos.passive)}</div>
-              <p class="text-[11px] font-story text-pink-100/90 leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : `🔒 해금 조건: ${cos.unlockHint}`)}</p>
+              <div class="text-xs font-bold ${unlocked ? 'text-emerald-300' : 'text-slate-400'} mb-1">✦ ${unlocked ? Locale.t(cos.passive) : '효과: 해금 후 공개'}</div>
+              <p class="text-[11px] font-story ${unlocked ? 'text-pink-100/90' : 'text-slate-400'} leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : lockedHint)}</p>
             </div>
             <button ${!unlocked || equipped ? 'disabled' : ''} data-cos="${cos.id}" class="w-full py-2 rounded-xl text-xs font-story font-bold transition ${
               equipped
