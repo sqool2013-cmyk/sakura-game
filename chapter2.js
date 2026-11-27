@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- * 카드캡터 3부작 — 제2부 고유 컨트롤러 (chapter2.js) — v.0.1.2
+ * 카드캡터 3부작 — 제2부 고유 컨트롤러 (chapter2.js) — v.0.2.0
  * - 통합 단일 스토리 앱(index.html)과 연동되는 제2부(사쿠라/체리 카드 편) 모듈
  * - 토모요(지수) 촬영 동행 AI: 모든 실내·야외 맵에서 일정 거리로 동행(회복·의상실 전담)
  * - 1부 해금 의상 ★별빛 리폼(패시브 강화) + 2부 전용 신규 의상 2벌(중복 해금 대사 제거)
  * - 연속 무퇴보 HP/MP 성장(120->145 / 210->324) · 샤오랑 친밀도 상한(Lv.10)
- * - 4종 마법 피니시(3키 별빛 공명 · 사건 순수 격파 · 수렴 마법진 · X연타 마력 충돌) 연동
- * - "1부에서~" 메타 문구 자동 자연화 · 제2부 공명 지점 필드 이상 현상 상호작용 보완
+ * - 5~7키 별빛 공명 · 사건 순수 격파 · 수렴 마법진 · X연타 마력 충돌 연동
+ * - 제2부 완결 시 제3부(꿈결의 토모에다 · 클리어 카드 편) 막간 시네마틱으로 자연 직결
  * ============================================================================
  */
 
@@ -1025,6 +1025,26 @@ export function createChapter(host, DATA) {
     vn.start(lines);
   }
 
+  /** 제2부 완결 -> 제3부(클리어 카드 편) 막간 시네마틱 전환 호출 */
+  function openPart3Interlude() {
+    mode = 'ending';
+    updateFieldBar();
+    const f = CARDS[story.convertedOrder[0] || 'windy'];
+    host.transitionToNextAct(3, {
+      icon: '💎',
+      sub: 'ACT II COMPLETE · INTERLUDE TO PART III',
+      title: '별빛이 물러가고, 벚꽃 흩날리는 중학교 입학식',
+      body:
+        `<b>[${cardName(f)}]★</b>부터 마지막 <b>[다크]★ · [라이트]★</b> 동시 각성까지 열아홉 장의 사쿠라 카드를 모두 피워내고, 에리오르의 마지막 시련을 넘어선 사쿠라.<br/><br/>` +
+        `이듬해 봄, 만개한 벚꽃 아래 <b>토모에다 중학교</b>에 입학한 사쿠라는 홍콩에서 돌아온 <b>샤오랑</b>과 꿈에 그리던 재회를 맞습니다.<br/>` +
+        `하지만 신비로운 꿈을 꾼 다음 날 아침, 소중한 카드들이 모두 투명하게 변해 버리고 손안에는 새로운 <b>꿈의 열쇠</b>가 쥐어지는데—<br/><br/>` +
+        `<span class="text-sky-200 text-xs font-bold">💎 1·2부 의상(★별빛 리폼 포함) · HP/MP · 샤오랑 친밀도(${story.syaoranTrust}) · 추억이 모두 제3부로 이어집니다!</span>`,
+      buttonLabel: '💎 중학교 입학식(제3부)으로 계속하기 (X)',
+      act2Payload: getSavePayload(),
+      sharedPatch: getSharedState()
+    });
+  }
+
   function finishEriolVictory() {
     sakuraCards.add('dark');
     sakuraCards.add('light');
@@ -1037,17 +1057,7 @@ export function createChapter(host, DATA) {
     autoSave('제2부 완결 · 에리오르 최종 시련 돌파');
 
     vn.start(toArr(DATA.dialogues?.eriolVictory), () => {
-      mode = 'ending';
-      updateFieldBar();
-      const f = CARDS[story.convertedOrder[0] || 'windy'];
-      host.showEnding({
-        sub: 'PART II CLEAR · MASTER OF THE STAR',
-        title: '별의 주인과 열아홉 장의 사쿠라 카드',
-        summaryHtml:
-          `사쿠라는 <b>[${cardName(f)}]★</b>부터 마지막 <b>[다크]★ · [라이트]★</b> 동시 각성까지 열아홉 장 모두를 자신의 별빛으로 피워내고, 에리오르·스피넬 썬·루비 문의 최종 시련을 넘어섰습니다!<br/>` +
-          `<span class="text-pink-200 font-bold mt-1.5 inline-block">★ 별마력 Lv.${player.lv} · 최대 HP ${player.maxHp} · ⚡ 샤오랑 친밀도 ${story.syaoranTrust}</span><br/>` +
-          `<span class="text-sky-200 text-xs mt-1.5 inline-block">🔮 유키토와 모든 카드가 영원한 빛을 되찾았습니다. 이 완결 기록을 저장 슬롯에 남겨 두면 추후 <b>제3부 [꿈결의 토모에다 · 클리어 카드 편]</b>으로 바로 이어집니다!</span>`
-      });
+      openPart3Interlude();
     });
   }
 
@@ -1140,8 +1150,8 @@ export function createChapter(host, DATA) {
       ]);
     } else if (npc.id === 'syaoran') {
       const msg = eriolDefeated
-        ? '크로우 리드의 환생까지 이겨내다니... 역시 넌 최고의 마법사야, 사쿠라.'
-        : `현재 친밀도 ${story.syaoranTrust}/10! 배틀 중 [⚡샤오랑 원호]로 결계와 반사막을 깨뜨릴 수 있으니 언제든 불러! 사건 전투 중엔 [🃏 카드 해방]의 3키 별빛 공명으로 카드를 실시간 각성시키는 것도 잊지 마!`;
+        ? '크로우 리드의 환생까지 이겨내다니... 역시 넌 최고의 마법사야, 사쿠라. 중학교에 들어가서도 계속 함께하자.'
+        : `현재 친밀도 ${story.syaoranTrust}/10! 배틀 중 [⚡샤오랑 원호]로 결계와 반사막을 깨뜨릴 수 있으니 언제든 불러! 사건 전투 중엔 [🃏 카드 해방]의 5~7키 별빛 공명으로 카드를 실시간 각성시키는 것도 잊지 마!`;
       vn.start([{ speaker: '샤오랑', role: 'ALLY', avatar: 'syaoran', mood: 'happy', text: msg }]);
     } else if (npc.id === 'eriol') {
       // 에리오르 신비감 유지: 최종 결전 전까지는 카드·마법 정체를 숨기는 정중하고 묘한 전학생 톤
@@ -1221,6 +1231,9 @@ export function createChapter(host, DATA) {
     if (isFinalUnlocked() && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map) {
       const d = Math.hypot(player.x - BOSS_ERIOL.x, player.y - BOSS_ERIOL.y);
       if (d < 102 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'boss', obj: BOSS_ERIOL }; }
+    } else if (eriolDefeated && !memoryMode.active && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map) {
+      const d = Math.hypot(player.x - BOSS_ERIOL.x, player.y - BOSS_ERIOL.y);
+      if (d < 102 && d < bestScore) { bestScore = d; nearbyTarget = { type: 'next_act', obj: BOSS_ERIOL }; }
     }
     for (const n of NPCS) {
       if (!isNpcVisible(n)) continue;
@@ -1244,6 +1257,8 @@ export function createChapter(host, DATA) {
           ? `✦ ${nearbyTarget.obj.kr} 조사 (X)`
           : nearbyTarget.type === 'boss'
           ? '🌌 에리오르 최종 시련 맞서기 (X)'
+          : nearbyTarget.type === 'next_act'
+          ? '💎 중학교 입학식(제3부)으로 떠나기 (X)'
           : `★ ${cardName(nearbyTarget.obj)} 별빛 공명 (X)`
       );
     } else {
@@ -1277,6 +1292,8 @@ export function createChapter(host, DATA) {
         intro.unshift(...toArr(DATA.dialogues.syaoranFinalCheer));
       }
       vn.start(intro, () => battle.start(getScaledBattleTarget(BOSS_ERIOL)));
+    } else if (t.type === 'next_act') {
+      openPart3Interlude();
     }
   }
 
@@ -1715,6 +1732,11 @@ export function createChapter(host, DATA) {
           player.targetPos = { x: BOSS_ERIOL.x, y: BOSS_ERIOL.y };
           return;
         }
+        if (eriolDefeated && !memoryMode.active && BOSS_ERIOL && currentMapId === BOSS_ERIOL.map && Math.hypot(wx - BOSS_ERIOL.x, wy - BOSS_ERIOL.y) < 64) {
+          pendingTarget = { type: 'next_act', obj: BOSS_ERIOL };
+          player.targetPos = { x: BOSS_ERIOL.x, y: BOSS_ERIOL.y };
+          return;
+        }
         pendingTarget = null;
       }
       player.targetPos = { x: wx, y: wy };
@@ -1723,7 +1745,7 @@ export function createChapter(host, DATA) {
     onKeroHint() {
       if (mode !== 'explore') return;
       const next = getNextObjective();
-      if (!next) host.showToast('케로: 열아홉 장 모두 사쿠라 카드가 됐어! 토모에다가 별빛으로 가득해!');
+      if (!next) host.showToast('케로: 열아홉 장 모두 사쿠라 카드가 됐어! 시계탑 광장에서 중학교 입학식(제3부)으로 출발할 수 있어!');
       else if (next.isBoss) host.showToast(`케로: 준비 끝! 남쪽 [${BOSS_ERIOL.zone}]에서 에리오르의 최종 시련에 맞서자!`);
       else if (next.targetIncident || next.isIncident) {
         const ti = next.targetIncident || next;
