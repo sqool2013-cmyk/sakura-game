@@ -748,6 +748,13 @@ export function createChapter(host, DATA) {
           const reformed = story.reformedCostumes.has(cos.id);
           const equipped = story.costumeId === cos.id;
           const passiveTxt = Rules.getCostumePassiveLabel(cos, reformed);
+          const lockedHint = cos.unlockType === 'clear_count'
+            ? '🔒 모험을 진행하며 카드를 더 많이 모으면 토모요가 지어 드려요.'
+            : cos.unlockType === 'incident'
+            ? '🔒 마을의 기묘한 사건을 돌파하면 해금됩니다.'
+            : cos.unlockType === 'boss_clear'
+            ? '🔒 마지막 시련을 돌파하면 해금됩니다.'
+            : '🔒 모험을 진행하며 특정 조건을 달성하면 토모요가 선물해 드려요.';
           const card = document.createElement('div');
           card.className = `rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition ${
             equipped
@@ -760,13 +767,13 @@ export function createChapter(host, DATA) {
             <div>
               <div class="flex items-center justify-between gap-2 mb-1">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="font-story font-bold text-sm text-yellow-200 truncate">${Locale.t(cos.name)}</span>
-                  ${reformed ? '<span class="shrink-0 px-1.5 py-0.5 rounded-full bg-amber-400/25 border border-yellow-300 text-[9px] font-bold text-yellow-200">★리폼</span>' : ''}
+                  <span class="font-story font-bold text-sm ${unlocked ? 'text-yellow-200' : 'text-slate-300'} truncate">${unlocked ? Locale.t(cos.name) : '🔒 ??? (비밀 배틀 의상)'}</span>
+                  ${unlocked && reformed ? '<span class="shrink-0 px-1.5 py-0.5 rounded-full bg-amber-400/25 border border-yellow-300 text-[9px] font-bold text-yellow-200">★리폼</span>' : ''}
                 </div>
-                <span class="w-4 h-4 shrink-0 rounded-full border border-white/70" style="background:${cos.dressColor}"></span>
+                <span class="w-4 h-4 shrink-0 rounded-full border ${unlocked ? 'border-white/70' : 'border-white/25'}" style="background:${unlocked ? cos.dressColor : '#334155'}"></span>
               </div>
-              <div class="text-xs font-bold ${reformed ? 'text-yellow-200' : 'text-emerald-300'} mb-1">✦ ${Locale.t(passiveTxt)}</div>
-              <p class="text-[11px] font-story text-sky-100/90 leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : `🔒 해금 조건: ${cos.unlockHint}`)}</p>
+              <div class="text-xs font-bold ${!unlocked ? 'text-slate-400' : reformed ? 'text-yellow-200' : 'text-emerald-300'} mb-1">✦ ${unlocked ? Locale.t(passiveTxt) : '효과: 해금 후 공개'}</div>
+              <p class="text-[11px] font-story ${unlocked ? 'text-sky-100/90' : 'text-slate-400'} leading-relaxed">${Locale.t(unlocked ? cos.tomoyoQuote : lockedHint)}</p>
             </div>
             <button ${!unlocked || equipped ? 'disabled' : ''} data-cos="${cos.id}" class="w-full py-2 rounded-xl text-xs font-story font-bold transition ${
               equipped
